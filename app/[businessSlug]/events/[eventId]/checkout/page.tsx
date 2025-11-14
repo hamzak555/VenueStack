@@ -623,13 +623,78 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
           <div className="relative md:sticky md:top-4 md:self-start">
             {event.image_url && (
               <>
+                <style jsx>{`
+                  @keyframes glow-pulse {
+                    0%, 100% {
+                      opacity: 0.6;
+                      transform: scale(1);
+                    }
+                    50% {
+                      opacity: 0.9;
+                      transform: scale(1.05);
+                    }
+                  }
+                  @keyframes glow-shift-1 {
+                    0%, 100% {
+                      transform: translate(-50%, 0) rotate(0deg);
+                    }
+                    33% {
+                      transform: translate(-45%, 5%) rotate(5deg);
+                    }
+                    66% {
+                      transform: translate(-55%, -5%) rotate(-5deg);
+                    }
+                  }
+                  @keyframes glow-shift-2 {
+                    0%, 100% {
+                      transform: translate(-50%, 0) rotate(0deg) scale(1);
+                    }
+                    50% {
+                      transform: translate(-50%, 3%) rotate(10deg) scale(1.1);
+                    }
+                  }
+                  @keyframes glow-shift-3 {
+                    0%, 100% {
+                      transform: translate(-50%, 0) scale(1);
+                    }
+                    25% {
+                      transform: translate(-48%, 2%) scale(1.05);
+                    }
+                    75% {
+                      transform: translate(-52%, -2%) scale(0.95);
+                    }
+                  }
+                  .glow-layer-1 {
+                    animation: glow-pulse 4s ease-in-out infinite, glow-shift-1 8s ease-in-out infinite;
+                  }
+                  .glow-layer-2 {
+                    animation: glow-pulse 3s ease-in-out infinite 0.5s, glow-shift-2 6s ease-in-out infinite;
+                  }
+                  .glow-layer-3 {
+                    animation: glow-pulse 5s ease-in-out infinite 1s, glow-shift-3 10s ease-in-out infinite;
+                  }
+                `}</style>
                 <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] h-[500px] blur-[120px] pointer-events-none z-0"
+                  className="glow-layer-1 absolute top-0 left-1/2 w-[200%] h-[500px] blur-[100px] pointer-events-none z-0"
                   style={{
                     background: `
-                      radial-gradient(ellipse 80% 70% at 30% 30%, ${imageGlowColors[1]}, transparent 60%),
+                      radial-gradient(ellipse 80% 70% at 30% 30%, ${imageGlowColors[1]}, transparent 60%)
+                    `
+                  }}
+                />
+                <div
+                  className="glow-layer-2 absolute top-0 left-1/2 w-[200%] h-[500px] blur-[120px] pointer-events-none z-0"
+                  style={{
+                    background: `
                       radial-gradient(ellipse 80% 70% at 70% 30%, ${imageGlowColors[2]}, transparent 60%),
-                      radial-gradient(ellipse 100% 80% at 50% 60%, ${imageGlowColors[3] || imageGlowColors[0]}, transparent 70%),
+                      radial-gradient(ellipse 100% 80% at 50% 60%, ${imageGlowColors[3] || imageGlowColors[0]}, transparent 70%)
+                    `
+                  }}
+                />
+                <div
+                  className="glow-layer-3 absolute top-0 left-1/2 w-[200%] h-[500px] blur-[140px] pointer-events-none z-0"
+                  style={{
+                    background: `
                       radial-gradient(ellipse at center, ${imageGlowColors[0]}, transparent 50%)
                     `
                   }}
