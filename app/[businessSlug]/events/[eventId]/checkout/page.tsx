@@ -620,7 +620,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
 
         <div className="grid gap-8 md:grid-cols-2">
           {/* Event Details */}
-          <div className="relative">
+          <div className="relative md:sticky md:top-4 md:self-start">
             {event.image_url && (
               <>
                 <div
