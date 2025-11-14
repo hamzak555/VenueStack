@@ -96,7 +96,7 @@ export default async function BusinessesListPage() {
                       {business.contact_email || '-'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={business.is_active ? 'default' : 'secondary'}>
+                      <Badge variant={business.is_active ? 'success' : 'secondary'}>
                         {business.is_active ? 'Active' : 'Inactive'}
                       </Badge>
                     </TableCell>
