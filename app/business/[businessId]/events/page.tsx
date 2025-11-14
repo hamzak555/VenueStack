@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { getEventsByBusinessId, getEventPriceDisplay } from '@/lib/db/events'
+import { getEventsByBusinessId, getEventPriceDisplay, getEventTicketSales, getEventAvailableTickets, getEventTotalTickets } from '@/lib/db/events'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { EventTicketsCell } from '@/components/business/event-tickets-cell'
 
 // Force dynamic rendering to always fetch fresh data
 export const dynamic = 'force-dynamic'
@@ -25,6 +26,22 @@ interface EventsPageProps {
 export default async function EventsPage({ params }: EventsPageProps) {
   const { businessId } = await params
   const events = await getEventsByBusinessId(businessId)
+
+  // Fetch ticket sales data for all events
+  const eventsWithSales = await Promise.all(
+    events.map(async (event) => {
+      const salesData = await getEventTicketSales(event.id)
+      const availableTickets = getEventAvailableTickets(event)
+      return {
+        ...event,
+        salesData: {
+          totalSold: salesData.totalSold,
+          availableTickets,
+          breakdown: salesData.breakdown
+        }
+      }
+    })
+  )
 
   return (
     <div className="space-y-6">
@@ -44,11 +61,11 @@ export default async function EventsPage({ params }: EventsPageProps) {
         <CardHeader>
           <CardTitle>All Events</CardTitle>
           <CardDescription>
-            {events.length} event{events.length !== 1 ? 's' : ''} total
+            {eventsWithSales.length} event{eventsWithSales.length !== 1 ? 's' : ''} total
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {events.length === 0 ? (
+          {eventsWithSales.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">
                 No events created yet
@@ -72,7 +89,7 @@ export default async function EventsPage({ params }: EventsPageProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events.map((event) => (
+                {eventsWithSales.map((event) => (
                   <TableRow key={event.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -118,12 +135,7 @@ export default async function EventsPage({ params }: EventsPageProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
-                        {event.total_tickets - event.available_tickets} sold
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {event.available_tickets} available
-                      </div>
+                      <EventTicketsCell salesData={event.salesData} />
                     </TableCell>
                     <TableCell>{getEventPriceDisplay(event)}</TableCell>
                     <TableCell className="text-right">
