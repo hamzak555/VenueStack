@@ -91,3 +91,52 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     )
   }
 }
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  try {
+    const { businessId } = await context.params
+
+    // Validate business exists
+    const existingBusiness = await getBusinessById(businessId)
+    if (!existingBusiness) {
+      return NextResponse.json(
+        { error: 'Business not found' },
+        { status: 404 }
+      )
+    }
+
+    // Import here to avoid circular dependencies
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+
+    // Check if business has any events
+    const { data: events, error: eventsError } = await supabase
+      .from('events')
+      .select('id')
+      .eq('business_id', businessId)
+      .limit(1)
+
+    if (eventsError) throw eventsError
+
+    if (events && events.length > 0) {
+      return NextResponse.json(
+        { error: 'Cannot delete business with existing events. Please delete all events first.' },
+        { status: 400 }
+      )
+    }
+
+    // Import deleteBusiness function
+    const { deleteBusiness } = await import('@/lib/db/businesses')
+
+    // Delete the business
+    await deleteBusiness(businessId)
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting business:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete business' },
+      { status: 500 }
+    )
+  }
+}

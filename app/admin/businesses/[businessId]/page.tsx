@@ -2,8 +2,10 @@ import { notFound } from 'next/navigation'
 import { getBusinessById } from '@/lib/db/businesses'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import { AdminBusinessEditForm } from '@/components/admin/admin-business-edit-form'
+import { DeleteBusinessButton } from '@/components/admin/delete-business-button'
 
 // Force dynamic rendering to always fetch fresh data
 export const dynamic = 'force-dynamic'
@@ -48,6 +50,26 @@ export default async function AdminBusinessEditPage({ params }: AdminBusinessEdi
         </CardHeader>
         <CardContent>
           <AdminBusinessEditForm businessId={businessId} business={business} />
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+          <CardDescription>
+            Irreversible actions that can cause data loss
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Delete Business</p>
+              <p className="text-sm text-muted-foreground">
+                Permanently delete this business and all associated data
+              </p>
+            </div>
+            <DeleteBusinessButton businessId={businessId} businessName={business.name} />
+          </div>
         </CardContent>
       </Card>
     </div>
