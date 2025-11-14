@@ -333,31 +333,33 @@ export default function StripeSettingsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {status.charges_enabled ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-muted-foreground" />
-                  )}
-                  <div>
-                    <p className="font-medium">Accept Payments</p>
-                    <p className="text-sm text-muted-foreground">
-                      {status.charges_enabled ? 'Enabled' : 'Disabled'}
-                    </p>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    {status.charges_enabled ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div>
+                      <p className="font-medium">Accept Payments</p>
+                      <p className="text-sm text-muted-foreground">
+                        {status.charges_enabled ? 'Enabled' : 'Disabled'}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-3">
-                  {status.payouts_enabled ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-muted-foreground" />
-                  )}
-                  <div>
-                    <p className="font-medium">Receive Payouts</p>
-                    <p className="text-sm text-muted-foreground">
-                      {status.payouts_enabled ? 'Enabled' : 'Disabled'}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    {status.payouts_enabled ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div>
+                      <p className="font-medium">Receive Payouts</p>
+                      <p className="text-sm text-muted-foreground">
+                        {status.payouts_enabled ? 'Enabled' : 'Disabled'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </>
