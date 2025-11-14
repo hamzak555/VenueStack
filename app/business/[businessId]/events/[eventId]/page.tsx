@@ -1,21 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getEventById } from '@/lib/db/events'
-import { getEventItems } from '@/lib/db/event-items'
 import { getTicketTypes } from '@/lib/db/ticket-types'
 import { hasEventBeenSold } from '@/lib/db/orders'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { EventForm } from '@/components/business/event-form'
 import TicketTypesTab from '@/components/business/ticket-types-tab'
 import PromoCodesTab from '@/components/business/promo-codes-tab'
@@ -41,7 +32,6 @@ export default async function EventManagePage({ params }: EventManagePageProps) 
     notFound()
   }
 
-  const items = await getEventItems(eventId)
   const ticketTypes = await getTicketTypes(eventId)
 
   // Check if event has been sold
@@ -157,7 +147,6 @@ export default async function EventManagePage({ params }: EventManagePageProps) 
         <TabsList>
           <TabsTrigger value="details">Event Details</TabsTrigger>
           <TabsTrigger value="tickets">Tickets</TabsTrigger>
-          <TabsTrigger value="items">Sub-Items</TabsTrigger>
           <TabsTrigger value="promo">Promo Codes</TabsTrigger>
         </TabsList>
 
@@ -179,73 +168,6 @@ export default async function EventManagePage({ params }: EventManagePageProps) 
 
         <TabsContent value="tickets" className="space-y-4">
           <TicketTypesTab eventId={eventId} />
-        </TabsContent>
-
-        <TabsContent value="items" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Event Sub-Items</CardTitle>
-                  <CardDescription>
-                    Merchandise, food, drinks, and add-ons for this event
-                  </CardDescription>
-                </div>
-                <Button asChild>
-                  <Link href={`/business/${businessId}/events/${eventId}/items/new`}>
-                    Add Item
-                  </Link>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {items.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No sub-items added yet. Create items like merchandise, food, or add-ons to sell alongside tickets.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="text-right">Available</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">
-                          {item.name}
-                          {item.description && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {item.description}
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="capitalize">
-                            {item.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          ${item.price.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {item.available_quantity}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {item.total_quantity}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="promo" className="space-y-4">
