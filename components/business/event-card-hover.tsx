@@ -72,7 +72,11 @@ export function EventCardHover({ event, businessId }: EventCardHoverProps) {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {new Date(event.event_date).toLocaleDateString()} • {event.available_tickets} /{' '}
+            {new Date(event.event_date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })} • {event.available_tickets} /{' '}
             {event.total_tickets} tickets available
           </p>
         </div>
