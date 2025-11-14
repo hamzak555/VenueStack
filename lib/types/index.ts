@@ -56,19 +56,6 @@ export interface Ticket {
   created_at: string
 }
 
-export interface EventItem {
-  id: string
-  event_id: string
-  name: string
-  description: string | null
-  price: number
-  quantity_available: number | null // null = unlimited
-  is_active: boolean
-  category: 'merchandise' | 'food' | 'beverage' | 'addon' | 'other'
-  created_at: string
-  updated_at: string
-}
-
 export interface DiscountCode {
   id: string
   event_id: string
@@ -144,11 +131,6 @@ export interface Database {
         Row: Ticket
         Insert: Omit<Ticket, 'id' | 'created_at'>
         Update: Partial<Omit<Ticket, 'id' | 'created_at'>>
-      }
-      event_items: {
-        Row: EventItem
-        Insert: Omit<EventItem, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<EventItem, 'id' | 'created_at' | 'updated_at'>>
       }
       discount_codes: {
         Row: DiscountCode
