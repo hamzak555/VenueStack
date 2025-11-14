@@ -37,6 +37,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       )
     }
 
+    // Validate tax_percentage if it's being updated
+    if (body.tax_percentage !== undefined) {
+      const taxValue = parseFloat(body.tax_percentage)
+      if (isNaN(taxValue) || taxValue < 0 || taxValue > 100) {
+        return NextResponse.json(
+          { error: 'Invalid tax_percentage value. Must be between 0 and 100' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Update the business
     const updatedBusiness = await updateBusiness(businessId, body)
 

@@ -21,6 +21,7 @@ interface StripeStatus {
   payouts_enabled?: boolean
   stripe_fee_payer?: 'customer' | 'business'
   platform_fee_payer?: 'customer' | 'business'
+  tax_percentage?: number
   platform_settings?: PlatformSettings
 }
 
@@ -33,6 +34,8 @@ export default function StripeSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isUpdatingFees, setIsUpdatingFees] = useState(false)
+  const [isUpdatingTax, setIsUpdatingTax] = useState(false)
+  const [taxInput, setTaxInput] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const success = searchParams.get('success')
@@ -50,6 +53,7 @@ export default function StripeSettingsPage() {
       }
       const data = await response.json()
       setStatus(data)
+      setTaxInput(data.tax_percentage?.toString() || '0')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -125,6 +129,40 @@ export default function StripeSettingsPage() {
       toast.error('Failed to update fee settings')
     } finally {
       setIsUpdatingFees(false)
+    }
+  }
+
+  const handleUpdateTax = async () => {
+    setIsUpdatingTax(true)
+    setError(null)
+
+    const taxValue = parseFloat(taxInput)
+
+    if (isNaN(taxValue) || taxValue < 0 || taxValue > 100) {
+      setError('Tax percentage must be between 0 and 100')
+      toast.error('Invalid tax percentage')
+      setIsUpdatingTax(false)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/businesses/${businessId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tax_percentage: taxValue }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update tax settings')
+      }
+
+      setStatus(prev => prev ? { ...prev, tax_percentage: taxValue } : null)
+      toast.success('Tax settings updated successfully!')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+      toast.error('Failed to update tax settings')
+    } finally {
+      setIsUpdatingTax(false)
     }
   }
 
@@ -531,6 +569,70 @@ export default function StripeSettingsPage() {
                   </>
                 )
               })()}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tax Settings</CardTitle>
+          <CardDescription>
+            Configure tax percentage to be applied to ticket sales
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="tax-percentage">Tax Percentage (%)</Label>
+            <div className="flex gap-2">
+              <input
+                id="tax-percentage"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={taxInput}
+                onChange={(e) => setTaxInput(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="0.00"
+                disabled={isUpdatingTax}
+              />
+              <Button
+                onClick={handleUpdateTax}
+                disabled={isUpdatingTax}
+                className="whitespace-nowrap"
+              >
+                {isUpdatingTax ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Tax'
+                )}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Tax will be calculated on the ticket subtotal and added to the customer&apos;s total at checkout.
+              Current tax rate: {status?.tax_percentage || 0}%
+            </p>
+          </div>
+
+          <div className="p-4 bg-muted rounded-lg">
+            <h4 className="font-medium text-sm mb-2">Tax Calculation Example</h4>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Ticket Subtotal:</span>
+                <span className="font-medium">$100.00</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax ({status?.tax_percentage || 0}%):</span>
+                <span className="font-medium">${((100 * (status?.tax_percentage || 0)) / 100).toFixed(2)}</span>
+              </div>
+              <div className="border-t pt-1 mt-1 flex justify-between">
+                <span className="text-muted-foreground font-medium">Total with Tax:</span>
+                <span className="font-medium">${(100 + (100 * (status?.tax_percentage || 0)) / 100).toFixed(2)}</span>
+              </div>
             </div>
           </div>
         </CardContent>

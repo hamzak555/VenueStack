@@ -137,14 +137,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Calculate tax on the amount after discount
+    const taxableAmountInDollars = totalAmount / 100
+    const taxPercentage = event.businesses.tax_percentage || 0
+    const taxInCents = Math.round((taxableAmountInDollars * taxPercentage))
+
     // Get platform settings and calculate platform fee
     const platformSettings = await getPlatformSettings()
     const subtotalInDollars = (totalAmount + discountAmount) / 100
     const platformFeeInDollars = calculatePlatformFee(subtotalInDollars / totalTickets, totalTickets, platformSettings)
     const platformFeeInCents = Math.round(platformFeeInDollars * 100)
 
-    // Start with ticket amount after discount
-    let finalChargeAmount = totalAmount
+    // Start with ticket amount after discount, plus tax
+    let finalChargeAmount = totalAmount + taxInCents
     let platformFeeForCustomer = 0
     let stripeFeeForCustomer = 0
 
@@ -189,6 +194,9 @@ export async function POST(request: NextRequest) {
         stripeFee: (stripeFeeForCustomer / 100).toFixed(2),
         stripeFeePayer: event.businesses.stripe_fee_payer,
         platformFeePayer: event.businesses.platform_fee_payer,
+        // Store tax information
+        taxPercentage: taxPercentage.toString(),
+        taxAmount: (taxInCents / 100).toFixed(2),
         // Store promo code information if applied
         ...(promoCode ? {
           promoCodeId: promoCode.id,

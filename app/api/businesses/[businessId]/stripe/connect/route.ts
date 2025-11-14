@@ -94,7 +94,7 @@ export async function GET(
     // Get business details
     const { data: business, error: businessError } = await supabase
       .from('businesses')
-      .select('stripe_account_id, stripe_onboarding_complete, stripe_fee_payer, platform_fee_payer')
+      .select('stripe_account_id, stripe_onboarding_complete, stripe_fee_payer, platform_fee_payer, tax_percentage')
       .eq('id', businessId)
       .single()
 
@@ -114,6 +114,7 @@ export async function GET(
         onboarding_complete: false,
         stripe_fee_payer: business.stripe_fee_payer || 'customer',
         platform_fee_payer: business.platform_fee_payer || 'customer',
+        tax_percentage: business.tax_percentage || 0,
         platform_settings: platformSettings,
       })
     }
@@ -138,6 +139,7 @@ export async function GET(
       payouts_enabled: account.payouts_enabled,
       stripe_fee_payer: business.stripe_fee_payer || 'customer',
       platform_fee_payer: business.platform_fee_payer || 'customer',
+      tax_percentage: business.tax_percentage || 0,
       platform_settings: platformSettings,
     })
   } catch (error) {

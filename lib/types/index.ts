@@ -22,6 +22,7 @@ export interface Business {
   stripe_onboarding_complete: boolean
   stripe_fee_payer: 'customer' | 'business' // Who pays the Stripe processing fees
   platform_fee_payer: 'customer' | 'business' // Who pays the platform fees
+  tax_percentage: number // Tax percentage to apply (0-100)
   created_at: string
   updated_at: string
 }

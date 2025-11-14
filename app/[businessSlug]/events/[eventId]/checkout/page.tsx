@@ -35,6 +35,7 @@ interface Business {
   stripe_onboarding_complete: boolean
   stripe_fee_payer: 'customer' | 'business'
   platform_fee_payer: 'customer' | 'business'
+  tax_percentage: number
 }
 
 interface TicketType {
@@ -389,6 +390,16 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
     return business.platform_fee_payer === 'customer' ? fee : 0
   }
 
+  const getTax = () => {
+    if (!business) return 0
+
+    const subtotal = calculateTotal()
+    const discount = getDiscountAmount()
+    const taxableAmount = subtotal - discount
+
+    return (taxableAmount * (business.tax_percentage || 0)) / 100
+  }
+
   const getStripeFee = () => {
     if (!business) return 0
 
@@ -397,10 +408,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
 
     const subtotal = calculateTotal()
     const discount = getDiscountAmount()
+    const tax = getTax()
     const platformFee = getPlatformFee()
 
-    // Calculate Stripe fee on the amount customer will pay
-    return calculateStripeFee(subtotal - discount + platformFee)
+    // Calculate Stripe fee on the amount customer will pay (including tax)
+    return calculateStripeFee(subtotal - discount + tax + platformFee)
   }
 
   const handleApplyPromoCode = async () => {
@@ -544,9 +556,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
 
   const subtotal = calculateTotal()
   const discount = getDiscountAmount()
+  const tax = getTax()
   const platformFee = getPlatformFee()
   const stripeFee = getStripeFee()
-  const total = subtotal - discount + platformFee + stripeFee
+  const total = subtotal - discount + tax + platformFee + stripeFee
   const totalTickets = getTotalTicketCount()
 
   const elementsOptions: StripeElementsOptions = {
@@ -872,7 +885,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                     </div>
 
                     <div className="pt-4 border-t">
-                      {(discount > 0 || platformFee > 0 || stripeFee > 0) && (
+                      {(discount > 0 || tax > 0 || platformFee > 0 || stripeFee > 0) && (
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm text-muted-foreground">Subtotal</span>
                           <span className="text-sm text-muted-foreground">${subtotal.toFixed(2)}</span>
@@ -882,6 +895,12 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm text-green-600">Discount</span>
                           <span className="text-sm text-green-600">-${discount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {tax > 0 && (
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-muted-foreground">Tax ({business?.tax_percentage || 0}%)</span>
+                          <span className="text-sm text-muted-foreground">${tax.toFixed(2)}</span>
                         </div>
                       )}
                       {(platformFee > 0 || stripeFee > 0) && (
