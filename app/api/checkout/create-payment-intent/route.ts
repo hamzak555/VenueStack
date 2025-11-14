@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe/server'
 import { createClient } from '@/lib/supabase/server'
 import { getPlatformSettings, calculatePlatformFee } from '@/lib/db/platform-settings'
 import { getTicketType } from '@/lib/db/ticket-types'
+import { getPromoCodeById } from '@/lib/db/promo-codes'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,8 @@ export async function POST(request: NextRequest) {
       ticketSelections, // For multiple ticket types: [{ticketTypeId, quantity}]
       customerName,
       customerEmail,
-      customerPhone
+      customerPhone,
+      promoCodeId // Promo code to apply
     } = body
 
     if (!eventId || !customerName || !customerEmail) {
@@ -112,22 +114,47 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get platform settings and calculate application fee
+    // Apply promo code discount if provided
+    let discountAmount = 0
+    let promoCode = null
+    if (promoCodeId) {
+      promoCode = await getPromoCodeById(promoCodeId)
+
+      if (promoCode && promoCode.is_active) {
+        // Calculate discount based on the promo code type
+        const subtotalInDollars = totalAmount / 100
+
+        if (promoCode.discount_type === 'percentage') {
+          discountAmount = Math.round((totalAmount * promoCode.discount_value) / 100)
+        } else if (promoCode.discount_type === 'fixed') {
+          // Fixed discount in dollars, convert to cents and ensure it doesn't exceed total
+          discountAmount = Math.min(Math.round(promoCode.discount_value * 100), totalAmount)
+        }
+
+        // Apply the discount
+        totalAmount = Math.max(0, totalAmount - discountAmount)
+      }
+    }
+
+    // Get platform settings and calculate platform fee
     const platformSettings = await getPlatformSettings()
-    const subtotalInDollars = totalAmount / 100
-    const applicationFee = Math.round(
-      calculatePlatformFee(subtotalInDollars / totalTickets, totalTickets, platformSettings)
+    const subtotalInDollars = (totalAmount + discountAmount) / 100
+    const platformFeeInCents = Math.round(
+      calculatePlatformFee(subtotalInDollars / totalTickets, totalTickets, platformSettings) * 100
     )
+
+    // Add platform fee to the total amount the customer pays
+    const totalWithPlatformFee = totalAmount + platformFeeInCents
 
     // Create Stripe PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalAmount,
+      amount: totalWithPlatformFee,
       currency: 'usd',
       automatic_payment_methods: {
         enabled: true,
         allow_redirects: 'never',
       },
-      application_fee_amount: applicationFee,
+      application_fee_amount: platformFeeInCents,
       transfer_data: {
         destination: event.businesses.stripe_account_id,
       },
@@ -138,6 +165,12 @@ export async function POST(request: NextRequest) {
         customerName,
         customerEmail,
         customerPhone: customerPhone || '',
+        // Store promo code information if applied
+        ...(promoCode ? {
+          promoCodeId: promoCode.id,
+          promoCode: promoCode.code,
+          discountAmount: (discountAmount / 100).toFixed(2),
+        } : {}),
         // Store ticket type information if applicable
         ...(ticketSelections ? {
           ticketTypes: JSON.stringify(ticketTypeMetadata),

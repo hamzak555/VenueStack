@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe/server'
 import { createClient } from '@/lib/supabase/server'
 import { updateTicketTypeAvailability } from '@/lib/db/ticket-types'
+import { incrementPromoCodeUsage } from '@/lib/db/promo-codes'
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,6 +36,8 @@ export async function GET(request: NextRequest) {
       hasTicketTypes,
       ticketTypes: ticketTypesJson,
       quantity, // Legacy field
+      promoCodeId,
+      discountAmount: discountAmountStr,
     } = paymentIntent.metadata
 
     const supabase = await createClient()
@@ -77,9 +80,23 @@ export async function GET(request: NextRequest) {
         .eq('id', eventId)
     }
 
+    // Calculate discount and subtotal
+    const discountAmount = discountAmountStr ? parseFloat(discountAmountStr) : 0
+    const totalAmount = paymentIntent.amount / 100 // Convert from cents to dollars
+    const subtotal = totalAmount + discountAmount
+
+    // Increment promo code usage if one was applied
+    if (promoCodeId) {
+      try {
+        await incrementPromoCodeUsage(promoCodeId)
+      } catch (error) {
+        console.error('Error incrementing promo code usage:', error)
+        // Continue anyway - payment succeeded
+      }
+    }
+
     // Create order record
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-    const amount = paymentIntent.amount / 100 // Convert from cents to dollars
 
     try {
       await supabase
@@ -90,9 +107,9 @@ export async function GET(request: NextRequest) {
           customer_name: customerName,
           customer_email: customerEmail,
           customer_phone: paymentIntent.metadata.customerPhone || null,
-          subtotal: amount,
-          discount_amount: 0,
-          total: amount,
+          subtotal: subtotal,
+          discount_amount: discountAmount,
+          total: totalAmount,
           status: 'completed',
         })
     } catch (error) {
