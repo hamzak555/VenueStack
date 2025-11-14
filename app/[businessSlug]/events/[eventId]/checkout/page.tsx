@@ -58,12 +58,21 @@ function PaymentForm({
   business,
   total,
   customerInfo,
+  orderSummary,
 }: {
   clientSecret: string
   event: Event
   business: Business
   total: number
   customerInfo: { name: string; email: string; phone: string }
+  orderSummary: {
+    subtotal: number
+    discount: number
+    tax: number
+    platformFee: number
+    stripeFee: number
+    totalTickets: number
+  }
 }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -133,7 +142,43 @@ function PaymentForm({
       </div>
 
       <div className="pt-4 border-t">
-        <div className="flex items-center justify-between mb-4">
+        <div className="space-y-2 mb-4">
+          {/* Subtotal */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              Subtotal ({orderSummary.totalTickets} ticket{orderSummary.totalTickets !== 1 ? 's' : ''})
+            </span>
+            <span className="text-muted-foreground">${orderSummary.subtotal.toFixed(2)}</span>
+          </div>
+
+          {/* Discount */}
+          {orderSummary.discount > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-green-600 dark:text-green-400">Discount</span>
+              <span className="text-green-600 dark:text-green-400">-${orderSummary.discount.toFixed(2)}</span>
+            </div>
+          )}
+
+          {/* Tax */}
+          {orderSummary.tax > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Tax ({business.tax_percentage}%)</span>
+              <span className="text-muted-foreground">${orderSummary.tax.toFixed(2)}</span>
+            </div>
+          )}
+
+          {/* Processing Fees */}
+          {(orderSummary.platformFee > 0 || orderSummary.stripeFee > 0) && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Processing fees</span>
+              <span className="text-muted-foreground">
+                ${(orderSummary.platformFee + orderSummary.stripeFee).toFixed(2)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between mb-4 pt-2 border-t">
           <span className="font-medium">Total</span>
           <span className="text-2xl font-bold">${total.toFixed(2)}</span>
         </div>
@@ -1040,6 +1085,14 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                           business={business}
                           total={total}
                           customerInfo={customerInfo}
+                          orderSummary={{
+                            subtotal,
+                            discount,
+                            tax,
+                            platformFee,
+                            stripeFee,
+                            totalTickets,
+                          }}
                         />
                       </Elements>
                     )}
