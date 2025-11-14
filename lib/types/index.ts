@@ -75,8 +75,8 @@ export interface DiscountCode {
 export interface OrderItem {
   id: string
   order_id: string
-  item_type: 'ticket' | 'event_item'
-  item_id: string // ticket_id or event_item_id
+  item_type: 'ticket'
+  item_id: string // ticket_id
   quantity: number
   unit_price: number
   total_price: number
