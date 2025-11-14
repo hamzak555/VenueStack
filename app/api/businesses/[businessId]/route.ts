@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateBusiness, getBusinessById } from '@/lib/db/businesses'
+import { updateBusiness, getBusinessById, getBusinessBySlug } from '@/lib/db/businesses'
 
 interface RouteContext {
   params: Promise<{
@@ -19,6 +19,37 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         { error: 'Business not found' },
         { status: 404 }
       )
+    }
+
+    // Validate slug if it's being updated
+    if (body.slug && body.slug !== existingBusiness.slug) {
+      // Check slug format
+      if (!/^[a-z0-9-]+$/.test(body.slug)) {
+        return NextResponse.json(
+          { error: 'Slug can only contain lowercase letters, numbers, and hyphens' },
+          { status: 400 }
+        )
+      }
+
+      if (body.slug.length < 3) {
+        return NextResponse.json(
+          { error: 'Slug must be at least 3 characters long' },
+          { status: 400 }
+        )
+      }
+
+      // Check if slug is already taken by another business
+      try {
+        const slugCheck = await getBusinessBySlug(body.slug)
+        if (slugCheck && slugCheck.id !== businessId) {
+          return NextResponse.json(
+            { error: 'This URL slug is already taken by another business' },
+            { status: 400 }
+          )
+        }
+      } catch (error) {
+        // Slug doesn't exist, which is good
+      }
     }
 
     // Validate stripe_fee_payer if it's being updated
