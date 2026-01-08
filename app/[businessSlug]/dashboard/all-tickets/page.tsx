@@ -1,8 +1,12 @@
+import Link from 'next/link'
 import { getBusinessBySlug } from '@/lib/db/businesses'
-import { getTicketsByBusinessId } from '@/lib/db/tickets'
+import { getTicketsByBusinessId, getEventsWithTicketStats } from '@/lib/db/tickets'
+import { getEventById } from '@/lib/db/events'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { AllTicketsTable } from '@/components/business/all-tickets-table'
-import { Ticket } from 'lucide-react'
+import { TicketsEventSelector } from '@/components/business/tickets-event-selector'
+import { Ticket, ArrowLeft } from 'lucide-react'
 
 // Force dynamic rendering to always show current data
 export const dynamic = 'force-dynamic'
@@ -11,15 +15,48 @@ interface AllTicketsPageProps {
   params: Promise<{
     businessSlug: string
   }>
+  searchParams: Promise<{
+    eventId?: string
+  }>
 }
 
-export default async function AllTicketsPage({ params }: AllTicketsPageProps) {
+export default async function AllTicketsPage({ params, searchParams }: AllTicketsPageProps) {
   const { businessSlug } = await params
-
+  const { eventId } = await searchParams
   const business = await getBusinessBySlug(businessSlug)
-  const tickets = await getTicketsByBusinessId(business.id)
 
-  // Calculate stats
+  // If no eventId, show event selection
+  if (!eventId) {
+    const events = await getEventsWithTicketStats(business.id)
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">All Tickets</h1>
+            <p className="text-muted-foreground">
+              Select an event to view and manage tickets
+            </p>
+          </div>
+        </div>
+
+        <TicketsEventSelector events={events} businessSlug={businessSlug} />
+      </div>
+    )
+  }
+
+  // Event selected - show tickets
+  let tickets: any[] = []
+  let event = null
+
+  try {
+    event = await getEventById(eventId)
+    tickets = await getTicketsByBusinessId(business.id, eventId)
+  } catch (error) {
+    console.error('Error fetching tickets:', error)
+  }
+
+  // Calculate stats for this event
   const totalTickets = tickets.length
   const scannedTickets = tickets.filter(t => t.checked_in_at !== null).length
   const unscannedTickets = totalTickets - scannedTickets
@@ -27,11 +64,35 @@ export default async function AllTicketsPage({ params }: AllTicketsPageProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">All Tickets</h1>
-        <p className="text-muted-foreground">
-          View and manage all individual tickets sold across all events
-        </p>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={`/${businessSlug}/dashboard/all-tickets`}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            All Events
+          </Link>
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <Ticket className="h-6 w-6 text-muted-foreground" />
+            <h1 className="text-3xl font-bold tracking-tight">{event?.title || 'Tickets'}</h1>
+          </div>
+          <p className="text-muted-foreground mt-1">
+            {event && (
+              <>
+                {new Date(event.event_date).toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+                {event.event_time && ` at ${event.event_time}`}
+              </>
+            )}
+          </p>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -44,7 +105,7 @@ export default async function AllTicketsPage({ params }: AllTicketsPageProps) {
           <CardContent>
             <div className="text-2xl font-bold">{totalTickets}</div>
             <p className="text-xs text-muted-foreground">
-              All tickets sold
+              Tickets sold for this event
             </p>
           </CardContent>
         </Card>
@@ -89,9 +150,9 @@ export default async function AllTicketsPage({ params }: AllTicketsPageProps) {
       {/* Tickets Table */}
       <Card>
         <CardHeader>
-          <CardTitle>All Tickets</CardTitle>
+          <CardTitle>Tickets</CardTitle>
           <CardDescription>
-            Complete list of all tickets with search and filtering
+            {totalTickets} {totalTickets === 1 ? 'ticket' : 'tickets'} for this event
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -99,7 +160,7 @@ export default async function AllTicketsPage({ params }: AllTicketsPageProps) {
             <div className="text-center py-12">
               <Ticket className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-2">
-                No tickets sold yet
+                No tickets sold yet for this event
               </p>
               <p className="text-sm text-muted-foreground">
                 Tickets will appear here once customers make purchases

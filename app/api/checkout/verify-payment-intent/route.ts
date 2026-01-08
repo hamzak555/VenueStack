@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
 
     // Get metadata from the payment intent
     const {
+      type, // 'table_booking' or undefined (regular ticket)
       eventId,
       businessId,
       totalTickets,
@@ -44,9 +45,37 @@ export async function GET(request: NextRequest) {
       taxPercentage: taxPercentageStr,
       platformFee: platformFeeStr,
       stripeFee: stripeFeeStr,
+      // Table booking specific fields
+      tableSelections, // JSON string of section ID -> quantity
+      orderDetails, // JSON string of order details array
+      totalTables,
+      totalTablePrice,
     } = paymentIntent.metadata
 
     const supabase = await createClient()
+
+    // Handle table booking
+    if (type === 'table_booking') {
+      return handleTableBookingVerification(
+        paymentIntent,
+        supabase,
+        {
+          eventId,
+          businessId,
+          tableSelections,
+          orderDetails,
+          totalTables,
+          totalTablePrice,
+          customerName,
+          customerEmail,
+          customerPhone: paymentIntent.metadata.customerPhone,
+          taxAmountStr,
+          taxPercentageStr,
+          platformFeeStr,
+          stripeFeeStr,
+        }
+      )
+    }
 
     // Check if order already exists for this payment intent (idempotency check)
     const { data: existingOrder, error: existingOrderError } = await supabase
@@ -257,4 +286,187 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+// Handle table booking verification
+async function handleTableBookingVerification(
+  paymentIntent: any,
+  supabase: any,
+  metadata: {
+    eventId: string
+    businessId: string
+    tableSelections: string // JSON string
+    orderDetails: string // JSON string
+    totalTables: string
+    totalTablePrice: string
+    customerName: string
+    customerEmail: string
+    customerPhone?: string
+    taxAmountStr?: string
+    taxPercentageStr?: string
+    platformFeeStr?: string
+    stripeFeeStr?: string
+  }
+) {
+  const {
+    eventId,
+    tableSelections,
+    orderDetails,
+    totalTables,
+    customerName,
+    customerEmail,
+    customerPhone,
+  } = metadata
+
+  // Check if table bookings already exist for this payment intent
+  const { data: existingBookings, error: existingBookingsError } = await supabase
+    .from('table_bookings')
+    .select('*, event_table_sections(section_name), events(title, event_date, event_time, location, image_url)')
+    .eq('order_id', paymentIntent.id)
+
+  if (existingBookings && existingBookings.length > 0 && !existingBookingsError) {
+    // Bookings already exist, return summary
+    const firstBooking = existingBookings[0]
+    const sectionSummary = existingBookings.reduce((acc: Record<string, number>, b: any) => {
+      const name = b.event_table_sections.section_name
+      acc[name] = (acc[name] || 0) + 1
+      return acc
+    }, {})
+    const sectionNames = Object.entries(sectionSummary).map(([name, count]) => `${count}x ${name}`).join(', ')
+
+    return NextResponse.json({
+      success: true,
+      type: 'table_booking',
+      bookingIds: existingBookings.map((b: any) => b.id),
+      eventTitle: firstBooking.events.title,
+      eventDate: firstBooking.events.event_date,
+      eventTime: firstBooking.events.event_time,
+      eventLocation: firstBooking.events.location,
+      eventImageUrl: firstBooking.events.image_url,
+      sectionName: sectionNames,
+      tableNumbers: existingBookings.map((b: any) => b.table_number),
+      totalTables: existingBookings.length,
+      amount: paymentIntent.amount / 100,
+      customerName: firstBooking.customer_name,
+      customerEmail: firstBooking.customer_email,
+      paymentIntentId: paymentIntent.id,
+    })
+  }
+
+  // Get event details
+  const { data: event, error: eventError } = await supabase
+    .from('events')
+    .select('title, event_date, event_time, location, image_url')
+    .eq('id', eventId)
+    .single()
+
+  if (eventError || !event) {
+    return NextResponse.json(
+      { error: 'Event not found' },
+      { status: 404 }
+    )
+  }
+
+  // Parse order details
+  let parsedOrderDetails: { sectionId: string; sectionName: string; quantity: number; price: number }[] = []
+  try {
+    parsedOrderDetails = JSON.parse(orderDetails)
+  } catch (e) {
+    return NextResponse.json(
+      { error: 'Invalid order details' },
+      { status: 400 }
+    )
+  }
+
+  const createdBookings: any[] = []
+  const sectionUpdates: { sectionId: string; decrement: number }[] = []
+
+  // Process each section
+  for (const detail of parsedOrderDetails) {
+    const { sectionId, sectionName, quantity } = detail
+
+    // Get table section
+    const { data: tableSection, error: sectionError } = await supabase
+      .from('event_table_sections')
+      .select('*')
+      .eq('id', sectionId)
+      .single()
+
+    if (sectionError || !tableSection) {
+      console.error(`Table section not found: ${sectionId}`)
+      continue
+    }
+
+    // Create bookings for each table in this section (table_number left null for business to assign)
+    for (let i = 0; i < quantity; i++) {
+      // Create table booking record with amount (price per table)
+      // table_number is left null - business will assign specific table later
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('table_bookings')
+        .insert({
+          event_id: eventId,
+          event_table_section_id: sectionId,
+          table_number: null,
+          order_id: paymentIntent.id,
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone || null,
+          amount: detail.price, // Store the price per table
+          status: 'confirmed',
+        })
+        .select()
+        .single()
+
+      if (!bookingError && bookingData) {
+        createdBookings.push({
+          ...bookingData,
+          sectionName,
+        })
+      }
+    }
+
+    // Track section update
+    sectionUpdates.push({ sectionId, decrement: quantity })
+  }
+
+  // Update available tables count for each section
+  for (const update of sectionUpdates) {
+    const { data: currentSection } = await supabase
+      .from('event_table_sections')
+      .select('available_tables')
+      .eq('id', update.sectionId)
+      .single()
+
+    if (currentSection) {
+      await supabase
+        .from('event_table_sections')
+        .update({ available_tables: Math.max(0, currentSection.available_tables - update.decrement) })
+        .eq('id', update.sectionId)
+    }
+  }
+
+  // Build summary for response
+  const sectionSummary = createdBookings.reduce((acc: Record<string, number>, b: any) => {
+    acc[b.sectionName] = (acc[b.sectionName] || 0) + 1
+    return acc
+  }, {})
+  const sectionNames = Object.entries(sectionSummary).map(([name, count]) => `${count}x ${name}`).join(', ')
+
+  return NextResponse.json({
+    success: true,
+    type: 'table_booking',
+    bookingIds: createdBookings.map(b => b.id),
+    eventTitle: event.title,
+    eventDate: event.event_date,
+    eventTime: event.event_time,
+    eventLocation: event.location,
+    eventImageUrl: event.image_url,
+    sectionName: sectionNames,
+    tableNumbers: createdBookings.map(b => b.table_number),
+    totalTables: createdBookings.length,
+    amount: paymentIntent.amount / 100,
+    customerName,
+    customerEmail,
+    paymentIntentId: paymentIntent.id,
+  })
 }

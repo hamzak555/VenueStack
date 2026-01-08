@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { verifyAdminAccess } from '@/lib/auth/admin-session'
 import { AdminLogoutButton } from './admin-logout-button'
-import { LayoutDashboard, Building2, Users, Settings } from 'lucide-react'
+import { AccountSwitcher } from '@/components/account-switcher'
+import { LayoutDashboard, Building2, Users, Settings, BarChart3 } from 'lucide-react'
 
 interface AdminDashboardLayoutProps {
   children: ReactNode
@@ -21,7 +22,7 @@ export async function AdminDashboardLayout({ children }: AdminDashboardLayoutPro
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-64 border-r bg-card flex flex-col">
+      <aside className="w-64 border-r bg-card flex flex-col sticky top-0 h-screen">
         <div className="p-6">
           <Link href="/admin" className="text-xl font-bold">
             Admin Dashboard
@@ -42,6 +43,12 @@ export async function AdminDashboardLayout({ children }: AdminDashboardLayoutPro
             </Link>
           </Button>
           <Button variant="ghost" asChild className="w-full justify-start">
+            <Link href="/admin/reports">
+              <BarChart3 className="h-4 w-4" />
+              <span className="ml-2">Reports</span>
+            </Link>
+          </Button>
+          <Button variant="ghost" asChild className="w-full justify-start">
             <Link href="/admin/users">
               <Users className="h-4 w-4" />
               <span className="ml-2">Users</span>
@@ -56,9 +63,10 @@ export async function AdminDashboardLayout({ children }: AdminDashboardLayoutPro
         </nav>
         <Separator />
         <div className="p-4 space-y-2">
-          <div className="text-xs text-gray-500 mb-2">
+          <div className="text-xs text-muted-foreground">
             Logged in as: {session.name}
           </div>
+          <AccountSwitcher />
           <AdminLogoutButton />
         </div>
       </aside>

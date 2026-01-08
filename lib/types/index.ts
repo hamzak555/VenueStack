@@ -7,6 +7,97 @@ export interface UserProfile {
   updated_at: string
 }
 
+export interface TablePosition {
+  x: number // percentage from left (0-100)
+  y: number // percentage from top (0-100)
+  width: number // percentage width (default ~5)
+  height: number // percentage height (default ~5)
+  shape: 'circle' | 'square'
+  placed?: boolean // whether the table has been placed on the layout
+}
+
+export interface TableSection {
+  id: string
+  name: string
+  tableCount: number
+  capacity?: number // Number of people per table
+  tableNames?: string[] // Custom names/numbers for each table (e.g., ["VIP 1", "VIP 2", "A1", "A2"])
+  tablePositions?: TablePosition[] // Positions on venue layout (indexed by table)
+  color?: string // Section color for visual distinction
+}
+
+export interface VenueBoundary {
+  x: number       // percentage from left (0-100)
+  y: number       // percentage from top (0-100)
+  width: number   // percentage width
+  height: number  // percentage height
+  locked?: boolean // When true, cannot be selected/moved
+}
+
+export interface VenueLine {
+  id: string
+  x1: number  // start x (percentage)
+  y1: number  // start y (percentage)
+  x2: number  // end x (percentage)
+  y2: number  // end y (percentage)
+  locked?: boolean // When true, cannot be selected/moved
+  pathId?: string // Lines with same pathId are treated as one connected shape
+}
+
+export interface DrawnVenueLayout {
+  boundary: VenueBoundary | null
+  lines: VenueLine[]
+}
+
+export interface TableServiceConfig {
+  sections: TableSection[]
+  fontSize?: number // Font size in pixels for table labels (default 12)
+  drawnLayout?: DrawnVenueLayout // For venues without uploaded image
+}
+
+export interface EventTableSection {
+  id: string
+  event_id: string
+  section_id: string
+  section_name: string
+  price: number
+  minimum_spend?: number // Minimum spend requirement at the venue
+  total_tables: number
+  available_tables: number
+  capacity?: number // Number of people per table
+  max_per_customer?: number // Maximum tables per customer
+  is_enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface TableBooking {
+  id: string
+  event_id: string
+  event_table_section_id: string
+  table_number: number | null // null until business assigns a specific table
+  order_id: string
+  customer_name: string
+  customer_email: string
+  customer_phone: string | null
+  status: 'reserved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
+  created_at: string
+  updated_at: string
+}
+
+export interface CustomerFeedback {
+  id: string
+  table_booking_id: string
+  business_id: string
+  customer_email: string
+  rating: number // 1-5 star rating
+  feedback: string | null
+  created_by_name: string
+  created_by_email: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Business {
   id: string
   name: string
@@ -34,8 +125,23 @@ export interface Business {
   platform_fee_type: 'flat' | 'percentage' | 'higher_of_both' | null // Custom fee calculation method (overrides global if use_custom_fee_settings is true)
   flat_fee_amount: number | null // Custom flat fee amount (overrides global if use_custom_fee_settings is true)
   percentage_fee: number | null // Custom percentage fee (overrides global if use_custom_fee_settings is true)
+  venue_layout_url: string | null // URL to the venue floor plan image/PDF
+  table_service_config: TableServiceConfig | null // Table sections configuration
   created_at: string
   updated_at: string
+}
+
+// Recurrence rule for recurring events (similar to Google Calendar's RRULE)
+export interface RecurrenceRule {
+  type: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'weekdays' | 'custom'
+  interval: number // Repeat every N days/weeks/months/years
+  daysOfWeek?: number[] // 0-6 for weekly recurrence (0=Sunday, 1=Monday, etc.)
+  dayOfMonth?: number // 1-31 for monthly "on day X" recurrence
+  weekOfMonth?: number // 1-5 for monthly "on Nth weekday" (1=first, 2=second, ..., 5=last)
+  monthOfYear?: number // 1-12 for yearly recurrence
+  endType: 'never' | 'date' | 'count'
+  endDate?: string // ISO date string for when recurrence ends
+  endCount?: number // Number of occurrences before ending
 }
 
 export interface Event {
@@ -54,6 +160,9 @@ export interface Event {
   available_tickets: number
   total_tickets: number
   status: 'draft' | 'published' | 'cancelled'
+  timezone: string | null // Business timezone for this event
+  recurrence_rule: RecurrenceRule | null // Null means non-recurring event
+  parent_event_id: string | null // If this is a recurring instance, points to the parent event
   created_at: string
   updated_at: string
 }

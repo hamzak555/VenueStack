@@ -21,6 +21,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Label } from '@/components/ui/label'
 
 interface TicketType {
   id: string
@@ -38,14 +48,18 @@ interface TicketType {
 
 interface TicketTypesTabProps {
   eventId: string
+  isRecurringEvent?: boolean
 }
 
-export default function TicketTypesTab({ eventId }: TicketTypesTabProps) {
+export default function TicketTypesTab({ eventId, isRecurringEvent }: TicketTypesTabProps) {
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingTicketType, setEditingTicketType] = useState<TicketType | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [ticketToDelete, setTicketToDelete] = useState<TicketType | null>(null)
+  const [deleteFromSeries, setDeleteFromSeries] = useState(true)
 
   useEffect(() => {
     fetchTicketTypes()
@@ -66,14 +80,24 @@ export default function TicketTypesTab({ eventId }: TicketTypesTabProps) {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this ticket?')) {
-      return
-    }
+  const openDeleteDialog = (ticketType: TicketType) => {
+    setTicketToDelete(ticketType)
+    setDeleteFromSeries(true)
+    setShowDeleteDialog(true)
+  }
+
+  const handleDelete = async () => {
+    if (!ticketToDelete) return
 
     try {
-      setDeletingId(id)
-      const response = await fetch(`/api/ticket-types/${id}`, {
+      setDeletingId(ticketToDelete.id)
+      setShowDeleteDialog(false)
+
+      const url = isRecurringEvent && deleteFromSeries
+        ? `/api/ticket-types/${ticketToDelete.id}?propagateToSeries=true`
+        : `/api/ticket-types/${ticketToDelete.id}`
+
+      const response = await fetch(url, {
         method: 'DELETE',
       })
 
@@ -87,7 +111,13 @@ export default function TicketTypesTab({ eventId }: TicketTypesTabProps) {
       alert('Failed to delete ticket')
     } finally {
       setDeletingId(null)
+      setTicketToDelete(null)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setShowDeleteDialog(false)
+    setTicketToDelete(null)
   }
 
   const handleFormSuccess = () => {
@@ -285,7 +315,7 @@ export default function TicketTypesTab({ eventId }: TicketTypesTabProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(ticketType.id)}
+                          onClick={() => openDeleteDialog(ticketType)}
                           disabled={deletingId === ticketType.id}
                         >
                           {deletingId === ticketType.id ? (
@@ -319,11 +349,53 @@ export default function TicketTypesTab({ eventId }: TicketTypesTabProps) {
           <TicketTypeForm
             eventId={eventId}
             ticketType={editingTicketType || undefined}
+            isRecurringEvent={isRecurringEvent}
             onSuccess={handleFormSuccess}
             onCancel={handleFormCancel}
           />
         </DialogContent>
       </Dialog>
+
+      {/* Delete Ticket Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{ticketToDelete?.name}&quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {isRecurringEvent && (
+            <div className="py-4">
+              <div className="p-4 bg-muted/50 rounded-lg border">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="delete_from_series"
+                    checked={deleteFromSeries}
+                    onChange={(e) => setDeleteFromSeries(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="delete_from_series" className="cursor-pointer font-medium">
+                    Delete from all events in series
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1 ml-6">
+                  Remove this ticket type from all recurring events
+                </p>
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDeleteCancel}>Cancel</AlertDialogCancel>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

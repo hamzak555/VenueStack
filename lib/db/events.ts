@@ -98,9 +98,10 @@ export async function getEventsByBusinessId(businessId: string) {
 /**
  * Get published events for a business (public-facing)
  */
-export async function getPublishedEventsByBusinessId(businessId: string) {
+export async function getPublishedEventsByBusinessId(businessId: string, includePastEvents: boolean = false) {
   const supabase = await createServerClient()
-  const { data, error } = await supabase
+
+  let query = supabase
     .from('events')
     .select(`
       *,
@@ -115,8 +116,17 @@ export async function getPublishedEventsByBusinessId(businessId: string) {
     `)
     .eq('business_id', businessId)
     .eq('status', 'published')
-    .gte('event_date', new Date().toISOString())
-    .order('event_date', { ascending: true })
+
+  if (includePastEvents) {
+    // Include events from the last 60 days for calendar view
+    const sixtyDaysAgo = new Date()
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
+    query = query.gte('event_date', sixtyDaysAgo.toISOString())
+  } else {
+    query = query.gte('event_date', new Date().toISOString())
+  }
+
+  const { data, error } = await query.order('event_date', { ascending: true })
 
   if (error) throw error
   return data

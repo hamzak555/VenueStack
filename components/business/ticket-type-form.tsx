@@ -24,13 +24,15 @@ interface TicketTypeFormProps {
     sale_start_date: string | null
     sale_end_date: string | null
   }
+  isRecurringEvent?: boolean
   onSuccess: () => void
   onCancel: () => void
 }
 
-export default function TicketTypeForm({ eventId, ticketType, onSuccess, onCancel }: TicketTypeFormProps) {
+export default function TicketTypeForm({ eventId, ticketType, isRecurringEvent, onSuccess, onCancel }: TicketTypeFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [propagateToSeries, setPropagateToSeries] = useState(true) // Default to true for recurring events
 
   const [formData, setFormData] = useState({
     name: ticketType?.name || '',
@@ -68,6 +70,7 @@ export default function TicketTypeForm({ eventId, ticketType, onSuccess, onCance
           is_active: formData.is_active,
           sale_start_date: formData.sale_start_date?.toISOString() || null,
           sale_end_date: formData.sale_end_date?.toISOString() || null,
+          propagateToSeries: isRecurringEvent && propagateToSeries,
         }),
       })
 
@@ -230,6 +233,28 @@ export default function TicketTypeForm({ eventId, ticketType, onSuccess, onCance
               Active (available for purchase)
             </Label>
           </div>
+
+          {isRecurringEvent && (
+            <div className="p-4 bg-muted/50 rounded-lg border">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="propagate_to_series"
+                  checked={propagateToSeries}
+                  onChange={(e) => setPropagateToSeries(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="propagate_to_series" className="cursor-pointer font-medium">
+                  Apply to all events in series
+                </Label>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1 ml-6">
+                {ticketType
+                  ? 'Update matching ticket types across all recurring events'
+                  : 'Create this ticket type for all recurring events'}
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-4">
             <Button type="submit" disabled={isLoading} className="flex-1">

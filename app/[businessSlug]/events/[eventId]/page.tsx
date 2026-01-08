@@ -6,7 +6,8 @@ import { getEventById } from '@/lib/db/events'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, MapPin, Clock, Ticket } from 'lucide-react'
+import { Calendar, MapPin, Clock, Ticket, Wine } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 
 interface EventPageProps {
   params: Promise<{
@@ -31,6 +32,24 @@ export default async function EventPage({ params }: EventPageProps) {
   // Check if event belongs to this business
   if (event.business_id !== business.id) {
     notFound()
+  }
+
+  // Check if table service is enabled and has available tables
+  let hasTableService = false
+  let totalAvailableTables = 0
+
+  if ((event as any).table_service_enabled) {
+    const supabase = await createClient()
+    const { data: tableSections } = await supabase
+      .from('event_table_sections')
+      .select('available_tables')
+      .eq('event_id', eventId)
+      .eq('is_enabled', true)
+
+    if (tableSections && tableSections.length > 0) {
+      hasTableService = true
+      totalAvailableTables = tableSections.reduce((sum, s) => sum + s.available_tables, 0)
+    }
   }
 
   const eventDate = new Date(event.event_date)
@@ -170,21 +189,36 @@ export default async function EventPage({ params }: EventPageProps) {
                   <p className="text-xs text-muted-foreground mt-1">per ticket</p>
                 </div>
 
-                {isPublished && !isCancelled && !isSoldOut ? (
-                  <Button asChild className="w-full" size="lg">
-                    <Link href={`/${businessSlug}/events/${eventId}/checkout`}>
-                      Get Tickets
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button disabled className="w-full" size="lg">
-                    {isCancelled
-                      ? 'Event Cancelled'
-                      : isSoldOut
-                      ? 'Sold Out'
-                      : 'Not Available'}
-                  </Button>
-                )}
+                {/* Action Buttons - Side by Side */}
+                <div className="flex gap-2">
+                  {isPublished && !isCancelled && !isSoldOut ? (
+                    <Button asChild variant="outline" className="flex-1" size="lg">
+                      <Link href={`/${businessSlug}/events/${eventId}/checkout`}>
+                        <Ticket className="mr-2 h-4 w-4" />
+                        Get Tickets
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button disabled variant="outline" className="flex-1" size="lg">
+                      <Ticket className="mr-2 h-4 w-4" />
+                      {isCancelled
+                        ? 'Event Cancelled'
+                        : isSoldOut
+                        ? 'Sold Out'
+                        : 'Not Available'}
+                    </Button>
+                  )}
+
+                  {/* Book Table Button */}
+                  {isPublished && !isCancelled && hasTableService && totalAvailableTables > 0 && (
+                    <Button asChild variant="outline" className="flex-1" size="lg">
+                      <Link href={`/${businessSlug}/events/${eventId}/book-table`}>
+                        <Wine className="mr-2 h-4 w-4" />
+                        Book Table
+                      </Link>
+                    </Button>
+                  )}
+                </div>
 
                 <div className="pt-4 border-t space-y-2">
                   <p className="text-xs text-muted-foreground">

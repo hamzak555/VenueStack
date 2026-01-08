@@ -2,15 +2,53 @@ import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AdminDashboardLayout } from '@/components/admin/admin-dashboard-layout'
+import { createClient } from '@/lib/supabase/server'
+
+async function getAdminStats() {
+  const supabase = await createClient()
+
+  // Get business counts
+  const { count: totalBusinesses } = await supabase
+    .from('businesses')
+    .select('*', { count: 'exact', head: true })
+
+  const { count: activeBusinesses } = await supabase
+    .from('businesses')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true)
+
+  // Get total events count
+  const { count: totalEvents } = await supabase
+    .from('events')
+    .select('*', { count: 'exact', head: true })
+
+  // Get total tickets sold (sum of quantity from completed orders)
+  const { data: ticketData } = await supabase
+    .from('orders')
+    .select('quantity')
+    .eq('status', 'completed')
+
+  const totalTickets = ticketData?.reduce((sum, order) => sum + (order.quantity || 0), 0) || 0
+
+  // Get total revenue
+  const { data: revenueData } = await supabase
+    .from('orders')
+    .select('total')
+    .eq('status', 'completed')
+
+  const totalRevenue = revenueData?.reduce((sum, order) => sum + (parseFloat(order.total?.toString() || '0')), 0) || 0
+
+  return {
+    totalBusinesses: totalBusinesses || 0,
+    activeBusinesses: activeBusinesses || 0,
+    totalEvents: totalEvents || 0,
+    totalTickets,
+    totalRevenue,
+  }
+}
 
 export default async function AdminDashboardPage() {
-  // TODO: Fetch actual statistics from Supabase
-  const stats = {
-    totalBusinesses: 0,
-    activeBusinesses: 0,
-    totalEvents: 0,
-    totalTickets: 0,
-  }
+  const stats = await getAdminStats()
 
   return (
     <AdminDashboardLayout>
@@ -62,11 +100,11 @@ export default async function AdminDashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTickets}</div>
-            <p className="text-xs text-muted-foreground">Tickets sold</p>
+            <div className="text-2xl font-bold">${stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <p className="text-xs text-muted-foreground">{stats.totalTickets.toLocaleString()} tickets sold</p>
           </CardContent>
         </Card>
       </div>

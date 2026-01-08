@@ -26,6 +26,23 @@ export default async function NewPromoCodePage({ params }: NewPromoCodePageProps
 
   const ticketTypes = await getTicketTypes(eventId)
 
+  // Check if this is a recurring event (has recurrence_rule or is an instance)
+  let isRecurringEvent = !!event.parent_event_id
+  if (!isRecurringEvent && event.recurrence_rule) {
+    isRecurringEvent = event.recurrence_rule.type !== 'none'
+  }
+  // If it's an instance, check parent for recurrence rule
+  if (event.parent_event_id && !event.recurrence_rule) {
+    try {
+      const parentEvent = await getEventById(event.parent_event_id)
+      if (parentEvent?.recurrence_rule && parentEvent.recurrence_rule.type !== 'none') {
+        isRecurringEvent = true
+      }
+    } catch (error) {
+      // Parent event not found, continue
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -43,7 +60,13 @@ export default async function NewPromoCodePage({ params }: NewPromoCodePageProps
         </p>
       </div>
 
-      <PromoCodeForm eventId={eventId} businessSlug={businessSlug} ticketTypes={ticketTypes} />
+      <PromoCodeForm
+        eventId={eventId}
+        businessId={event.business_id}
+        businessSlug={businessSlug}
+        ticketTypes={ticketTypes}
+        isRecurringEvent={isRecurringEvent}
+      />
     </div>
   )
 }

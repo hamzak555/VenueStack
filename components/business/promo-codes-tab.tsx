@@ -20,6 +20,7 @@ interface PromoCodesTabProps {
   eventId: string
   businessId: string
   businessSlug: string
+  isRecurringEvent?: boolean
 }
 
 export default function PromoCodesTab({ eventId, businessId, businessSlug }: PromoCodesTabProps) {

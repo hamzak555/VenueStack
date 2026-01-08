@@ -64,22 +64,11 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Check if ticket is already checked in
-    const alreadyCheckedIn = ticket.checked_in_at !== null
+    // Check if ticket is already checked in (either by checked_in_at or status being 'used')
+    const alreadyCheckedIn = ticket.checked_in_at !== null || ticket.status === 'used'
 
-    // Update ticket status to checked in (if not already)
-    if (!alreadyCheckedIn) {
-      await supabase
-        .from('tickets')
-        .update({
-          checked_in_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', ticket.id)
-    }
-
-    // Check if ticket status is valid
-    if (ticket.status !== 'valid') {
+    // Check if ticket status is invalid or cancelled (not scannable)
+    if (ticket.status === 'invalid' || ticket.status === 'cancelled') {
       return NextResponse.json({
         valid: false,
         message: `Ticket is ${ticket.status}`,
@@ -98,18 +87,30 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Update ticket status to used and set checked in time (if not already)
+    if (!alreadyCheckedIn) {
+      await supabase
+        .from('tickets')
+        .update({
+          status: 'used',
+          checked_in_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ticket.id)
+    }
+
     return NextResponse.json({
       valid: true,
       message: alreadyCheckedIn
-        ? 'Ticket already checked in - Entry allowed'
-        : 'Ticket validated successfully - Check in complete',
+        ? 'Ticket already checked in'
+        : 'Ticket validated successfully',
       ticket: {
         ticketNumber: ticket.ticket_number,
         eventTitle: ticket.event.title,
         customerName: ticket.order.customer_name,
         customerEmail: ticket.order.customer_email,
         price: parseFloat(ticket.price),
-        status: ticket.status,
+        status: 'used',
         checkedInAt: ticket.checked_in_at || new Date().toISOString(),
         eventDate: ticket.event.event_date,
         eventTime: ticket.event.event_time,

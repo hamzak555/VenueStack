@@ -35,6 +35,7 @@ interface PromoCodeFormProps {
   businessId: string
   businessSlug: string
   ticketTypes: TicketType[]
+  isRecurringEvent?: boolean
   initialData?: {
     id: string
     code: string
@@ -48,9 +49,10 @@ interface PromoCodeFormProps {
   }
 }
 
-export function PromoCodeForm({ eventId, businessId, businessSlug, ticketTypes, initialData }: PromoCodeFormProps) {
+export function PromoCodeForm({ eventId, businessId, businessSlug, ticketTypes, isRecurringEvent, initialData }: PromoCodeFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [propagateToSeries, setPropagateToSeries] = useState(true)
   const [formData, setFormData] = useState({
     code: initialData?.code || '',
     discount_type: initialData?.discount_type || 'percentage' as 'percentage' | 'fixed',
@@ -82,6 +84,7 @@ export function PromoCodeForm({ eventId, businessId, businessSlug, ticketTypes, 
           valid_from: formData.valid_from ? formData.valid_from.toISOString() : null,
           valid_until: formData.valid_until ? formData.valid_until.toISOString() : null,
           ticket_type_ids: formData.ticket_type_ids.length > 0 ? formData.ticket_type_ids : null,
+          propagateToSeries: isRecurringEvent && propagateToSeries,
         }),
       })
 
@@ -281,6 +284,21 @@ export function PromoCodeForm({ eventId, businessId, businessSlug, ticketTypes, 
               Active (customers can use this code)
             </Label>
           </div>
+
+          {isRecurringEvent && (
+            <div className="p-4 bg-muted/50 rounded-lg border">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="propagate_promo"
+                  checked={propagateToSeries}
+                  onCheckedChange={(checked) => setPropagateToSeries(checked as boolean)}
+                />
+                <Label htmlFor="propagate_promo" className="cursor-pointer font-medium">
+                  Apply to all events in series
+                </Label>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-4">
             <Button type="submit" disabled={loading}>

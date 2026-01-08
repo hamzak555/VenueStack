@@ -17,6 +17,8 @@ const badgeVariants = cva(
           "border-red-500 bg-red-500/10 text-red-700 dark:text-red-400 dark:bg-red-500/20 [a&]:hover:bg-red-500/20",
         success:
           "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400 dark:bg-green-500/20 [a&]:hover:bg-green-500/20",
+        teal:
+          "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-400 dark:bg-teal-500/20 [a&]:hover:bg-teal-500/20",
         warning:
           "border-yellow-500 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/20 [a&]:hover:bg-yellow-500/20",
         outline:

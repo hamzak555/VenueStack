@@ -133,3 +133,19 @@ export async function verifyAdminUserPassword(email: string, password: string) {
 
   return user
 }
+
+/**
+ * Get an admin user by phone number
+ */
+export async function getAdminUserByPhone(phone: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('*')
+    .eq('phone', phone)
+    .eq('is_active', true)
+    .single()
+
+  if (error && error.code !== 'PGRST116') throw error // PGRST116 = no rows returned
+  return data
+}

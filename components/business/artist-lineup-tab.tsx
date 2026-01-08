@@ -33,9 +33,10 @@ interface Artist {
 
 interface ArtistLineupTabProps {
   eventId: string
+  isRecurringEvent?: boolean
 }
 
-export default function ArtistLineupTab({ eventId }: ArtistLineupTabProps) {
+export default function ArtistLineupTab({ eventId, isRecurringEvent }: ArtistLineupTabProps) {
   const [artists, setArtists] = useState<Artist[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -47,6 +48,7 @@ export default function ArtistLineupTab({ eventId }: ArtistLineupTabProps) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [propagateToSeries, setPropagateToSeries] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -115,6 +117,7 @@ export default function ArtistLineupTab({ eventId }: ArtistLineupTabProps) {
         body: JSON.stringify({
           name: name.trim(),
           photo_url: photoUrl,
+          propagateToSeries: isRecurringEvent && propagateToSeries,
         }),
       })
 
@@ -137,7 +140,11 @@ export default function ArtistLineupTab({ eventId }: ArtistLineupTabProps) {
 
     setDeletingId(id)
     try {
-      const response = await fetch(`/api/events/${eventId}/artists/${id}`, {
+      const url = isRecurringEvent && propagateToSeries
+        ? `/api/events/${eventId}/artists/${id}?propagateToSeries=true`
+        : `/api/events/${eventId}/artists/${id}`
+
+      const response = await fetch(url, {
         method: 'DELETE',
       })
 
@@ -407,6 +414,23 @@ export default function ArtistLineupTab({ eventId }: ArtistLineupTabProps) {
                 </div>
               </div>
             </div>
+
+            {isRecurringEvent && (
+              <div className="p-4 bg-muted/50 rounded-lg border">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="propagate_artist"
+                    checked={propagateToSeries}
+                    onChange={(e) => setPropagateToSeries(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="propagate_artist" className="cursor-pointer font-medium">
+                    Apply to all events in series
+                  </Label>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-4 pt-4">
               <Button type="submit" disabled={isSaving || !name.trim()} className="flex-1">

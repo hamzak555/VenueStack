@@ -18,7 +18,7 @@ export default async function AccountSettingsPage({ params }: AccountSettingsPag
   let business
   try {
     business = await getBusinessBySlug(businessSlug)
-  } catch (error) {
+  } catch {
     notFound()
   }
 

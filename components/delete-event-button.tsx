@@ -6,7 +6,6 @@ import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -17,9 +16,10 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
 
 interface DeleteEventButtonProps {
   eventId: string
@@ -28,6 +28,7 @@ interface DeleteEventButtonProps {
   businessSlug: string
   canDelete: boolean
   reasonCannotDelete?: string
+  isRecurringInstance?: boolean
 }
 
 export function DeleteEventButton({
@@ -37,15 +38,22 @@ export function DeleteEventButton({
   businessSlug,
   canDelete,
   reasonCannotDelete,
+  isRecurringInstance = false,
 }: DeleteEventButtonProps) {
   const router = useRouter()
   const [showDialog, setShowDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteMode, setDeleteMode] = useState<'single' | 'future'>('single')
 
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/businesses/${businessId}/events/${eventId}`, {
+      const url = new URL(`/api/businesses/${businessId}/events/${eventId}`, window.location.origin)
+      if (isRecurringInstance) {
+        url.searchParams.set('mode', deleteMode)
+      }
+
+      const response = await fetch(url.toString(), {
         method: 'DELETE',
       })
 
@@ -55,13 +63,20 @@ export function DeleteEventButton({
         throw new Error(data.error || 'Failed to delete event')
       }
 
+      // Close the dialog first
+      setShowDialog(false)
+
       // Redirect to events list
       router.push(`/${businessSlug}/dashboard/events`)
       router.refresh()
     } catch (error) {
       console.error('Error deleting event:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete event')
       setIsDeleting(false)
+      // Only show alert if it's a real API error, not a navigation issue
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete event'
+      if (!errorMessage.includes('NEXT_REDIRECT')) {
+        alert(errorMessage)
+      }
     }
   }
 
@@ -97,21 +112,46 @@ export function DeleteEventButton({
       <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the event <strong>&quot;{eventTitle}&quot;</strong>.
-              This action cannot be undone.
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>
+                  Are you sure you want to delete <strong>&quot;{eventTitle}&quot;</strong>?
+                  This action cannot be undone.
+                </p>
+
+                {isRecurringInstance && (
+                  <RadioGroup
+                    value={deleteMode}
+                    onValueChange={(value) => setDeleteMode(value as 'single' | 'future')}
+                    className="space-y-3 pt-2"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem value="single" id="single" />
+                      <Label htmlFor="single" className="font-medium cursor-pointer">
+                        This event only
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem value="future" id="future" />
+                      <Label htmlFor="future" className="font-medium cursor-pointer">
+                        This and all future events
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
+              variant="destructive"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? 'Deleting...' : 'Delete Event'}
-            </AlertDialogAction>
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -135,3 +135,62 @@ export async function verifyBusinessUserPassword(businessId: string, email: stri
 
   return user
 }
+
+/**
+ * Get all business affiliations for a user by email (across all businesses)
+ */
+export async function getBusinessUsersByEmail(email: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('business_users')
+    .select(`
+      *,
+      business:businesses(id, name, slug, logo_url, theme_color)
+    `)
+    .eq('email', email)
+    .eq('is_active', true)
+
+  if (error) throw error
+  return data
+}
+
+/**
+ * Verify password for a user across all their business affiliations
+ * Returns the user if password matches any of their accounts
+ */
+export async function verifyBusinessUserPasswordByEmail(email: string, password: string) {
+  const users = await getBusinessUsersByEmail(email)
+
+  if (!users || users.length === 0) {
+    return null
+  }
+
+  // Check password against the first user's hash (all should have same password ideally)
+  // In practice, we check the first one since email is the identifier
+  for (const user of users) {
+    const isValid = await bcrypt.compare(password, user.password_hash)
+    if (isValid) {
+      return users // Return all affiliations if password is valid
+    }
+  }
+
+  return null
+}
+
+/**
+ * Get all business affiliations for a user by phone number (across all businesses)
+ */
+export async function getBusinessUsersByPhone(phone: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('business_users')
+    .select(`
+      *,
+      business:businesses(id, name, slug, logo_url, theme_color)
+    `)
+    .eq('phone', phone)
+    .eq('is_active', true)
+
+  if (error) throw error
+  return data
+}

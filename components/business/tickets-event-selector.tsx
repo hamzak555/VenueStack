@@ -1,0 +1,269 @@
+'use client'
+
+import { useState, useMemo } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Calendar, MapPin, Ticket, Search, ChevronRight, CheckCircle } from 'lucide-react'
+import { parseLocalDate } from '@/lib/utils'
+
+interface EventWithTicketStats {
+  id: string
+  title: string
+  event_date: string
+  event_time: string | null
+  location: string | null
+  image_url: string | null
+  status: string
+  total_tickets: number
+  scanned_tickets: number
+  unscanned_tickets: number
+}
+
+interface TicketsEventSelectorProps {
+  events: EventWithTicketStats[]
+  businessSlug: string
+}
+
+export function TicketsEventSelector({ events, businessSlug }: TicketsEventSelectorProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming')
+  const [mousePositions, setMousePositions] = useState<Record<string, { x: number; y: number }>>({})
+
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+
+  const filteredEvents = useMemo(() => {
+    return events
+      .filter((event) => {
+        // Search filter
+        const query = searchQuery.toLowerCase()
+        const matchesSearch = !query ||
+          event.title.toLowerCase().includes(query) ||
+          event.location?.toLowerCase().includes(query)
+
+        // Time filter
+        const eventDate = parseLocalDate(event.event_date)
+
+        let matchesTime = true
+        if (timeFilter === 'upcoming') {
+          matchesTime = eventDate >= now
+        } else if (timeFilter === 'past') {
+          matchesTime = eventDate < now
+        }
+
+        return matchesSearch && matchesTime
+      })
+      .sort((a, b) => {
+        const dateA = parseLocalDate(a.event_date)
+        const dateB = parseLocalDate(b.event_date)
+        return timeFilter === 'past'
+          ? dateB.getTime() - dateA.getTime()
+          : dateA.getTime() - dateB.getTime()
+      })
+  }, [events, searchQuery, timeFilter, now])
+
+  // Group events by month
+  const groupedEvents = useMemo(() => {
+    const groups: { [key: string]: EventWithTicketStats[] } = {}
+
+    for (const event of filteredEvents) {
+      const date = parseLocalDate(event.event_date)
+      const monthKey = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+
+      if (!groups[monthKey]) {
+        groups[monthKey] = []
+      }
+      groups[monthKey].push(event)
+    }
+
+    return groups
+  }, [filteredEvents])
+
+  const formatEventDate = (dateStr: string) => {
+    const date = parseLocalDate(dateStr)
+    return {
+      day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      date: date.getDate(),
+      month: date.toLocaleDateString('en-US', { month: 'short' }),
+    }
+  }
+
+  const isToday = (dateStr: string) => {
+    const eventDate = parseLocalDate(dateStr)
+    return eventDate.getTime() === now.getTime()
+  }
+
+  const isPast = (dateStr: string) => {
+    const eventDate = parseLocalDate(dateStr)
+    return eventDate < now
+  }
+
+  const handleMouseMove = (eventId: string, e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMousePositions(prev => ({
+      ...prev,
+      [eventId]: {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      }
+    }))
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <Tabs value={timeFilter} onValueChange={(v) => setTimeFilter(v as any)}>
+          <TabsList>
+            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+            <TabsTrigger value="past">Past</TabsTrigger>
+            <TabsTrigger value="all">All Events</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search events..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
+      {/* Events List */}
+      {filteredEvents.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Ticket className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">
+              {searchQuery
+                ? 'No events found matching your search'
+                : timeFilter === 'upcoming'
+                ? 'No upcoming events'
+                : timeFilter === 'past'
+                ? 'No past events'
+                : 'No events found'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-8">
+          {Object.entries(groupedEvents).map(([month, monthEvents]) => (
+            <div key={month}>
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">{month}</h3>
+              <div className="grid gap-3">
+                {monthEvents.map((event) => {
+                  const { day, date, month: monthShort } = formatEventDate(event.event_date)
+                  const eventIsPast = isPast(event.event_date)
+                  const eventIsToday = isToday(event.event_date)
+                  const mousePos = mousePositions[event.id] || { x: 0, y: 0 }
+                  const scanRate = event.total_tickets > 0
+                    ? Math.round((event.scanned_tickets / event.total_tickets) * 100)
+                    : 0
+
+                  return (
+                    <Link
+                      key={event.id}
+                      href={`/${businessSlug}/dashboard/all-tickets?eventId=${event.id}`}
+                    >
+                      <div
+                        className={`relative border rounded-lg overflow-hidden group cursor-pointer bg-card transition-colors ${eventIsPast ? 'opacity-75' : ''}`}
+                        onMouseMove={(e) => handleMouseMove(event.id, e)}
+                      >
+                        {/* Animated gradient that follows cursor */}
+                        <div
+                          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+                          style={{
+                            background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(255, 255, 255, 0.1), transparent 60%)`,
+                          }}
+                        />
+
+                        <div className="relative z-10 p-4">
+                          <div className="flex items-center gap-4">
+                            {/* Date Box */}
+                            <div className={`flex-shrink-0 w-16 py-3 rounded-lg flex flex-col items-center justify-center ${
+                              eventIsToday
+                                ? 'bg-primary text-primary-foreground'
+                                : eventIsPast
+                                ? 'bg-muted text-muted-foreground'
+                                : 'bg-primary/10 text-primary'
+                            }`}>
+                              <span className="text-xs font-medium uppercase">{day}</span>
+                              <span className="text-2xl font-bold leading-none my-1">{date}</span>
+                              <span className="text-xs">{monthShort}</span>
+                            </div>
+
+                            {/* Event Image */}
+                            {event.image_url && (
+                              <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                                <Image
+                                  src={event.image_url}
+                                  alt={event.title}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            )}
+
+                            {/* Event Details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-semibold truncate">{event.title}</h4>
+                                {eventIsToday && (
+                                  <Badge variant="default" className="text-xs">Today</Badge>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                {event.event_time && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    {event.event_time}
+                                  </span>
+                                )}
+                                {event.location && (
+                                  <span className="flex items-center gap-1 truncate">
+                                    <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span className="truncate">{event.location}</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Ticket Stats */}
+                            <div className="flex-shrink-0 text-right">
+                              <div className="flex items-center gap-2 justify-end mb-1">
+                                <Ticket className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-semibold">{event.total_tickets}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {event.total_tickets === 1 ? 'ticket' : 'tickets'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
+                                <CheckCircle className="h-3 w-3 text-green-500" />
+                                <span>{event.scanned_tickets} scanned ({scanRate}%)</span>
+                              </div>
+                            </div>
+
+                            {/* Arrow */}
+                            <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

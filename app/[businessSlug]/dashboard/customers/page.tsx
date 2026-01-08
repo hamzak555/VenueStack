@@ -94,7 +94,7 @@ export default async function CustomersPage({ params }: CustomersPageProps) {
               <p className="text-sm text-destructive">Error loading customers: {errorMessage}</p>
             </div>
           )}
-          <CustomersTable customers={customers} />
+          <CustomersTable customers={customers} businessSlug={businessSlug} />
         </CardContent>
       </Card>
     </div>

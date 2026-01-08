@@ -44,7 +44,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const body = await request.json()
     const supabase = await createClient()
 
-    const { name, photo_url } = body
+    const { name, photo_url, propagateToSeries } = body
 
     if (!name) {
       return NextResponse.json(
@@ -82,6 +82,58 @@ export async function POST(request: NextRequest, context: RouteContext) {
         { error: 'Failed to create artist' },
         { status: 500 }
       )
+    }
+
+    // If propagating to series, create the same artist for all related events
+    if (propagateToSeries) {
+      const { data: event } = await supabase
+        .from('events')
+        .select('parent_event_id')
+        .eq('id', eventId)
+        .single()
+
+      if (event) {
+        const isRecurringInstance = !!event.parent_event_id
+        const parentId = isRecurringInstance ? event.parent_event_id : eventId
+
+        let seriesEventIds: string[] = []
+
+        if (isRecurringInstance) {
+          const { data: siblingInstances } = await supabase
+            .from('events')
+            .select('id')
+            .eq('parent_event_id', parentId)
+            .neq('id', eventId)
+
+          if (siblingInstances) {
+            seriesEventIds = siblingInstances.map(e => e.id)
+          }
+          if (parentId) {
+            seriesEventIds.push(parentId)
+          }
+        } else {
+          const { data: instances } = await supabase
+            .from('events')
+            .select('id')
+            .eq('parent_event_id', eventId)
+
+          if (instances) {
+            seriesEventIds = instances.map(e => e.id)
+          }
+        }
+
+        // Create artist for all related events
+        if (seriesEventIds.length > 0) {
+          const artistsToCreate = seriesEventIds.map(relatedEventId => ({
+            event_id: relatedEventId,
+            name,
+            photo_url: photo_url || null,
+            display_order: nextOrder,
+          }))
+
+          await supabase.from('event_artists').insert(artistsToCreate)
+        }
+      }
     }
 
     return NextResponse.json(artist)

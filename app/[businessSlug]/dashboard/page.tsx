@@ -80,26 +80,26 @@ export default async function BusinessDashboard({ params }: BusinessDashboardPro
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available Tickets</CardTitle>
+            <CardTitle className="text-sm font-medium">Tables Booked</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{availableTickets}</div>
+            <div className="text-2xl font-bold">{analytics.total_table_bookings}</div>
             <p className="text-xs text-muted-foreground">
-              Ready to sell
+              {formatCurrency(analytics.total_table_revenue)} revenue
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {formatCurrency(analytics.total_revenue)}
             </div>
             <p className="text-xs text-muted-foreground">
-              From {analytics.total_orders} orders
+              {analytics.total_orders} orders, {analytics.total_table_bookings} tables
             </p>
           </CardContent>
         </Card>

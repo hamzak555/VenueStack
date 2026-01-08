@@ -6,7 +6,9 @@ import { verifyBusinessAccess } from '@/lib/auth/business-session'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { LogoutButton } from '@/components/business/logout-button'
-import { LayoutDashboard, Calendar, Receipt, BarChart3, CreditCard, Settings, Users, ScanLine, UserCircle, Ticket } from 'lucide-react'
+import { AccountSwitcher } from '@/components/account-switcher'
+import { SettingsNav } from '@/components/business/settings-nav'
+import { LayoutDashboard, Calendar, Receipt, BarChart3, UserCircle, Ticket, Armchair } from 'lucide-react'
 
 interface DashboardLayoutProps {
   businessSlug: string
@@ -54,9 +56,9 @@ export async function DashboardLayout({ businessSlug, children }: DashboardLayou
             </Link>
           </Button>
           <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/tickets`}>
-              <Receipt className="h-4 w-4" />
-              <span className="ml-2">Sales</span>
+            <Link href={`/${businessSlug}/dashboard/tables`}>
+              <Armchair className="h-4 w-4" />
+              <span className="ml-2">Table Service</span>
             </Link>
           </Button>
           <Button variant="ghost" asChild className="w-full justify-start">
@@ -66,15 +68,9 @@ export async function DashboardLayout({ businessSlug, children }: DashboardLayou
             </Link>
           </Button>
           <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/customers`}>
-              <UserCircle className="h-4 w-4" />
-              <span className="ml-2">Customers</span>
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/scanner`}>
-              <ScanLine className="h-4 w-4" />
-              <span className="ml-2">Scanner</span>
+            <Link href={`/${businessSlug}/dashboard/tickets`}>
+              <Receipt className="h-4 w-4" />
+              <span className="ml-2">Ticket Sales</span>
             </Link>
           </Button>
           <Button variant="ghost" asChild className="w-full justify-start">
@@ -84,25 +80,12 @@ export async function DashboardLayout({ businessSlug, children }: DashboardLayou
             </Link>
           </Button>
           <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/settings/stripe`}>
-              <CreditCard className="h-4 w-4" />
-              <span className="ml-2">Payment Settings</span>
+            <Link href={`/${businessSlug}/dashboard/customers`}>
+              <UserCircle className="h-4 w-4" />
+              <span className="ml-2">Customers</span>
             </Link>
           </Button>
-          <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/settings/account`}>
-              <Settings className="h-4 w-4" />
-              <span className="ml-2">Account Settings</span>
-            </Link>
-          </Button>
-          {isAdmin && (
-            <Button variant="ghost" asChild className="w-full justify-start">
-              <Link href={`/${businessSlug}/dashboard/users`}>
-                <Users className="h-4 w-4" />
-                <span className="ml-2">Users</span>
-              </Link>
-            </Button>
-          )}
+          <SettingsNav businessSlug={businessSlug} isAdmin={isAdmin} />
         </nav>
         <Separator className="flex-shrink-0" />
         <div className="p-4 space-y-2 flex-shrink-0">
@@ -111,6 +94,7 @@ export async function DashboardLayout({ businessSlug, children }: DashboardLayou
               View Public Page
             </Link>
           </Button>
+          <AccountSwitcher />
           {!session.adminBypass && <LogoutButton />}
         </div>
       </aside>

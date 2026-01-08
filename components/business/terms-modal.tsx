@@ -23,7 +23,7 @@ export function TermsModal({ isOpen, onClose, businessName, termsAndConditions }
         <DialogHeader>
           <DialogTitle>Terms of Service</DialogTitle>
           <DialogDescription>
-            {businessName}&apos;s terms and conditions for ticket purchases
+            {businessName}&apos;s terms and conditions
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">

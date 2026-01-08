@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { Calendar as CalendarIcon, Upload, X } from 'lucide-react'
@@ -11,16 +11,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { createClient } from '@/lib/supabase/client'
 import { GoogleMapsProvider } from '@/components/providers/google-maps-provider'
 import { LocationAutocomplete } from '@/components/business/location-autocomplete'
+import { RecurrenceSelector } from '@/components/business/recurrence-selector'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import { Label } from '@/components/ui/label'
+import { parseLocalDate } from '@/lib/utils'
+import type { RecurrenceRule } from '@/lib/types'
 
 interface EventFormProps {
   businessId: string
   businessSlug: string
+  defaultTimezone?: string
   initialData?: {
     id?: string
     title: string
@@ -33,19 +47,20 @@ interface EventFormProps {
     google_place_id?: string | null
     image_url: string | null
     status: 'draft' | 'published' | 'cancelled'
+    recurrence_rule?: RecurrenceRule | null
+    parent_event_id?: string | null // If this is a recurring instance
   }
 }
 
-export function EventForm({ businessId, businessSlug, initialData }: EventFormProps) {
+export function EventForm({ businessId, businessSlug, defaultTimezone = 'America/Los_Angeles', initialData }: EventFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image_url || null)
   const [date, setDate] = useState<Date | undefined>(
-    initialData?.event_date ? new Date(initialData.event_date) : undefined
+    initialData?.event_date ? parseLocalDate(initialData.event_date) : undefined
   )
-
   // Store saved values for comparison (use state so we can update after save)
   const [savedFormData, setSavedFormData] = useState({
     title: initialData?.title || '',
@@ -56,10 +71,11 @@ export function EventForm({ businessId, businessSlug, initialData }: EventFormPr
     location_longitude: initialData?.location_longitude || null,
     google_place_id: initialData?.google_place_id || null,
     status: initialData?.status || 'draft' as const,
+    recurrence_rule: initialData?.recurrence_rule || null as RecurrenceRule | null,
   })
 
   const [savedDate, setSavedDate] = useState<Date | undefined>(
-    initialData?.event_date ? new Date(initialData.event_date) : undefined
+    initialData?.event_date ? parseLocalDate(initialData.event_date) : undefined
   )
 
   const [savedImageUrl, setSavedImageUrl] = useState<string | null>(initialData?.image_url || null)
@@ -73,7 +89,20 @@ export function EventForm({ businessId, businessSlug, initialData }: EventFormPr
     location_longitude: initialData?.location_longitude || null,
     google_place_id: initialData?.google_place_id || null,
     status: initialData?.status || 'draft' as const,
+    recurrence_rule: initialData?.recurrence_rule || null as RecurrenceRule | null,
   })
+
+  // State for recurring event update dialog
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false)
+  const [updateMode, setUpdateMode] = useState<'single' | 'all'>('single')
+  const [pendingPayload, setPendingPayload] = useState<{
+    imageUrl: string | null
+    payload: Record<string, unknown>
+  } | null>(null)
+
+  // Check if this event is part of a recurring series
+  const isRecurringEvent = !!initialData?.recurrence_rule && initialData.recurrence_rule.type !== 'none'
+  const isRecurringInstance = !!initialData?.parent_event_id
 
   // Check if form has changes (only for edit mode)
   const hasChanges = (() => {
@@ -87,13 +116,16 @@ export function EventForm({ businessId, businessSlug, initialData }: EventFormPr
       formData.location !== savedFormData.location ||
       formData.status !== savedFormData.status
 
+    // Check recurrence rule change
+    const recurrenceChanged = JSON.stringify(formData.recurrence_rule) !== JSON.stringify(savedFormData.recurrence_rule)
+
     // Check date change
     const dateChanged = date?.toISOString().split('T')[0] !== savedDate?.toISOString().split('T')[0]
 
     // Check image change
     const imageChanged = imageFile !== null || imagePreview !== savedImageUrl
 
-    return formChanged || dateChanged || imageChanged
+    return formChanged || dateChanged || imageChanged || recurrenceChanged
   })()
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +186,74 @@ export function EventForm({ businessId, businessSlug, initialData }: EventFormPr
     }
   }
 
+  // Perform the actual update with the selected mode
+  const performUpdate = async (mode: 'single' | 'all', imageUrl: string | null, payload: Record<string, unknown>) => {
+    try {
+      const url = `/api/businesses/${businessId}/events/${initialData!.id}`
+
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...payload,
+          updateMode: mode, // Tell the API whether to update all or just this one
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to save event')
+      }
+
+      // Handle recurrence rule changes (only for non-instance events)
+      // Instances cannot change recurrence settings - only the parent event can
+      if (!isRecurringInstance) {
+        if (formData.recurrence_rule && formData.recurrence_rule.type !== 'none') {
+          try {
+            // Generate/regenerate instances from this event
+            const recurrenceResponse = await fetch(`/api/events/${initialData!.id}/generate-recurrences`, {
+              method: 'POST',
+            })
+
+            if (recurrenceResponse.ok) {
+              const recurrenceData = await recurrenceResponse.json()
+              if (recurrenceData.created > 0) {
+                toast.success(`Updated ${recurrenceData.created} recurring event${recurrenceData.created > 1 ? 's' : ''}`)
+              }
+            }
+          } catch (recurrenceError) {
+            console.error('Error generating recurrences:', recurrenceError)
+            toast.error('Event saved, but failed to update recurring instances')
+          }
+        } else if (initialData?.id && savedFormData.recurrence_rule && savedFormData.recurrence_rule.type !== 'none') {
+          // If recurrence was removed (had one before, now doesn't), delete existing instances
+          try {
+            await fetch(`/api/events/${initialData.id}/generate-recurrences`, {
+              method: 'DELETE',
+            })
+          } catch (deleteError) {
+            console.error('Error deleting old recurrences:', deleteError)
+          }
+        }
+      }
+
+      // Update saved values to match current values so hasChanges becomes false
+      setSavedFormData({ ...formData })
+      setSavedDate(date)
+      setSavedImageUrl(imageUrl)
+      setImageFile(null) // Clear the file since it's been uploaded
+
+      if (mode === 'all') {
+        toast.success('All events in series updated!')
+      } else {
+        toast.success('Event updated successfully!')
+      }
+      router.refresh()
+    } catch (err) {
+      throw err
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -167,12 +267,6 @@ export function EventForm({ businessId, businessSlug, initialData }: EventFormPr
       // Upload image if there's a new one
       const imageUrl = await uploadImage()
 
-      const url = initialData?.id
-        ? `/api/businesses/${businessId}/events/${initialData.id}`
-        : `/api/businesses/${businessId}/events`
-
-      const method = initialData?.id ? 'PATCH' : 'POST'
-
       const payload = {
         title: formData.title,
         description: formData.description || null,
@@ -184,38 +278,89 @@ export function EventForm({ businessId, businessSlug, initialData }: EventFormPr
         google_place_id: formData.google_place_id,
         image_url: imageUrl,
         status: formData.status,
+        timezone: defaultTimezone, // Always use business timezone
+        recurrence_rule: formData.recurrence_rule,
       }
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      // For new events, just create directly
+      if (!initialData?.id) {
+        const response = await fetch(`/api/businesses/${businessId}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to save event')
-      }
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || 'Failed to save event')
+        }
 
-      if (initialData?.id) {
-        // For updates, stay on the page and show success toast
-        // Update saved values to match current values so hasChanges becomes false
-        setSavedFormData({ ...formData })
-        setSavedDate(date)
-        setSavedImageUrl(imageUrl)
-        setImageFile(null) // Clear the file since it's been uploaded
-        toast.success('Event updated successfully!')
-        router.refresh()
-      } else {
-        // For new events, redirect to events list
+        const savedEvent = await response.json()
+
+        // Handle recurrence rule for new events
+        if (formData.recurrence_rule && formData.recurrence_rule.type !== 'none') {
+          try {
+            const recurrenceResponse = await fetch(`/api/events/${savedEvent.id}/generate-recurrences`, {
+              method: 'POST',
+            })
+
+            if (recurrenceResponse.ok) {
+              const recurrenceData = await recurrenceResponse.json()
+              if (recurrenceData.created > 0) {
+                toast.success(`Created ${recurrenceData.created} recurring event${recurrenceData.created > 1 ? 's' : ''}`)
+              }
+            }
+          } catch (recurrenceError) {
+            console.error('Error generating recurrences:', recurrenceError)
+            toast.error('Event saved, but failed to create recurring instances')
+          }
+        }
+
         router.push(`/${businessSlug}/dashboard/events`)
         router.refresh()
+        return
       }
+
+      // For existing events that are part of a recurring series, show the dialog
+      if (isRecurringEvent || isRecurringInstance) {
+        setPendingPayload({ imageUrl, payload })
+        setShowUpdateDialog(true)
+        setIsLoading(false)
+        return
+      }
+
+      // For non-recurring events, just update directly
+      await performUpdate('single', imageUrl, payload)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Handle dialog confirmation
+  const handleUpdateConfirm = async () => {
+    if (!pendingPayload) return
+
+    setShowUpdateDialog(false)
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      await performUpdate(updateMode, pendingPayload.imageUrl, pendingPayload.payload)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsLoading(false)
+      setPendingPayload(null)
+    }
+  }
+
+  // Handle dialog cancel
+  const handleUpdateCancel = () => {
+    setShowUpdateDialog(false)
+    setPendingPayload(null)
+    setUpdateMode('single')
   }
 
   return (
@@ -356,10 +501,32 @@ export function EventForm({ businessId, businessSlug, initialData }: EventFormPr
             </div>
           </div>
 
+          {isRecurringInstance ? (
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Repeat</Label>
+              <p className="text-sm text-muted-foreground">
+                This event is part of a recurring series. To change repeat settings, edit the{' '}
+                <a
+                  href={`/${businessSlug}/dashboard/events/${initialData?.parent_event_id}`}
+                  className="text-primary underline hover:no-underline"
+                >
+                  original event
+                </a>.
+              </p>
+            </div>
+          ) : (
+            <RecurrenceSelector
+              value={formData.recurrence_rule}
+              onChange={(rule) => setFormData({ ...formData, recurrence_rule: rule })}
+              eventDate={date}
+              disabled={isLoading}
+            />
+          )}
+
           <GoogleMapsProvider>
             <LocationAutocomplete
               value={formData.location}
-              onChange={(location, placeId, lat, lng) =>
+              onChange={(location, placeId, lat, lng) => {
                 setFormData({
                   ...formData,
                   location,
@@ -367,7 +534,7 @@ export function EventForm({ businessId, businessSlug, initialData }: EventFormPr
                   location_latitude: lat,
                   location_longitude: lng,
                 })
-              }
+              }}
               disabled={isLoading}
               label="Location"
               placeholder="Search for a venue or address..."
@@ -411,6 +578,46 @@ export function EventForm({ businessId, businessSlug, initialData }: EventFormPr
           </div>
         </CardContent>
       </Card>
+
+      {/* Recurring Event Update Dialog */}
+      <AlertDialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update Recurring Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              This event is part of a recurring series. How would you like to apply your changes?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-4">
+            <RadioGroup
+              value={updateMode}
+              onValueChange={(value) => setUpdateMode(value as 'single' | 'all')}
+              className="space-y-3"
+            >
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="single" id="single" />
+                <Label htmlFor="single" className="font-medium cursor-pointer">
+                  Only this event
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="all" id="all" />
+                <Label htmlFor="all" className="font-medium cursor-pointer">
+                  All events in series
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleUpdateCancel}>Cancel</AlertDialogCancel>
+            <Button onClick={handleUpdateConfirm}>
+              Apply Changes
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   )
 }

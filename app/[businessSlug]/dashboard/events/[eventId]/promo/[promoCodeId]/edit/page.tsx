@@ -34,6 +34,22 @@ export default async function EditPromoCodePage({ params }: EditPromoCodePagePro
     notFound()
   }
 
+  // Check if this is a recurring event
+  let isRecurringEvent = !!event.parent_event_id
+  if (!isRecurringEvent && event.recurrence_rule) {
+    isRecurringEvent = event.recurrence_rule.type !== 'none'
+  }
+  if (event.parent_event_id && !event.recurrence_rule) {
+    try {
+      const parentEvent = await getEventById(event.parent_event_id)
+      if (parentEvent?.recurrence_rule && parentEvent.recurrence_rule.type !== 'none') {
+        isRecurringEvent = true
+      }
+    } catch (error) {
+      // Parent event not found, continue
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -53,8 +69,10 @@ export default async function EditPromoCodePage({ params }: EditPromoCodePagePro
 
       <PromoCodeForm
         eventId={eventId}
+        businessId={event.business_id}
         businessSlug={businessSlug}
         ticketTypes={ticketTypes}
+        isRecurringEvent={isRecurringEvent}
         initialData={{
           id: promoCode.id,
           code: promoCode.code,

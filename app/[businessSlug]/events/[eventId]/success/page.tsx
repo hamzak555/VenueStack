@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Ticket, Loader2, Calendar, FileText } from 'lucide-react'
+import { PurchaseCompleteScripts } from '@/components/purchase-complete-scripts'
 
 export default function SuccessPage({ params }: { params: Promise<{ businessSlug: string; eventId: string }> }) {
   const resolvedParams = use(params)
@@ -18,6 +19,7 @@ export default function SuccessPage({ params }: { params: Promise<{ businessSlug
   const [isVerifying, setIsVerifying] = useState(true)
   const [orderDetails, setOrderDetails] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [purchaseCompleteScripts, setPurchaseCompleteScripts] = useState<string | null>(null)
   const [imageGlowColors, setImageGlowColors] = useState<string[]>([
     'rgba(255, 255, 255, 0.1)',
     'rgba(200, 200, 200, 0.1)',
@@ -26,6 +28,22 @@ export default function SuccessPage({ params }: { params: Promise<{ businessSlug
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
 
   useEffect(() => {
+    // Fetch business purchase complete scripts
+    const fetchBusinessScripts = async () => {
+      try {
+        const response = await fetch(`/api/businesses/slug/${resolvedParams.businessSlug}`)
+        if (response.ok) {
+          const business = await response.json()
+          if (business.purchase_complete_scripts) {
+            setPurchaseCompleteScripts(business.purchase_complete_scripts)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch business scripts:', err)
+      }
+    }
+    fetchBusinessScripts()
+
     if (paymentIntent) {
       verifyPayment()
     } else if (orderId) {
@@ -34,7 +52,7 @@ export default function SuccessPage({ params }: { params: Promise<{ businessSlug
       setError('No payment information provided')
       setIsVerifying(false)
     }
-  }, [paymentIntent, orderId])
+  }, [paymentIntent, orderId, resolvedParams.businessSlug])
 
   // Extract multiple dominant colors from image for multi-color glow effect
   useEffect(() => {
@@ -275,6 +293,17 @@ export default function SuccessPage({ params }: { params: Promise<{ businessSlug
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
+      {/* Purchase Complete Scripts - runs conversion tracking */}
+      <PurchaseCompleteScripts
+        scripts={purchaseCompleteScripts}
+        orderDetails={{
+          amount: orderDetails.amount,
+          quantity: orderDetails.quantity,
+          orderId: orderDetails.orderId,
+          eventTitle: orderDetails.eventTitle,
+          customerEmail: orderDetails.customerEmail,
+        }}
+      />
       <div className="relative w-full max-w-3xl">
         {orderDetails.eventImageUrl && (
           <div

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MapPin, Check } from 'lucide-react'
+import { useGoogleMaps } from '@/components/providers/google-maps-provider'
 
 interface LocationAutocompleteProps {
   value: string
@@ -20,6 +21,7 @@ export function LocationAutocomplete({
   label = 'Location',
   placeholder = 'Search for a venue or address...'
 }: LocationAutocompleteProps) {
+  const { isLoaded } = useGoogleMaps()
   const [inputValue, setInputValue] = useState(value)
   const [hasValidLocation, setHasValidLocation] = useState(!!value)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -31,7 +33,10 @@ export function LocationAutocomplete({
   }, [value])
 
   useEffect(() => {
-    if (!inputRef.current || !window.google) return
+    if (!inputRef.current || !isLoaded || !window.google) return
+
+    // Avoid re-initializing if already set up
+    if (autocompleteRef.current) return
 
     // Initialize Google Places Autocomplete
     // No type restriction - allows any location (addresses, establishments, landmarks, etc.)
@@ -64,9 +69,10 @@ export function LocationAutocomplete({
     return () => {
       if (autocompleteRef.current) {
         google.maps.event.clearInstanceListeners(autocompleteRef.current)
+        autocompleteRef.current = null
       }
     }
-  }, [onChange])
+  }, [isLoaded, onChange])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value

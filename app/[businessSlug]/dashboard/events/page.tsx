@@ -1,20 +1,7 @@
-import Link from 'next/link'
-import Image from 'next/image'
-import { getEventsByBusinessId, getEventPriceDisplay, getEventTicketSales, getEventAvailableTickets, getEventTotalTickets } from '@/lib/db/events'
+import { getEventsByBusinessId, getEventPriceDisplay, getEventTicketSales, getEventAvailableTickets } from '@/lib/db/events'
 import { getBusinessBySlug } from '@/lib/db/businesses'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { EventTicketsCell } from '@/components/business/event-tickets-cell'
-import { CopyEventLink } from '@/components/business/copy-event-link'
+import { getBusinessAnalytics } from '@/lib/db/analytics'
+import { EventsViewToggle } from '@/components/business/events-view-toggle'
 
 // Force dynamic rendering to always fetch fresh data
 export const dynamic = 'force-dynamic'
@@ -28,136 +15,67 @@ interface EventsPageProps {
 export default async function EventsPage({ params }: EventsPageProps) {
   const { businessSlug } = await params
   const business = await getBusinessBySlug(businessSlug)
-  const events = await getEventsByBusinessId(business.id)
+
+  // Fetch events and analytics in parallel
+  const [events, analytics] = await Promise.all([
+    getEventsByBusinessId(business.id),
+    getBusinessAnalytics(business.id)
+  ])
+
+  // Create a map of event analytics for quick lookup
+  const eventAnalyticsMap = new Map(
+    analytics.events.map(e => [e.event_id, e])
+  )
 
   // Fetch ticket sales data for all events
   const eventsWithSales = await Promise.all(
     events.map(async (event) => {
       const salesData = await getEventTicketSales(event.id)
       const availableTickets = getEventAvailableTickets(event)
+      const eventAnalytics = eventAnalyticsMap.get(event.id)
+
       return {
-        ...event,
+        id: event.id,
+        title: event.title,
+        event_date: event.event_date,
+        event_time: event.event_time,
+        status: event.status,
+        location: event.location,
+        image_url: event.image_url,
+        table_service_enabled: (event as any).table_service_enabled || false,
         salesData: {
           totalSold: salesData.totalSold,
           availableTickets,
-          breakdown: salesData.breakdown
-        }
+          breakdown: salesData.breakdown,
+          grossRevenue: eventAnalytics?.ticket_gross_revenue || 0,
+          netRevenue: eventAnalytics?.ticket_net_revenue || 0,
+          fees: eventAnalytics?.ticket_fees || 0,
+        },
+        tableData: eventAnalytics ? {
+          booked: eventAnalytics.total_table_bookings,
+          total: 0,
+          revenue: eventAnalytics.table_revenue,
+        } : undefined,
+        priceDisplay: getEventPriceDisplay(event)
       }
     })
   )
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Events</h1>
-          <p className="text-muted-foreground">
-            Manage your event listings and ticket sales
-          </p>
-        </div>
-        <Button asChild>
-          <Link href={`/${businessSlug}/dashboard/events/new`}>Create Event</Link>
-        </Button>
-      </div>
+  // Business default location for new events
+  const defaultLocation = {
+    address: business.address,
+    latitude: business.address_latitude,
+    longitude: business.address_longitude,
+    placeId: business.google_place_id,
+  }
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Events</CardTitle>
-          <CardDescription>
-            {eventsWithSales.length} event{eventsWithSales.length !== 1 ? 's' : ''} total
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {eventsWithSales.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">
-                No events created yet
-              </p>
-              <Button asChild>
-                <Link href={`/${businessSlug}/dashboard/events/new`}>
-                  Create Your First Event
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Tickets</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {eventsWithSales.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {event.image_url && (
-                          <div className="relative w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
-                            <Image
-                              src={event.image_url}
-                              alt={event.title}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        )}
-                        <div>
-                          <div className="font-medium">{event.title}</div>
-                          {event.location && (
-                            <div className="text-sm text-muted-foreground">
-                              {event.location}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(event.event_date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          event.status === 'published'
-                            ? 'success'
-                            : event.status === 'cancelled'
-                            ? 'destructive'
-                            : 'secondary'
-                        }
-                        className="capitalize"
-                      >
-                        {event.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <EventTicketsCell salesData={event.salesData} />
-                    </TableCell>
-                    <TableCell>{getEventPriceDisplay(event)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-2 justify-end">
-                        <CopyEventLink businessSlug={businessSlug} eventId={event.id} />
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/${businessSlug}/dashboard/events/${event.id}`}>
-                            Manage
-                          </Link>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+  return (
+    <EventsViewToggle
+      events={eventsWithSales}
+      businessSlug={businessSlug}
+      businessId={business.id}
+      defaultLocation={defaultLocation}
+      defaultTimezone={business.default_timezone || 'America/Los_Angeles'}
+    />
   )
 }

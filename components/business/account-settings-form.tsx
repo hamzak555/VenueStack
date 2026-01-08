@@ -11,6 +11,7 @@ import { AddressAutocomplete } from '@/components/business/address-autocomplete'
 import { GoogleMapsProvider } from '@/components/providers/google-maps-provider'
 import { LogoUpload } from '@/components/business/logo-upload'
 import { ThemeColorPicker } from '@/components/business/theme-color-picker'
+import { TimezoneSelector } from '@/components/business/timezone-selector'
 
 interface AccountSettingsFormProps {
   businessId: string
@@ -30,6 +31,7 @@ interface AccountSettingsFormProps {
     tiktok: string | null
     facebook: string | null
     terms_and_conditions: string | null
+    default_timezone: string | null
   }
 }
 
@@ -53,6 +55,7 @@ export function AccountSettingsForm({ businessId, businessSlug, business }: Acco
     tiktok: business.tiktok || '',
     facebook: business.facebook || '',
     terms_and_conditions: business.terms_and_conditions || '',
+    default_timezone: business.default_timezone || 'America/Los_Angeles',
   }), [business])
 
   const [formData, setFormData] = useState({
@@ -70,6 +73,7 @@ export function AccountSettingsForm({ businessId, businessSlug, business }: Acco
     tiktok: business.tiktok || '',
     facebook: business.facebook || '',
     terms_and_conditions: business.terms_and_conditions || '',
+    default_timezone: business.default_timezone || 'America/Los_Angeles',
   })
 
   // Check if form has changes
@@ -85,7 +89,8 @@ export function AccountSettingsForm({ businessId, businessSlug, business }: Acco
       formData.instagram !== initialFormData.instagram ||
       formData.tiktok !== initialFormData.tiktok ||
       formData.facebook !== initialFormData.facebook ||
-      formData.terms_and_conditions !== initialFormData.terms_and_conditions
+      formData.terms_and_conditions !== initialFormData.terms_and_conditions ||
+      formData.default_timezone !== initialFormData.default_timezone
     )
   }, [formData, initialFormData])
 
@@ -187,6 +192,15 @@ export function AccountSettingsForm({ businessId, businessSlug, business }: Acco
           disabled={isLoading}
         />
       </GoogleMapsProvider>
+
+      {/* Default Timezone */}
+      <TimezoneSelector
+        value={formData.default_timezone}
+        onChange={(timezone) => setFormData({ ...formData, default_timezone: timezone })}
+        disabled={isLoading}
+        label="Timezone"
+        description="All events will use this timezone for displaying dates and times."
+      />
 
       {/* Website */}
       <div className="space-y-2">

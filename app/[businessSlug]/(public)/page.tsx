@@ -10,6 +10,9 @@ import { EventInfoTooltip } from '@/components/event-info-tooltip'
 import { BusinessMap } from '@/components/business/business-map'
 import { AnimatedThemeGlow } from '@/components/business/animated-theme-glow'
 import { GlowPointer } from '@/components/business/glow-pointer'
+import { PublicEventsCalendar } from '@/components/public/public-events-calendar'
+import { Armchair, Ticket } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 
 // Force dynamic rendering to always show current ticket availability
 export const dynamic = 'force-dynamic'
@@ -39,12 +42,31 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
     notFound()
   }
 
-  // Fetch published events
+  // Fetch published events (include past events for calendar view)
   let events: Awaited<ReturnType<typeof getPublishedEventsByBusinessId>> = []
   try {
-    events = await getPublishedEventsByBusinessId(business.id)
+    events = await getPublishedEventsByBusinessId(business.id, true)
   } catch (error) {
     console.error('Error fetching events:', error)
+  }
+
+  // Fetch table service availability for events that have it enabled
+  const supabase = await createClient()
+  const eventsWithTableService = events.filter((e: any) => e.table_service_enabled)
+  const eventTableServiceMap: Record<string, number> = {}
+
+  if (eventsWithTableService.length > 0) {
+    const { data: tableSections } = await supabase
+      .from('event_table_sections')
+      .select('event_id, available_tables')
+      .in('event_id', eventsWithTableService.map(e => e.id))
+      .eq('is_enabled', true)
+
+    if (tableSections) {
+      tableSections.forEach(section => {
+        eventTableServiceMap[section.event_id] = (eventTableServiceMap[section.event_id] || 0) + section.available_tables
+      })
+    }
   }
 
   const themeColor = business.theme_color || '#3b82f6'
@@ -185,17 +207,40 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
 
         {/* Events Section */}
         <section>
-          <h2 className="text-2xl font-bold mb-4">Upcoming Events</h2>
           {events.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground">
-                  No upcoming events at this time. Check back soon!
-                </p>
-              </CardContent>
-            </Card>
+            <>
+              <h2 className="text-2xl font-bold mb-4">Upcoming Events</h2>
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground">
+                    No upcoming events at this time. Check back soon!
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          ) : events.length > 12 ? (
+            /* Calendar view for more than 12 events */
+            <PublicEventsCalendar
+              events={events.map((event) => ({
+                id: event.id,
+                title: event.title,
+                event_date: event.event_date,
+                event_time: event.event_time,
+                location: event.location,
+                image_url: event.image_url,
+                availableTickets: getEventAvailableTickets(event),
+                priceDisplay: getEventPriceDisplay(event),
+                hasTableService: eventTableServiceMap[event.id] > 0,
+              }))}
+              businessSlug={businessSlug}
+              themeColor={themeColor}
+              title="Upcoming Events"
+            />
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            /* Grid view for 12 or fewer events */
+            <>
+              <h2 className="text-2xl font-bold mb-4">Upcoming Events</h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               {events.map((event) => {
                 const availableTickets = getEventAvailableTickets(event)
                 const totalTickets = getEventTotalTickets(event)
@@ -239,17 +284,29 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
                         <div className="text-lg font-bold">
                           {getEventPriceDisplay(event)}
                         </div>
-                        <Button size="sm" asChild disabled={availableTickets === 0}>
-                          <Link href={`/${businessSlug}/events/${event.id}/checkout`}>
-                            {availableTickets > 0 ? 'Buy Tickets' : 'Sold Out'}
-                          </Link>
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" asChild disabled={availableTickets === 0} className="flex-1">
+                            <Link href={`/${businessSlug}/events/${event.id}/checkout`}>
+                              <Ticket className="mr-1 h-3 w-3" />
+                              {availableTickets > 0 ? 'Buy Tickets' : 'Sold Out'}
+                            </Link>
+                          </Button>
+                          {eventTableServiceMap[event.id] > 0 && (
+                            <Button size="sm" variant="outline" asChild className="flex-1">
+                              <Link href={`/${businessSlug}/events/${event.id}/checkout?mode=tables`}>
+                                <Armchair className="mr-1 h-3 w-3" />
+                                Book Table
+                              </Link>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                   </Card>
                 )
               })}
-            </div>
+              </div>
+            </>
           )}
         </section>
 

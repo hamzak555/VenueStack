@@ -12,20 +12,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Download, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Download, Search, ArrowUpDown, ArrowUp, ArrowDown, Star, ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils/currency'
+import { CustomerDetailPanel } from './customer-detail-panel'
 
 interface CustomersTableProps {
   customers: Customer[]
+  businessSlug: string
 }
 
-type SortColumn = 'name' | 'email' | 'phone' | 'total_orders' | 'total_spent' | 'first_purchase' | 'last_purchase'
+type SortColumn = 'name' | 'email' | 'phone' | 'total_reservations' | 'total_tickets' | 'total_spent' | 'average_rating' | 'last_purchase'
 type SortDirection = 'asc' | 'desc'
 
-export function CustomersTable({ customers }: CustomersTableProps) {
+const ITEMS_PER_PAGE = 25
+
+export function CustomersTable({ customers, businessSlug }: CustomersTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortColumn, setSortColumn] = useState<SortColumn>('total_spent')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [selectedCustomerIdentifier, setSelectedCustomerIdentifier] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Filter customers based on search term
   const filteredCustomers = customers.filter((customer) => {
@@ -43,7 +50,7 @@ export function CustomersTable({ customers }: CustomersTableProps) {
     let bValue: string | number = b[sortColumn] ?? ''
 
     // Handle date comparisons
-    if (sortColumn === 'first_purchase' || sortColumn === 'last_purchase') {
+    if (sortColumn === 'last_purchase') {
       aValue = new Date(aValue as string).getTime()
       bValue = new Date(bValue as string).getTime()
     }
@@ -59,6 +66,17 @@ export function CustomersTable({ customers }: CustomersTableProps) {
     return 0
   })
 
+  // Pagination
+  const totalPages = Math.ceil(sortedCustomers.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const paginatedCustomers = sortedCustomers.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
+  // Reset to page 1 when search changes
+  const handleSearch = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1)
+  }
+
   // Toggle sort
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -67,6 +85,7 @@ export function CustomersTable({ customers }: CustomersTableProps) {
       setSortColumn(column)
       setSortDirection('asc')
     }
+    setCurrentPage(1)
   }
 
   // Render sort icon
@@ -84,16 +103,17 @@ export function CustomersTable({ customers }: CustomersTableProps) {
   // Export to CSV
   const exportToCSV = () => {
     // Create CSV header
-    const headers = ['Name', 'Email', 'Phone', 'Total Orders', 'Total Spent', 'First Purchase', 'Last Purchase']
+    const headers = ['Name', 'Email', 'Phone', 'Reservations', 'Tickets', 'Total Spent', 'Rating', 'Last Purchase']
 
     // Create CSV rows
     const rows = sortedCustomers.map(customer => [
       customer.name,
       customer.email || '',
       customer.phone || '',
-      customer.total_orders.toString(),
+      customer.total_reservations.toString(),
+      customer.total_tickets.toString(),
       customer.total_spent.toFixed(2),
-      new Date(customer.first_purchase).toLocaleDateString(),
+      customer.average_rating?.toFixed(1) || '',
       new Date(customer.last_purchase).toLocaleDateString(),
     ])
 
@@ -133,7 +153,7 @@ export function CustomersTable({ customers }: CustomersTableProps) {
           <Input
             placeholder="Search by name, email, or phone..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             className="pl-10"
           />
         </div>
@@ -176,11 +196,20 @@ export function CustomersTable({ customers }: CustomersTableProps) {
               </TableHead>
               <TableHead className="text-right">
                 <button
-                  onClick={() => handleSort('total_orders')}
+                  onClick={() => handleSort('total_reservations')}
                   className="flex items-center justify-end w-full hover:text-foreground transition-colors"
                 >
-                  Orders
-                  {renderSortIcon('total_orders')}
+                  Reservations
+                  {renderSortIcon('total_reservations')}
+                </button>
+              </TableHead>
+              <TableHead className="text-right">
+                <button
+                  onClick={() => handleSort('total_tickets')}
+                  className="flex items-center justify-end w-full hover:text-foreground transition-colors"
+                >
+                  Tickets
+                  {renderSortIcon('total_tickets')}
                 </button>
               </TableHead>
               <TableHead className="text-right">
@@ -194,11 +223,11 @@ export function CustomersTable({ customers }: CustomersTableProps) {
               </TableHead>
               <TableHead>
                 <button
-                  onClick={() => handleSort('first_purchase')}
+                  onClick={() => handleSort('average_rating')}
                   className="flex items-center hover:text-foreground transition-colors"
                 >
-                  First Purchase
-                  {renderSortIcon('first_purchase')}
+                  Rating
+                  {renderSortIcon('average_rating')}
                 </button>
               </TableHead>
               <TableHead>
@@ -213,24 +242,61 @@ export function CustomersTable({ customers }: CustomersTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedCustomers.length === 0 ? (
+            {paginatedCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No customers match your search.
                 </TableCell>
               </TableRow>
             ) : (
-              sortedCustomers.map((customer) => (
-                <TableRow key={customer.id}>
+              paginatedCustomers.map((customer) => (
+                <TableRow
+                  key={customer.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => {
+                    // Use phone as primary identifier, email as fallback
+                    const identifier = customer.phone || customer.email
+                    if (identifier) setSelectedCustomerIdentifier(identifier)
+                  }}
+                >
                   <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.email || '-'}</TableCell>
-                  <TableCell>{customer.phone || '-'}</TableCell>
-                  <TableCell className="text-right">{customer.total_orders}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(customer.total_spent)}
+                  <TableCell>
+                    {customer.email ? (
+                      <div className="flex items-center gap-1">
+                        <span className="truncate max-w-[180px]">{customer.email}</span>
+                        {customer.emails.length > 1 && (
+                          <span className="text-xs text-muted-foreground">+{customer.emails.length - 1}</span>
+                        )}
+                      </div>
+                    ) : '-'}
                   </TableCell>
                   <TableCell>
-                    {new Date(customer.first_purchase).toLocaleDateString()}
+                    {customer.phone || '-'}
+                  </TableCell>
+                  <TableCell className="text-right">{customer.total_reservations}</TableCell>
+                  <TableCell className="text-right">{customer.total_tickets}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(customer.total_spent, false)}
+                  </TableCell>
+                  <TableCell>
+                    {customer.average_rating ? (
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            strokeWidth={1.5}
+                            className={cn(
+                              'h-3 w-3',
+                              star <= Math.round(customer.average_rating!)
+                                ? 'text-yellow-400 fill-yellow-900'
+                                : 'text-muted-foreground/30'
+                            )}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {new Date(customer.last_purchase).toLocaleDateString()}
@@ -242,9 +308,69 @@ export function CustomersTable({ customers }: CustomersTableProps) {
         </Table>
       </div>
 
-      <div className="text-sm text-muted-foreground">
-        Showing {sortedCustomers.length} of {customers.length} customers
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, sortedCustomers.length)} of {sortedCustomers.length} customers
+          {searchTerm && ` (filtered from ${customers.length})`}
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(page => {
+                  // Show first, last, current, and pages around current
+                  if (page === 1 || page === totalPages) return true
+                  if (Math.abs(page - currentPage) <= 1) return true
+                  return false
+                })
+                .map((page, index, array) => {
+                  // Add ellipsis where there are gaps
+                  const prevPage = array[index - 1]
+                  const showEllipsis = prevPage && page - prevPage > 1
+
+                  return (
+                    <span key={page} className="flex items-center">
+                      {showEllipsis && <span className="px-2 text-muted-foreground">...</span>}
+                      <Button
+                        variant={currentPage === page ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="w-8"
+                      >
+                        {page}
+                      </Button>
+                    </span>
+                  )
+                })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* Customer Detail Panel */}
+      <CustomerDetailPanel
+        open={!!selectedCustomerIdentifier}
+        onOpenChange={(open) => !open && setSelectedCustomerIdentifier(null)}
+        customerIdentifier={selectedCustomerIdentifier}
+        businessSlug={businessSlug}
+      />
     </div>
   )
 }

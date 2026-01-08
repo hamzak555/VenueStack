@@ -1,20 +1,28 @@
 'use client'
 
 import { useEffect, useState, use } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Minus, Plus, Info } from 'lucide-react'
+import { Loader2, Minus, Plus, Ticket, Armchair, Map } from 'lucide-react'
 import Image from 'next/image'
 import { AnimatedImageGlow } from '@/components/business/animated-image-glow'
 import { EventMap } from '@/components/business/event-map'
 import { TermsModal } from '@/components/business/terms-modal'
 import { Checkbox } from '@/components/ui/checkbox'
 import { calculateStripeFee, calculateCustomerPaysAmount, calculateBusinessPaysAmount } from '@/lib/utils/stripe-fees'
+import { InteractiveTableMap } from '@/components/business/interactive-table-map'
+import { TableServiceConfig } from '@/lib/types'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 // Helper function to format time to 12-hour format
 function formatTimeTo12Hour(time: string): string {
@@ -39,6 +47,20 @@ interface Event {
   available_tickets: number
   total_tickets: number
   status: string
+  table_service_enabled?: boolean
+}
+
+interface TableSection {
+  id: string
+  section_id: string
+  section_name: string
+  price: number
+  minimum_spend?: number
+  total_tables: number
+  available_tables: number
+  capacity?: number
+  max_per_customer?: number
+  is_enabled: boolean
 }
 
 interface Business {
@@ -80,12 +102,14 @@ function PaymentForm({
   business,
   total,
   customerInfo,
+  mode = 'tickets',
 }: {
   clientSecret: string
   event: Event
   business: Business
   total: number
   customerInfo: { name: string; email: string; phone: string }
+  mode?: 'tickets' | 'tables'
 }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -103,11 +127,15 @@ function PaymentForm({
     setIsProcessing(true)
     setError(null)
 
+    const successUrl = mode === 'tables'
+      ? `${window.location.origin}/${business.slug}/events/${event.id}/book-table/success`
+      : `${window.location.origin}/${business.slug}/events/${event.id}/success`
+
     try {
       const { error: submitError } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/${business.slug}/events/${event.id}/success`,
+          return_url: successUrl,
           payment_method_data: {
             billing_details: {
               name: customerInfo.name,
@@ -175,14 +203,27 @@ function PaymentForm({
 export default function CheckoutPage({ params }: { params: Promise<{ businessSlug: string; eventId: string }> }) {
   const resolvedParams = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Checkout mode: 'tickets' or 'tables'
+  const initialMode = searchParams.get('mode') === 'tables' ? 'tables' : 'tickets'
+  const [checkoutMode, setCheckoutMode] = useState<'tickets' | 'tables'>(initialMode)
 
   const [event, setEvent] = useState<Event | null>(null)
   const [business, setBusiness] = useState<Business | null>(null)
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
   const [artists, setArtists] = useState<Artist[]>([])
+  const [tableSections, setTableSections] = useState<TableSection[]>([])
   const [platformSettings, setPlatformSettings] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Table booking state
+  const [tableSelections, setTableSelections] = useState<Record<string, number>>({})
+  const [venueLayoutUrl, setVenueLayoutUrl] = useState<string | null>(null)
+  const [tableServiceConfig, setTableServiceConfig] = useState<TableServiceConfig | null>(null)
+  const [tableMapModalOpen, setTableMapModalOpen] = useState(false)
+  const [bookedTables, setBookedTables] = useState<{ section_id: string; table_number: string }[]>([])
 
   // For legacy single-price tickets
   const [quantity, setQuantity] = useState(1)
@@ -233,7 +274,28 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
       setBusiness(data.business)
       setTicketTypes(data.ticketTypes || [])
       setArtists(data.artists || [])
+      setTableSections(data.tableSections || [])
       setPlatformSettings(data.platformSettings || null)
+      setBookedTables(data.bookedTables || [])
+
+      // Fetch venue layout URL and table service config if table service is enabled
+      if (data.business?.id && data.tableSections?.length > 0) {
+        const tableServiceResponse = await fetch(`/api/businesses/${data.business.id}/table-service`)
+        if (tableServiceResponse.ok) {
+          const tableServiceData = await tableServiceResponse.json()
+          setVenueLayoutUrl(tableServiceData.venue_layout_url || null)
+          setTableServiceConfig(tableServiceData.table_service_config || null)
+        }
+      }
+
+      // If mode=tables but no table sections available, switch to tickets
+      if (initialMode === 'tables' && (!data.tableSections || data.tableSections.length === 0)) {
+        setCheckoutMode('tickets')
+      }
+      // If mode=tickets but no tickets available, switch to tables
+      if (initialMode === 'tickets' && (!data.ticketTypes || data.ticketTypes.length === 0) && data.event?.available_tickets === 0 && data.tableSections?.length > 0) {
+        setCheckoutMode('tables')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load event')
     } finally {
@@ -278,6 +340,111 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
       }
       return { ...prev, [ticketTypeId]: newQty }
     })
+  }
+
+  // Table selection functions
+  const updateTableSelection = (sectionId: string, delta: number) => {
+    setTableSelections(prev => {
+      const section = tableSections.find(s => s.id === sectionId)
+      if (!section) return prev
+
+      const currentQty = prev[sectionId] || 0
+      const maxQty = section.max_per_customer
+        ? Math.min(section.available_tables, section.max_per_customer)
+        : section.available_tables
+      const newQty = Math.max(0, Math.min(maxQty, currentQty + delta))
+
+      if (newQty === 0) {
+        const { [sectionId]: _, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [sectionId]: newQty }
+    })
+  }
+
+  const setTableQuantity = (sectionId: string, quantity: number) => {
+    const section = tableSections.find(s => s.id === sectionId)
+    if (!section) return
+
+    const maxQty = section.max_per_customer
+      ? Math.min(section.available_tables, section.max_per_customer)
+      : section.available_tables
+    const newQty = Math.max(0, Math.min(maxQty, quantity))
+
+    setTableSelections(prev => {
+      if (newQty === 0) {
+        const { [sectionId]: _, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [sectionId]: newQty }
+    })
+  }
+
+  const getTotalTables = () => {
+    return Object.values(tableSelections).reduce((sum, qty) => sum + qty, 0)
+  }
+
+  const getTableSubtotal = () => {
+    return Object.entries(tableSelections).reduce((total, [sectionId, qty]) => {
+      const section = tableSections.find(s => s.id === sectionId)
+      return total + (section?.price || 0) * qty
+    }, 0)
+  }
+
+  const getTableTax = () => {
+    if (!business) return 0
+    const subtotal = getTableSubtotal()
+    return (subtotal * (business.tax_percentage || 0)) / 100
+  }
+
+  const getTablePlatformFee = () => {
+    if (!platformSettings || !business) return 0
+    const subtotal = getTableSubtotal()
+    if (subtotal <= 0) return 0
+
+    const tax = getTableTax()
+    const taxableAmount = subtotal + tax
+
+    let fee = 0
+    switch (platformSettings.platform_fee_type) {
+      case 'flat':
+        fee = platformSettings.flat_fee_amount
+        break
+      case 'percentage':
+        fee = (taxableAmount * platformSettings.percentage_fee) / 100
+        break
+      case 'higher_of_both': {
+        const flatFee = platformSettings.flat_fee_amount
+        const percentageFee = (taxableAmount * platformSettings.percentage_fee) / 100
+        fee = Math.max(flatFee, percentageFee)
+        break
+      }
+      default:
+        fee = 0
+    }
+
+    return business.platform_fee_payer === 'customer' ? fee : 0
+  }
+
+  const getTableStripeFee = () => {
+    if (!business) return 0
+    if (business.stripe_fee_payer !== 'customer') return 0
+
+    const subtotal = getTableSubtotal()
+    if (subtotal <= 0) return 0
+
+    const tax = getTableTax()
+    const platformFee = getTablePlatformFee()
+    const baseAmount = subtotal + tax + platformFee
+
+    if (baseAmount <= 0) return 0
+
+    const finalWithStripeFee = (baseAmount + 0.30) / (1 - 0.029)
+    return finalWithStripeFee - baseAmount
+  }
+
+  const getTableTotal = () => {
+    return getTableSubtotal() + getTableTax() + getTablePlatformFee() + getTableStripeFee()
   }
 
   const calculateTotal = () => {
@@ -555,6 +722,56 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
     }
   }
 
+  // Table payment initialization
+  const initializeTablePayment = async () => {
+    if (getTotalTables() === 0 || !customerInfo.name.trim() || !customerInfo.email.trim()) {
+      return
+    }
+
+    if (!business?.stripe_onboarding_complete) {
+      return
+    }
+
+    setIsInitializingPayment(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/checkout/create-table-payment-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: resolvedParams.eventId,
+          tableSelections: tableSelections,
+          customerName: customerInfo.name,
+          customerEmail: customerInfo.email,
+          customerPhone: customerInfo.phone || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to initialize payment')
+      }
+
+      const { clientSecret, publishableKey } = await response.json()
+      setClientSecret(clientSecret)
+      setStripePromise(loadStripe(publishableKey))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsInitializingPayment(false)
+    }
+  }
+
+  // Handle mode switch - reset selections when switching
+  const handleModeSwitch = (mode: 'tickets' | 'tables') => {
+    if (mode === checkoutMode) return
+    // Reset payment state when switching modes
+    setClientSecret(null)
+    setStripePromise(null)
+    setCheckoutMode(mode)
+  }
+
   // Don't auto-initialize payment to avoid creating incomplete PaymentIntents
   // User will click "Continue to Payment" button instead
 
@@ -579,6 +796,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
     )
   }
 
+  // Ticket calculations
   const subtotal = calculateTotal()
   const discount = getDiscountAmount()
   const tax = getTax()
@@ -586,6 +804,19 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
   const stripeFee = getStripeFee()
   const total = subtotal - discount + tax + platformFee + stripeFee
   const totalTickets = getTotalTicketCount()
+
+  // Table calculations
+  const tableSubtotal = getTableSubtotal()
+  const tableTax = getTableTax()
+  const tablePlatformFee = getTablePlatformFee()
+  const tableStripeFee = getTableStripeFee()
+  const tableTotal = getTableTotal()
+  const totalTables = getTotalTables()
+
+  // Determine which options are available
+  const hasTickets = hasTicketTypes || (event?.available_tickets || 0) > 0
+  const hasTables = tableSections.length > 0
+  const showToggle = hasTickets && hasTables
 
   const elementsOptions: StripeElementsOptions = {
     clientSecret: clientSecret!,
@@ -640,7 +871,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
       <div className="max-w-4xl mx-auto relative z-10">
         <Button
           variant="ghost"
-          onClick={() => router.back()}
+          onClick={() => router.push(`/${resolvedParams.businessSlug}`)}
           className="mb-6"
         >
           ← Back
@@ -660,10 +891,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                   />
                 </div>
               )}
-              <CardHeader>
-                <CardTitle>Event Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pb-6">
+              <CardContent className="space-y-4 py-6">
                 <div>
                   <h2 className="text-2xl font-bold">{event.title}</h2>
                   <p className="text-muted-foreground text-sm mt-1">
@@ -677,7 +905,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
 
                 <div className="space-y-2 text-sm pb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">Date:</span>
+                    <span className="font-medium">Date & Time:</span>
                     <span className="text-muted-foreground">
                       {new Date(event.event_date).toLocaleDateString('en-US', {
                         weekday: 'long',
@@ -692,7 +920,14 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                   {event.location && !event.location_latitude && (
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Location:</span>
-                      <span className="text-muted-foreground">{event.location}</span>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-primary hover:underline"
+                      >
+                        {event.location}
+                      </a>
                     </div>
                   )}
                 </div>
@@ -744,10 +979,54 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
           <div className="md:sticky md:top-4 md:self-start space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Purchase Tickets</CardTitle>
-                <CardDescription>
-                  Select your tickets and complete your purchase
-                </CardDescription>
+                {/* Show toggle when both tickets and tables are available */}
+                {showToggle ? (
+                  <div className="space-y-2">
+                    <div className="flex rounded-lg bg-muted p-1">
+                      <button
+                        onClick={() => handleModeSwitch('tickets')}
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          checkoutMode === 'tickets'
+                            ? 'bg-background shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Ticket className="h-4 w-4" />
+                        Buy Tickets
+                      </button>
+                      <button
+                        onClick={() => handleModeSwitch('tables')}
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          checkoutMode === 'tables'
+                            ? 'bg-background shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Armchair className="h-4 w-4" />
+                        Book a Table
+                      </button>
+                    </div>
+                    <CardDescription>
+                      {checkoutMode === 'tickets'
+                        ? 'Select your tickets and complete your purchase'
+                        : 'Select a section and complete your reservation'}
+                    </CardDescription>
+                  </div>
+                ) : hasTables && !hasTickets ? (
+                  <>
+                    <CardTitle>Book a Table</CardTitle>
+                    <CardDescription>
+                      Select a section and complete your reservation
+                    </CardDescription>
+                  </>
+                ) : (
+                  <>
+                    <CardTitle>Purchase Tickets</CardTitle>
+                    <CardDescription>
+                      Select your tickets and complete your purchase
+                    </CardDescription>
+                  </>
+                )}
               </CardHeader>
               <CardContent className="space-y-6">
                 {error && (
@@ -801,40 +1080,158 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                   />
                 </div>
 
-                {hasTicketTypes ? (
-                  <div className="space-y-4">
-                    <Label>Select Tickets</Label>
-                    {ticketTypes.map((ticketType) => {
-                      const maxQty = ticketType.max_per_customer
-                        ? Math.min(ticketType.available_quantity, ticketType.max_per_customer)
-                        : ticketType.available_quantity
-                      return (
-                        <Card key={ticketType.id}>
-                          <CardContent className="px-4 py-1.5">
-                            <div className="space-y-2">
-                              <div>
-                                <div className="flex items-center justify-between">
-                                  <h3 className="font-medium">{ticketType.name}</h3>
-                                  <span className="font-bold">${ticketType.price.toFixed(2)}</span>
-                                </div>
-                                {ticketType.description && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {ticketType.description}
-                                  </p>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {ticketType.available_quantity} available
-                                  {ticketType.max_per_customer && ` · Limit ${ticketType.max_per_customer} per customer`}
-                                </p>
-                              </div>
+                {/* Ticket Selection - Show when in tickets mode */}
+                {checkoutMode === 'tickets' && (
+                  <>
+                    {hasTicketTypes ? (
+                      <div className="space-y-4">
+                        <Label>Select Tickets</Label>
+                        {ticketTypes.map((ticketType) => {
+                          const maxQty = ticketType.max_per_customer
+                            ? Math.min(ticketType.available_quantity, ticketType.max_per_customer)
+                            : ticketType.available_quantity
+                          return (
+                            <Card key={ticketType.id}>
+                              <CardContent className="px-4 py-1.5">
+                                <div className="space-y-2">
+                                  <div>
+                                    <div className="flex items-center justify-between">
+                                      <h3 className="font-medium">{ticketType.name}</h3>
+                                      <span className="font-bold">${ticketType.price.toFixed(2)}</span>
+                                    </div>
+                                    {ticketType.description && (
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        {ticketType.description}
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {ticketType.available_quantity} available
+                                      {ticketType.max_per_customer && ` · Limit ${ticketType.max_per_customer} per customer`}
+                                    </p>
+                                  </div>
 
-                              <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-4">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => updateTicketSelection(ticketType.id, -1)}
+                                      disabled={!ticketSelections[ticketType.id] || !!clientSecret}
+                                    >
+                                      <Minus className="h-4 w-4" />
+                                    </Button>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max={maxQty}
+                                      value={ticketSelections[ticketType.id] || 0}
+                                      onChange={(e) => setTicketQuantity(ticketType.id, parseInt(e.target.value) || 0)}
+                                      className="w-20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      disabled={!!clientSecret}
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => updateTicketSelection(ticketType.id, 1)}
+                                      disabled={(ticketSelections[ticketType.id] || 0) >= maxQty || !!clientSecret}
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Ticket Price</Label>
+                          <span className="font-medium">${event.ticket_price ? event.ticket_price.toFixed(2) : '0.00'}</span>
+                        </div>
+                        <Label>Quantity</Label>
+                        <div className="flex items-center gap-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                            disabled={quantity <= 1 || !!clientSecret}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="text-2xl font-bold w-12 text-center">{quantity}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setQuantity(Math.min(event.available_tickets, quantity + 1))}
+                            disabled={quantity >= event.available_tickets || !!clientSecret}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Maximum {event.available_tickets} tickets available
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Table Selection - Show when in tables mode */}
+                {checkoutMode === 'tables' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Select Section *</Label>
+                      {(venueLayoutUrl || tableServiceConfig?.drawnLayout?.boundary) && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setTableMapModalOpen(true)}
+                          className="text-xs h-7 px-2"
+                        >
+                          <Map className="h-3 w-3 mr-1" />
+                          View Table Map
+                        </Button>
+                      )}
+                    </div>
+                    {tableSections.map((section) => {
+                      const quantity = tableSelections[section.id] || 0
+                      const maxQty = section.max_per_customer
+                        ? Math.min(section.available_tables, section.max_per_customer)
+                        : section.available_tables
+                      const isDisabled = section.available_tables === 0
+                      return (
+                        <Card key={section.id} className={isDisabled ? 'opacity-50' : ''}>
+                          <CardContent className="px-4 py-3">
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h3 className="font-medium">{section.section_name}</h3>
+                                  <p className="text-xs text-muted-foreground">
+                                    {section.available_tables} available
+                                    {section.capacity && ` · ${section.capacity} guests per table`}
+                                    {section.max_per_customer && ` · Limit ${section.max_per_customer}`}
+                                  </p>
+                                  {Number(section.minimum_spend) > 0 && (
+                                    <p className="text-xs text-amber-500 mt-1">
+                                      Minimum spend: ${Number(section.minimum_spend).toFixed(2)}
+                                    </p>
+                                  )}
+                                </div>
+                                <span className="font-bold text-lg">${section.price.toFixed(2)}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => updateTicketSelection(ticketType.id, -1)}
-                                  disabled={!ticketSelections[ticketType.id] || !!clientSecret}
+                                  onClick={() => updateTableSelection(section.id, -1)}
+                                  disabled={quantity === 0 || !!clientSecret}
                                 >
                                   <Minus className="h-4 w-4" />
                                 </Button>
@@ -842,17 +1239,17 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                                   type="number"
                                   min="0"
                                   max={maxQty}
-                                  value={ticketSelections[ticketType.id] || 0}
-                                  onChange={(e) => setTicketQuantity(ticketType.id, parseInt(e.target.value) || 0)}
+                                  value={quantity}
+                                  onChange={(e) => setTableQuantity(section.id, parseInt(e.target.value) || 0)}
                                   className="w-20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  disabled={!!clientSecret}
+                                  disabled={isDisabled || !!clientSecret}
                                 />
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => updateTicketSelection(ticketType.id, 1)}
-                                  disabled={(ticketSelections[ticketType.id] || 0) >= maxQty || !!clientSecret}
+                                  onClick={() => updateTableSelection(section.id, 1)}
+                                  disabled={quantity >= maxQty || !!clientSecret}
                                 >
                                   <Plus className="h-4 w-4" />
                                 </Button>
@@ -863,41 +1260,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                       )
                     })}
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Ticket Price</Label>
-                      <span className="font-medium">${event.ticket_price ? event.ticket_price.toFixed(2) : '0.00'}</span>
-                    </div>
-                    <Label>Quantity</Label>
-                    <div className="flex items-center gap-4">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        disabled={quantity <= 1 || !!clientSecret}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <span className="text-2xl font-bold w-12 text-center">{quantity}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setQuantity(Math.min(event.available_tickets, quantity + 1))}
-                        disabled={quantity >= event.available_tickets || !!clientSecret}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Maximum {event.available_tickets} tickets available
-                    </p>
-                  </div>
                 )}
 
-                {/* Promo Code Section */}
+                {/* Promo Code Section - Only for tickets */}
+                {checkoutMode === 'tickets' && (
                 <div className="space-y-2">
                   <Label htmlFor="promoCode">Promo Code</Label>
                   <div className="flex gap-2">
@@ -945,73 +1311,81 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                     </p>
                   )}
                 </div>
+                )}
 
-                {/* Order Summary */}
-                <div className="pt-4 border-t">
-                  {totalTickets > 0 && (discount > 0 || tax > 0 || platformFee > 0 || stripeFee > 0) && (
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Subtotal</span>
-                      <span className="text-sm text-muted-foreground">${subtotal.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {totalTickets > 0 && discount > 0 && (
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-green-600">Discount</span>
-                      <span className="text-sm text-green-600">-${discount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {totalTickets > 0 && tax > 0 && (
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Tax ({business?.tax_percentage || 0}%)</span>
-                      <span className="text-sm text-muted-foreground">${tax.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {totalTickets > 0 && (platformFee > 0 || stripeFee > 0) && (
-                    <div className="flex items-center justify-between mb-2 group relative">
-                      <div className="flex items-center gap-1">
+                {/* Order Summary - Tickets */}
+                {checkoutMode === 'tickets' && (
+                  <div className="pt-4 border-t">
+                    {totalTickets > 0 && (discount > 0 || tax > 0 || platformFee > 0 || stripeFee > 0) && (
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">Subtotal</span>
+                        <span className="text-sm text-muted-foreground">${subtotal.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {totalTickets > 0 && discount > 0 && (
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-green-600">Discount</span>
+                        <span className="text-sm text-green-600">-${discount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {totalTickets > 0 && tax > 0 && (
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">Tax ({business?.tax_percentage || 0}%)</span>
+                        <span className="text-sm text-muted-foreground">${tax.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {totalTickets > 0 && (platformFee > 0 || stripeFee > 0) && (
+                      <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-muted-foreground">Processing Fees</span>
-                        <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        <span className="text-sm text-muted-foreground">${(platformFee + stripeFee).toFixed(2)}</span>
                       </div>
-                      <span className="text-sm text-muted-foreground">${(platformFee + stripeFee).toFixed(2)}</span>
-
-                      {/* Tooltip */}
-                      <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50">
-                        <div className="bg-popover border border-border rounded-lg p-3 shadow-lg min-w-[250px]">
-                          <p className="text-xs font-medium mb-2">Fee Breakdown</p>
-                          {platformFee > 0 && (
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-muted-foreground">Platform Fee:</span>
-                              <span className="font-medium">${platformFee.toFixed(2)}</span>
-                            </div>
-                          )}
-                          {stripeFee > 0 && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Stripe Processing:</span>
-                              <span className="font-medium">${stripeFee.toFixed(2)}</span>
-                            </div>
-                          )}
-                          {(business?.stripe_fee_payer === 'business' || business?.platform_fee_payer === 'business') && (
-                            <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                              {business.stripe_fee_payer === 'business' && business.platform_fee_payer === 'business' && 'All fees covered by ' + business.name}
-                              {business.stripe_fee_payer === 'business' && business.platform_fee_payer === 'customer' && 'Stripe fees covered by ' + business.name}
-                              {business.stripe_fee_payer === 'customer' && business.platform_fee_payer === 'business' && 'Platform fees covered by ' + business.name}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                    )}
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="font-medium">Total ({totalTickets} {totalTickets === 1 ? 'ticket' : 'tickets'})</span>
+                      <span className="text-2xl font-bold">${total.toFixed(2)}</span>
                     </div>
-                  )}
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="font-medium">Total ({totalTickets} {totalTickets === 1 ? 'ticket' : 'tickets'})</span>
-                    <span className="text-2xl font-bold">${total.toFixed(2)}</span>
-                  </div>
 
-                  {!business.stripe_onboarding_complete && (
-                    <p className="text-xs text-destructive mt-2 text-center">
-                      Payment processing is not yet available for this event
-                    </p>
-                  )}
-                </div>
+                    {!business.stripe_onboarding_complete && (
+                      <p className="text-xs text-destructive mt-2 text-center">
+                        Payment processing is not yet available for this event
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Order Summary - Tables */}
+                {checkoutMode === 'tables' && totalTables > 0 && (
+                  <div className="pt-4 border-t space-y-2">
+                    {Object.entries(tableSelections).map(([sectionId, qty]) => {
+                      const section = tableSections.find(s => s.id === sectionId)
+                      if (!section || qty === 0) return null
+                      return (
+                        <div key={sectionId} className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            {section.section_name} × {qty}
+                          </span>
+                          <span className="text-sm">${(section.price * qty).toFixed(2)}</span>
+                        </div>
+                      )
+                    })}
+                    {tableTax > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Tax ({business?.tax_percentage || 0}%)</span>
+                        <span className="text-sm">${tableTax.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {(tablePlatformFee > 0 || tableStripeFee > 0) && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Processing Fees</span>
+                        <span className="text-sm">${(tablePlatformFee + tableStripeFee).toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <span className="font-medium">Total ({totalTables} {totalTables === 1 ? 'table' : 'tables'})</span>
+                      <span className="text-2xl font-bold">${tableTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Terms and Conditions Checkbox - Only show if business has terms */}
                 {business.terms_and_conditions && (
@@ -1038,13 +1412,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                   </div>
                 )}
 
-                {/* Complete Free Order Button - Shows for $0 orders */}
-                {!clientSecret && totalTickets > 0 && customerInfo.name.trim() && customerInfo.email.trim() && isFreeOrder() && (
+                {/* Complete Free Order Button - Shows for $0 orders (tickets only) */}
+                {checkoutMode === 'tickets' && !clientSecret && totalTickets > 0 && customerInfo.name.trim() && customerInfo.email.trim() && isFreeOrder() && (
                   <div className="pt-4 border-t">
                     <Button
                       type="button"
                       onClick={completeFreeOrder}
-                      disabled={isCompletingFreeOrder || (business.terms_and_conditions && !termsAccepted)}
+                      disabled={isCompletingFreeOrder || !!(business.terms_and_conditions && !termsAccepted)}
                       className="w-full"
                       size="lg"
                     >
@@ -1060,13 +1434,35 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                   </div>
                 )}
 
-                {/* Continue to Payment Button - Shows when ready but payment not initialized (paid orders only) */}
-                {!clientSecret && totalTickets > 0 && customerInfo.name.trim() && customerInfo.email.trim() && business.stripe_onboarding_complete && !isFreeOrder() && (
+                {/* Continue to Payment Button - Tickets */}
+                {checkoutMode === 'tickets' && !clientSecret && totalTickets > 0 && customerInfo.name.trim() && customerInfo.email.trim() && business.stripe_onboarding_complete && !isFreeOrder() && (
                   <div className="pt-4 border-t">
                     <Button
                       type="button"
                       onClick={initializePayment}
-                      disabled={isInitializingPayment || (business.terms_and_conditions && !termsAccepted)}
+                      disabled={isInitializingPayment || !!(business.terms_and_conditions && !termsAccepted)}
+                      className="w-full"
+                      size="lg"
+                    >
+                      {isInitializingPayment ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Loading Payment...
+                        </>
+                      ) : (
+                        'Continue to Payment'
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Continue to Payment Button - Tables */}
+                {checkoutMode === 'tables' && !clientSecret && totalTables > 0 && customerInfo.name.trim() && customerInfo.email.trim() && business.stripe_onboarding_complete && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      type="button"
+                      onClick={initializeTablePayment}
+                      disabled={isInitializingPayment || !!(business.terms_and_conditions && !termsAccepted)}
                       className="w-full"
                       size="lg"
                     >
@@ -1104,8 +1500,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                         clientSecret={clientSecret}
                         event={event}
                         business={business}
-                        total={total}
+                        total={checkoutMode === 'tickets' ? total : tableTotal}
                         customerInfo={customerInfo}
+                        mode={checkoutMode}
                       />
                     </Elements>
                   </div>
@@ -1133,6 +1530,33 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
           termsAndConditions={business.terms_and_conditions}
         />
       )}
+
+      {/* Table Map Modal */}
+      <Dialog open={tableMapModalOpen} onOpenChange={setTableMapModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Table Layout</DialogTitle>
+          </DialogHeader>
+          {(venueLayoutUrl || tableServiceConfig?.drawnLayout?.boundary) && tableServiceConfig ? (
+            <InteractiveTableMap
+              venueLayoutUrl={venueLayoutUrl}
+              tableServiceConfig={tableServiceConfig}
+              tableSections={tableSections}
+              bookedTables={bookedTables}
+            />
+          ) : venueLayoutUrl ? (
+            <div className="relative w-full">
+              <Image
+                src={venueLayoutUrl}
+                alt="Venue table layout"
+                width={800}
+                height={600}
+                className="w-full h-auto object-contain rounded-lg"
+              />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

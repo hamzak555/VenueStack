@@ -1,6 +1,71 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { Database } from '@/lib/types'
 
+export interface EventWithTicketStats {
+  id: string
+  title: string
+  event_date: string
+  event_time: string | null
+  location: string | null
+  image_url: string | null
+  status: string
+  total_tickets: number
+  scanned_tickets: number
+  unscanned_tickets: number
+}
+
+export async function getEventsWithTicketStats(businessId: string): Promise<EventWithTicketStats[]> {
+  const supabase = await createServerClient()
+
+  // Get all events for the business
+  const { data: events, error: eventsError } = await supabase
+    .from('events')
+    .select(`
+      id,
+      title,
+      event_date,
+      event_time,
+      location,
+      image_url,
+      status
+    `)
+    .eq('business_id', businessId)
+    .order('event_date', { ascending: true })
+
+  if (eventsError || !events) {
+    console.error('Error fetching events:', eventsError)
+    return []
+  }
+
+  const eventIds = events.map(e => e.id)
+
+  // Get tickets for these events
+  const { data: tickets } = await supabase
+    .from('tickets')
+    .select('event_id, checked_in_at')
+    .in('event_id', eventIds)
+
+  // Aggregate data per event
+  return events.map(event => {
+    const eventTickets = tickets?.filter(t => t.event_id === event.id) || []
+    const totalTickets = eventTickets.length
+    const scannedTickets = eventTickets.filter(t => t.checked_in_at !== null).length
+
+    return {
+      id: event.id,
+      title: event.title,
+      event_date: event.event_date,
+      event_time: event.event_time,
+      location: event.location,
+      image_url: event.image_url,
+      status: event.status,
+      total_tickets: totalTickets,
+      scanned_tickets: scannedTickets,
+      unscanned_tickets: totalTickets - scannedTickets,
+    }
+  })
+}
+
 export type Ticket = Database['public']['Tables']['tickets']['Row']
 export type TicketInsert = Database['public']['Tables']['tickets']['Insert']
 export type TicketUpdate = Database['public']['Tables']['tickets']['Update']
@@ -209,11 +274,11 @@ export interface TicketWithDetails {
 /**
  * Get all tickets for a business with order and event details
  */
-export async function getTicketsByBusinessId(businessId: string): Promise<TicketWithDetails[]> {
+export async function getTicketsByBusinessId(businessId: string, eventId?: string): Promise<TicketWithDetails[]> {
   const supabase = await createServerClient()
 
   // Get all tickets for events belonging to this business
-  const { data: tickets, error } = await supabase
+  let query = supabase
     .from('tickets')
     .select(`
       id,
@@ -224,6 +289,7 @@ export async function getTicketsByBusinessId(businessId: string): Promise<Ticket
       checked_in_at,
       created_at,
       order_id,
+      event_id,
       order:orders!inner (
         id,
         order_number,
@@ -240,6 +306,13 @@ export async function getTicketsByBusinessId(businessId: string): Promise<Ticket
     `)
     .eq('order.event.business_id', businessId)
     .order('created_at', { ascending: false })
+
+  // Filter by event if provided
+  if (eventId) {
+    query = query.eq('event_id', eventId)
+  }
+
+  const { data: tickets, error } = await query
 
   if (error) {
     console.error('Error fetching tickets:', error)

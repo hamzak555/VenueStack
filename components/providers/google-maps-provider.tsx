@@ -1,6 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
+
+interface GoogleMapsContextType {
+  isLoaded: boolean
+}
+
+const GoogleMapsContext = createContext<GoogleMapsContextType>({ isLoaded: false })
+
+export function useGoogleMaps() {
+  return useContext(GoogleMapsContext)
+}
 
 interface GoogleMapsProviderProps {
   children: React.ReactNode
@@ -18,6 +28,13 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
       return
     }
 
+    // Check if script is already being loaded
+    const existingScript = document.querySelector(`script[src*="maps.googleapis.com"]`)
+    if (existingScript) {
+      existingScript.addEventListener('load', () => setIsLoaded(true))
+      return
+    }
+
     // Load Google Maps script
     const script = document.createElement('script')
     script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`
@@ -26,15 +43,11 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
     script.onload = () => setIsLoaded(true)
 
     document.head.appendChild(script)
-
-    return () => {
-      // Cleanup
-      const existingScript = document.querySelector(`script[src*="maps.googleapis.com"]`)
-      if (existingScript) {
-        document.head.removeChild(existingScript)
-      }
-    }
   }, [])
 
-  return <>{children}</>
+  return (
+    <GoogleMapsContext.Provider value={{ isLoaded }}>
+      {children}
+    </GoogleMapsContext.Provider>
+  )
 }

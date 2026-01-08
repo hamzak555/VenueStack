@@ -1,5 +1,86 @@
 import { createClient } from '@/lib/supabase/server'
 
+export interface EventWithSalesInfo {
+  id: string
+  title: string
+  event_date: string
+  event_time: string | null
+  location: string | null
+  image_url: string | null
+  status: string
+  orders_count: number
+  tickets_sold: number
+  total_revenue: number
+  available_tickets: number
+  total_tickets: number
+}
+
+export async function getEventsWithSales(businessId: string): Promise<EventWithSalesInfo[]> {
+  const supabase = await createClient()
+
+  // Get all events for the business
+  const { data: events, error: eventsError } = await supabase
+    .from('events')
+    .select(`
+      id,
+      title,
+      event_date,
+      event_time,
+      location,
+      image_url,
+      status
+    `)
+    .eq('business_id', businessId)
+    .order('event_date', { ascending: true })
+
+  if (eventsError || !events) {
+    console.error('Error fetching events:', eventsError)
+    return []
+  }
+
+  const eventIds = events.map(e => e.id)
+
+  // Get orders for these events
+  const { data: orders } = await supabase
+    .from('orders')
+    .select('event_id, quantity, total, status')
+    .in('event_id', eventIds)
+    .eq('status', 'completed')
+
+  // Get ticket types for available/total counts
+  const { data: ticketTypes } = await supabase
+    .from('ticket_types')
+    .select('event_id, available_quantity, total_quantity')
+    .in('event_id', eventIds)
+
+  // Aggregate data per event
+  return events.map(event => {
+    const eventOrders = orders?.filter(o => o.event_id === event.id) || []
+    const eventTicketTypes = ticketTypes?.filter(t => t.event_id === event.id) || []
+
+    const ordersCount = eventOrders.length
+    const ticketsSold = eventOrders.reduce((sum, o) => sum + (o.quantity || 0), 0)
+    const totalRevenue = eventOrders.reduce((sum, o) => sum + parseFloat(o.total?.toString() || '0'), 0)
+    const availableTickets = eventTicketTypes.reduce((sum, t) => sum + (t.available_quantity || 0), 0)
+    const totalTickets = eventTicketTypes.reduce((sum, t) => sum + (t.total_quantity || 0), 0)
+
+    return {
+      id: event.id,
+      title: event.title,
+      event_date: event.event_date,
+      event_time: event.event_time,
+      location: event.location,
+      image_url: event.image_url,
+      status: event.status,
+      orders_count: ordersCount,
+      tickets_sold: ticketsSold,
+      total_revenue: totalRevenue,
+      available_tickets: availableTickets,
+      total_tickets: totalTickets,
+    }
+  })
+}
+
 export interface Order {
   id: string
   order_number: string
@@ -15,11 +96,11 @@ export interface Order {
   payment_intent_id?: string
 }
 
-export async function getOrdersByBusinessId(businessId: string): Promise<Order[]> {
+export async function getOrdersByBusinessId(businessId: string, eventId?: string): Promise<Order[]> {
   const supabase = await createClient()
 
   // Get all orders for events belonging to this business
-  const { data, error } = await supabase
+  let query = supabase
     .from('orders')
     .select(`
       *,
@@ -32,6 +113,13 @@ export async function getOrdersByBusinessId(businessId: string): Promise<Order[]
     `)
     .eq('events.business_id', businessId)
     .order('created_at', { ascending: false })
+
+  // Filter by event if provided
+  if (eventId) {
+    query = query.eq('event_id', eventId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching orders:', error)
