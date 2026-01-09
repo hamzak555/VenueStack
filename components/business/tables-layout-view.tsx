@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { UserCheck, Eye, Phone, Mail, Search, User, ZoomIn, ZoomOut, Plus, Lock, Unlock, Link2, Unlink, StickyNote, CheckCircle, ArrowUpDown } from 'lucide-react'
+import { UserCheck, Eye, Phone, Mail, Search, User, ZoomIn, ZoomOut, Plus, Lock, Unlock, Link2, Unlink, StickyNote, CheckCircle, ArrowUpDown, Info } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils/currency'
@@ -753,15 +753,12 @@ export function TablesLayoutView({
                     <span>{booking.status === 'completed' ? 'Was Table' : 'Table'} <span className="font-medium text-foreground">{booking.table_number || booking.completed_table_number || '—'}</span></span>
                     {(() => {
                       const businessSectionId = eventToBusinessSectionMap[booking.event_table_section_id]
-                      const sectionPrice = businessSectionId ? sectionPriceMap[businessSectionId] : 0
                       const minimumSpend = businessSectionId ? sectionMinimumSpendMap[businessSectionId] : 0
                       return (
                         <div className="flex items-center gap-2">
-                          {sectionPrice > 0 ? (
-                            <span className="font-medium text-foreground">{formatCurrency(sectionPrice)}</span>
-                          ) : booking.amount ? (
-                            <span className="font-medium text-foreground">{formatCurrency(booking.amount)}</span>
-                          ) : null}
+                          {booking.amount && booking.amount > 0 && (
+                            <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount)}</span>
+                          )}
                           {minimumSpend > 0 && (
                             <span className="text-amber-500 whitespace-nowrap">Min ${Math.round(minimumSpend)}</span>
                           )}
@@ -774,9 +771,23 @@ export function TablesLayoutView({
                       <p className="font-medium truncate">{booking.customer_name}</p>
                       <p className="text-xs text-muted-foreground truncate">{booking.section_name}</p>
                     </div>
-                    <Badge variant={getStatusColor(booking.status)} className="text-xs shrink-0">
-                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                    </Badge>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant={getStatusColor(booking.status)} className="text-xs">
+                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDetailsModalBooking(booking)
+                        }}
+                        title="View details"
+                      >
+                        <Info className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -990,30 +1001,31 @@ export function TablesLayoutView({
                           <div className="space-y-3">
                             <div>
                               <p className="text-xs text-muted-foreground mb-0.5">{section.name}</p>
-                              <p className="font-semibold text-base">{booking.customer_name}</p>
+                              <p className="text-base font-normal">{booking.customer_name}</p>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge variant={getStatusColor(booking.status)}>
                                   {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                                 </Badge>
-                                {sectionPriceMap[section.id] > 0 ? (
-                                  <span className="text-sm font-medium">{formatCurrency(sectionPriceMap[section.id])}</span>
-                                ) : booking.amount ? (
-                                  <span className="text-sm font-medium">{formatCurrency(booking.amount)}</span>
-                                ) : null}
+                                {booking.amount && booking.amount > 0 && (
+                                  <div className="flex flex-col items-center leading-none">
+                                    <span className="text-[10px] text-muted-foreground">Deposit</span>
+                                    <span className="text-xs font-medium text-green-500">{formatCurrency(booking.amount)}</span>
+                                  </div>
+                                )}
                                 {sectionMinimumSpendMap[section.id] > 0 && (
                                   <span className="text-sm text-amber-500 whitespace-nowrap">Min ${Math.round(sectionMinimumSpendMap[section.id])}</span>
                                 )}
                               </div>
                             </div>
-                            <div className="space-y-1.5 text-sm text-muted-foreground">
+                            <div className="space-y-1.5 text-sm text-muted-foreground font-normal">
                               <div className="flex items-center gap-2">
                                 <Mail className="h-3.5 w-3.5" />
-                                <span className="truncate">{booking.customer_email}</span>
+                                <span className="truncate font-normal">{booking.customer_email}</span>
                               </div>
                               {booking.customer_phone && (
                                 <div className="flex items-center gap-2">
                                   <Phone className="h-3.5 w-3.5" />
-                                  <span>{booking.customer_phone}</span>
+                                  <span className="font-normal">{booking.customer_phone}</span>
                                 </div>
                               )}
                             </div>
@@ -1038,23 +1050,23 @@ export function TablesLayoutView({
                             <div className="flex flex-col gap-2 pt-3 border-t">
                               {booking.status === 'arrived' && (
                                 <Button
-                                  variant="default"
+                                  variant="ghost"
                                   size="sm"
-                                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                                  className="w-full border border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-400 dark:bg-purple-500/20 hover:bg-purple-500/20 dark:hover:bg-purple-500/30"
                                   onClick={() => {
                                     setCompletionModalBooking(booking)
                                     setSelectedTable(null)
                                   }}
                                 >
                                   <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
-                                  Complete Reservation
+                                  Complete
                                 </Button>
                               )}
                               {booking.status === 'seated' && (
                                 <Button
-                                  variant="default"
+                                  variant="ghost"
                                   size="sm"
-                                  className="w-full bg-green-600 hover:bg-green-700"
+                                  className="w-full border border-green-500 bg-green-500/10 text-green-700 dark:text-green-400 dark:bg-green-500/20 hover:bg-green-500/20 dark:hover:bg-green-500/30"
                                   onClick={() => handleMarkArrived(booking.id)}
                                   disabled={markingArrived === booking.id}
                                 >
@@ -1065,9 +1077,9 @@ export function TablesLayoutView({
                               <div className="flex items-center gap-2">
                               {booking.status === 'completed' ? (
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  className="flex-1 border-emerald-500 text-emerald-600"
+                                  className="flex-1 border border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-400 dark:bg-purple-500/20"
                                   disabled
                                 >
                                   <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
@@ -1075,9 +1087,9 @@ export function TablesLayoutView({
                                 </Button>
                               ) : booking.status === 'arrived' ? (
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  className="flex-1"
+                                  className="flex-1 border border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-400 dark:bg-teal-500/20 hover:bg-teal-500/20 dark:hover:bg-teal-500/30"
                                   onClick={() => handleUndoArrived(booking.id)}
                                   disabled={markingArrived === booking.id}
                                 >
@@ -1085,9 +1097,9 @@ export function TablesLayoutView({
                                 </Button>
                               ) : booking.status === 'seated' ? (
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  className="flex-1"
+                                  className="flex-1 border border-yellow-500 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/20 hover:bg-yellow-500/20 dark:hover:bg-yellow-500/30"
                                   onClick={() => handleUndoSeated(booking.id)}
                                   disabled={markingArrived === booking.id}
                                 >
@@ -1095,9 +1107,9 @@ export function TablesLayoutView({
                                 </Button>
                               ) : (
                                 <Button
-                                  variant="default"
+                                  variant="ghost"
                                   size="sm"
-                                  className="flex-1"
+                                  className="flex-1 border border-green-500 bg-green-500/10 text-green-700 dark:text-green-400 dark:bg-green-500/20 hover:bg-green-500/20 dark:hover:bg-green-500/30"
                                   onClick={() => handleMarkArrived(booking.id)}
                                   disabled={markingArrived === booking.id}
                                 >
@@ -1131,7 +1143,7 @@ export function TablesLayoutView({
                                 }}
                                 title="View details"
                               >
-                                <Eye className="h-3.5 w-3.5" />
+                                <Info className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>

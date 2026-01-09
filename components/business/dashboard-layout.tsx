@@ -11,6 +11,7 @@ import { AccountSwitcher } from '@/components/account-switcher'
 import { SettingsNav } from '@/components/business/settings-nav'
 import { SubscriptionGate } from '@/components/business/subscription-gate'
 import { Calendar, Receipt, BarChart3, UserCircle, Ticket, Armchair } from 'lucide-react'
+import { NotificationCenter } from '@/components/business/notification-center'
 
 interface DashboardLayoutProps {
   businessSlug: string
@@ -50,9 +51,12 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
       {/* Sidebar */}
       <aside className="w-64 border-r bg-card flex flex-col h-screen sticky top-0">
         <div className="p-6 flex-shrink-0">
-          <Link href={`/${businessSlug}/dashboard/events`} className="text-xl font-bold hover:text-primary">
-            {business.name}
-          </Link>
+          <div className="flex items-center justify-between gap-2">
+            <Link href={`/${businessSlug}/dashboard/events`} className="text-xl font-bold hover:text-primary truncate flex-1 min-w-0">
+              {business.name}
+            </Link>
+            <NotificationCenter businessId={business.id} businessSlug={businessSlug} />
+          </div>
           <p className="text-xs text-muted-foreground mt-1">Business Dashboard</p>
           {session.adminBypass && (
             <Button variant="outline" size="sm" asChild className="mt-2 h-6 text-xs">

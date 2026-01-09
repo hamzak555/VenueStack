@@ -137,6 +137,7 @@ export interface TableBooking {
   event_id: string
   event_table_section_id: string
   table_number: number | null // null until business assigns a specific table
+  completed_table_number?: string | null // stored when reservation is completed
   order_id: string | null
   customer_name: string
   customer_email: string
@@ -197,6 +198,7 @@ export async function getTableBookingsByBusinessId(businessId: string, eventId?:
     event_id: booking.event_id,
     event_table_section_id: booking.event_table_section_id,
     table_number: booking.table_number,
+    completed_table_number: booking.completed_table_number,
     order_id: booking.order_id,
     customer_name: booking.customer_name,
     customer_email: booking.customer_email,

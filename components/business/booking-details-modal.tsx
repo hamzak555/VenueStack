@@ -50,7 +50,8 @@ interface BookingData {
   }
   relatedBookings: {
     id: string
-    table_number: number
+    table_number: number | null
+    completed_table_number: string | null
     status: string
     amount: number
     section_name: string
@@ -256,15 +257,19 @@ export function BookingDetailsModal({
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-2">All Tables in This Booking</p>
                   <div className="flex flex-wrap gap-2">
-                    {data.relatedBookings.map((b) => (
-                      <Badge
-                        key={b.id}
-                        variant={b.id === bookingId ? 'default' : 'outline'}
-                      >
-                        {b.section_name} #{b.table_number}
-                        {b.status === 'arrived' && ' (Arrived)'}
-                      </Badge>
-                    ))}
+                    {data.relatedBookings.map((b) => {
+                      const tableNum = b.table_number || b.completed_table_number
+                      return (
+                        <Badge
+                          key={b.id}
+                          variant={b.id === bookingId ? 'default' : 'outline'}
+                        >
+                          {b.section_name} {tableNum ? `#${tableNum}` : '(No Table)'}
+                          {b.status === 'arrived' && ' (Arrived)'}
+                          {b.status === 'completed' && ' (Completed)'}
+                        </Badge>
+                      )
+                    })}
                   </div>
                 </div>
               )}

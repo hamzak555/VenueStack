@@ -54,6 +54,7 @@ export async function GET(
         .select(`
           id,
           table_number,
+          completed_table_number,
           status,
           amount,
           event_table_sections (
@@ -66,6 +67,7 @@ export async function GET(
       relatedBookings = related?.map((b: any) => ({
         id: b.id,
         table_number: b.table_number,
+        completed_table_number: b.completed_table_number,
         status: b.status,
         amount: b.amount,
         section_name: b.event_table_sections?.section_name || 'Unknown',
