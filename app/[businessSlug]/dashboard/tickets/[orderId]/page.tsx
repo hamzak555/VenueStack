@@ -46,7 +46,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     .from('refunds')
     .select('*')
     .eq('order_id', orderId)
-    .order('created_at', { descending: true })
+    .order('created_at', { ascending: false })
 
   // Manually fetch ticket types if tickets have ticket_type_id
   if (tickets && tickets.length > 0) {

@@ -215,11 +215,11 @@ export default function SuccessPage({ params }: { params: Promise<{ businessSlug
     const lines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Ticketing Platform//EN',
+      'PRODID:-//VenueStack//EN',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       'BEGIN:VEVENT',
-      `UID:${orderDetails.paymentIntentId}@ticketing-platform.com`,
+      `UID:${orderDetails.paymentIntentId || orderDetails.orderId}@venuestack.io`,
       `DTSTAMP:${formatICSDate(new Date().toISOString())}`,
       `DTSTART:${startDate}`,
       `DTEND:${endDate}`,

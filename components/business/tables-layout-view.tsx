@@ -267,7 +267,7 @@ export function TablesLayoutView({
 
     // Sort based on selected option
     // Completed reservations show at the bottom when sorting by status
-    const statusOrder = { seated: 0, arrived: 1, confirmed: 2, reserved: 3, completed: 4 }
+    const statusOrder: Record<string, number> = { seated: 0, arrived: 1, confirmed: 2, reserved: 3, completed: 4, cancelled: 5 }
     return [...filtered].sort((a, b) => {
       switch (sortOption) {
         case 'name':
@@ -587,7 +587,7 @@ export function TablesLayoutView({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'success'
+      case 'completed': return 'purple'
       case 'seated': return 'teal'
       case 'arrived': return 'success'
       case 'confirmed': return 'warning'
@@ -989,6 +989,7 @@ export function TablesLayoutView({
                         {booking ? (
                           <div className="space-y-3">
                             <div>
+                              <p className="text-xs text-muted-foreground mb-0.5">{section.name}</p>
                               <p className="font-semibold text-base">{booking.customer_name}</p>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge variant={getStatusColor(booking.status)}>
@@ -1137,6 +1138,7 @@ export function TablesLayoutView({
                           </div>
                         ) : (
                           <div className="text-center py-2">
+                            <p className="text-xs text-muted-foreground mb-0.5">{section.name}</p>
                             <p className="font-medium text-base mb-1 text-white">Table {tableName}</p>
                             <div className="flex flex-col items-center gap-1 mb-3">
                               <div className="flex items-center gap-2">

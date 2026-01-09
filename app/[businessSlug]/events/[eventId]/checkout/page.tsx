@@ -209,6 +209,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
   const initialMode = searchParams.get('mode') === 'tables' ? 'tables' : 'tickets'
   const [checkoutMode, setCheckoutMode] = useState<'tickets' | 'tables'>(initialMode)
 
+  // Tracking ref for attribution
+  const trackingRef = searchParams.get('ref') || null
+
   const [event, setEvent] = useState<Event | null>(null)
   const [business, setBusiness] = useState<Business | null>(null)
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
@@ -252,6 +255,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
   const [stripePromise, setStripePromise] = useState<any>(null)
   const [isInitializingPayment, setIsInitializingPayment] = useState(false)
   const [isCompletingFreeOrder, setIsCompletingFreeOrder] = useState(false)
+  const [isCompletingFreeTableBooking, setIsCompletingFreeTableBooking] = useState(false)
 
   // Terms and conditions state
   const [termsAccepted, setTermsAccepted] = useState(false)
@@ -564,6 +568,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
     return subtotal - discount <= 0
   }
 
+  const isTableFreeBooking = () => {
+    return getTableSubtotal() === 0
+  }
+
   const handleApplyPromoCode = async () => {
     if (!promoCode.trim()) {
       setPromoCodeError('Please enter a promo code')
@@ -638,6 +646,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
             customerEmail: customerInfo.email,
             customerPhone: customerInfo.phone || null,
             promoCodeId: promoCodeData?.id || null,
+            trackingRef,
           }
         : {
             eventId: resolvedParams.eventId,
@@ -646,6 +655,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
             customerEmail: customerInfo.email,
             customerPhone: customerInfo.phone || null,
             promoCodeId: promoCodeData?.id || null,
+            trackingRef,
           }
 
       const response = await fetch(`/api/checkout/create-payment-intent`, {
@@ -690,6 +700,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
             customerEmail: customerInfo.email,
             customerPhone: customerInfo.phone || null,
             promoCodeId: promoCodeData?.id || null,
+            trackingRef,
           }
         : {
             eventId: resolvedParams.eventId,
@@ -698,6 +709,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
             customerEmail: customerInfo.email,
             customerPhone: customerInfo.phone || null,
             promoCodeId: promoCodeData?.id || null,
+            trackingRef,
           }
 
       const response = await fetch(`/api/checkout/complete-free-order`, {
@@ -719,6 +731,44 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsCompletingFreeOrder(false)
+    }
+  }
+
+  const completeFreeTableBooking = async () => {
+    if (getTotalTables() === 0 || !customerInfo.name.trim() || !customerInfo.email.trim()) {
+      return
+    }
+
+    setIsCompletingFreeTableBooking(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/checkout/complete-free-table-booking`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: resolvedParams.eventId,
+          tableSelections: tableSelections,
+          customerName: customerInfo.name,
+          customerEmail: customerInfo.email,
+          customerPhone: customerInfo.phone || null,
+          trackingRef,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to complete reservation')
+      }
+
+      const { orderId } = await response.json()
+
+      // Redirect to success page
+      router.push(`/${resolvedParams.businessSlug}/events/${resolvedParams.eventId}/book-table/success?orderId=${orderId}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsCompletingFreeTableBooking(false)
     }
   }
 
@@ -745,6 +795,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
           customerName: customerInfo.name,
           customerEmail: customerInfo.email,
           customerPhone: customerInfo.phone || null,
+          trackingRef,
         }),
       })
 
@@ -1223,7 +1274,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                                     </p>
                                   )}
                                 </div>
-                                <span className="font-bold text-lg">${section.price.toFixed(2)}</span>
+                                {section.price > 0 ? (
+                                  <span className="font-bold text-lg">${section.price.toFixed(2)}</span>
+                                ) : (
+                                  <span className="text-sm font-medium text-green-600">No Deposit Required</span>
+                                )}
                               </div>
                               <div className="flex items-center gap-3">
                                 <Button
@@ -1356,7 +1411,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                 {/* Order Summary - Tables */}
                 {checkoutMode === 'tables' && totalTables > 0 && (
                   <div className="pt-4 border-t space-y-2">
-                    {Object.entries(tableSelections).map(([sectionId, qty]) => {
+                    {!isTableFreeBooking() && Object.entries(tableSelections).map(([sectionId, qty]) => {
                       const section = tableSections.find(s => s.id === sectionId)
                       if (!section || qty === 0) return null
                       return (
@@ -1368,13 +1423,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                         </div>
                       )
                     })}
-                    {tableTax > 0 && (
+                    {!isTableFreeBooking() && tableTax > 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">Tax ({business?.tax_percentage || 0}%)</span>
                         <span className="text-sm">${tableTax.toFixed(2)}</span>
                       </div>
                     )}
-                    {(tablePlatformFee > 0 || tableStripeFee > 0) && (
+                    {!isTableFreeBooking() && (tablePlatformFee > 0 || tableStripeFee > 0) && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">Processing Fees</span>
                         <span className="text-sm">${(tablePlatformFee + tableStripeFee).toFixed(2)}</span>
@@ -1382,7 +1437,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                     )}
                     <div className="flex items-center justify-between pt-2 border-t">
                       <span className="font-medium">Total ({totalTables} {totalTables === 1 ? 'table' : 'tables'})</span>
-                      <span className="text-2xl font-bold">${tableTotal.toFixed(2)}</span>
+                      {isTableFreeBooking() ? (
+                        <span className="text-lg font-bold text-green-600">No Deposit Required</span>
+                      ) : (
+                        <span className="text-2xl font-bold">${tableTotal.toFixed(2)}</span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1456,8 +1515,30 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                   </div>
                 )}
 
-                {/* Continue to Payment Button - Tables */}
-                {checkoutMode === 'tables' && !clientSecret && totalTables > 0 && customerInfo.name.trim() && customerInfo.email.trim() && business.stripe_onboarding_complete && (
+                {/* Complete Free Table Reservation Button - Shows for $0 table bookings */}
+                {checkoutMode === 'tables' && !clientSecret && totalTables > 0 && customerInfo.name.trim() && customerInfo.email.trim() && isTableFreeBooking() && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      type="button"
+                      onClick={completeFreeTableBooking}
+                      disabled={isCompletingFreeTableBooking || !!(business.terms_and_conditions && !termsAccepted)}
+                      className="w-full"
+                      size="lg"
+                    >
+                      {isCompletingFreeTableBooking ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Complete Reservation'
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Continue to Payment Button - Tables (only for paid bookings) */}
+                {checkoutMode === 'tables' && !clientSecret && totalTables > 0 && customerInfo.name.trim() && customerInfo.email.trim() && business.stripe_onboarding_complete && !isTableFreeBooking() && (
                   <div className="pt-4 border-t">
                     <Button
                       type="button"

@@ -11,10 +11,32 @@ export interface EventWithTableInfo {
   table_bookings_count: number
   total_tables: number
   available_tables: number
+  bookings_by_status: {
+    seated: number
+    arrived: number
+    confirmed: number
+    reserved: number
+    completed: number
+  }
 }
 
 export async function getEventsWithTableService(businessId: string): Promise<EventWithTableInfo[]> {
   const supabase = await createClient()
+
+  // Get business table service config for accurate table counts
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('table_service_config')
+    .eq('id', businessId)
+    .single()
+
+  // Build a map of section_id -> tableCount from the business config
+  const sectionTableCounts: Record<string, number> = {}
+  if (business?.table_service_config?.sections) {
+    for (const section of business.table_service_config.sections) {
+      sectionTableCounts[section.id] = section.tableCount || 0
+    }
+  }
 
   // Get events that have table service enabled
   const { data: events, error: eventsError } = await supabase
@@ -43,23 +65,48 @@ export async function getEventsWithTableService(businessId: string): Promise<Eve
 
   const { data: tableSections } = await supabase
     .from('event_table_sections')
-    .select('event_id, total_tables, available_tables, is_enabled')
+    .select('event_id, section_id, total_tables, is_enabled, closed_tables, linked_table_pairs')
     .in('event_id', eventIds)
     .eq('is_enabled', true)
 
+  // Get all bookings (not cancelled) for counting
   const { data: tableBookings } = await supabase
     .from('table_bookings')
-    .select('event_id, status')
+    .select('event_id, status, table_number')
     .in('event_id', eventIds)
     .neq('status', 'cancelled')
 
   // Aggregate data per event
   return events.map(event => {
     const eventSections = tableSections?.filter(s => s.event_id === event.id) || []
-    const eventBookings = tableBookings?.filter(b => b.event_id === event.id) || []
+    // All bookings (not cancelled) for the count
+    const allBookings = tableBookings?.filter(b => b.event_id === event.id) || []
+    // Bookings occupying a table: has table assigned, not cancelled, not completed
+    const occupyingBookings = allBookings.filter(b => b.status !== 'completed' && b.table_number !== null)
 
-    const totalTables = eventSections.reduce((sum, s) => sum + (s.total_tables || 0), 0)
-    const availableTables = eventSections.reduce((sum, s) => sum + (s.available_tables || 0), 0)
+    // Use tableCount from business config (source of truth) or fall back to stored total_tables
+    const totalTables = eventSections.reduce((sum, s) => {
+      const configCount = sectionTableCounts[s.section_id]
+      return sum + (configCount !== undefined ? configCount : (s.total_tables || 0))
+    }, 0)
+    // Count closed tables across all sections
+    const closedTablesCount = eventSections.reduce((sum, s) => sum + ((s as any).closed_tables?.length || 0), 0)
+    // Count linked table pairs (each pair combines 2 tables into 1, so subtract 1 per pair)
+    const linkedPairsCount = eventSections.reduce((sum, s) => {
+      const pairs = (s as any).linked_table_pairs || []
+      return sum + pairs.length
+    }, 0)
+    // Calculate available tables dynamically (subtract occupying bookings, closed tables, and linked pairs)
+    const availableTables = Math.max(0, totalTables - occupyingBookings.length - closedTablesCount - linkedPairsCount)
+
+    // Count bookings by status
+    const bookingsByStatus = {
+      seated: allBookings.filter(b => b.status === 'seated').length,
+      arrived: allBookings.filter(b => b.status === 'arrived').length,
+      confirmed: allBookings.filter(b => b.status === 'confirmed').length,
+      reserved: allBookings.filter(b => b.status === 'reserved').length,
+      completed: allBookings.filter(b => b.status === 'completed').length,
+    }
 
     return {
       id: event.id,
@@ -69,9 +116,10 @@ export async function getEventsWithTableService(businessId: string): Promise<Eve
       location: event.location,
       image_url: event.image_url,
       status: event.status,
-      table_bookings_count: eventBookings.length,
+      table_bookings_count: allBookings.length,
       total_tables: totalTables,
       available_tables: availableTables,
+      bookings_by_status: bookingsByStatus,
     }
   })
 }
@@ -265,6 +313,7 @@ export async function getTableBookingsByOrderId(orderId: string): Promise<TableB
     event_title: booking.events?.title || '',
     event_date: booking.events?.event_date || '',
     section_name: booking.event_table_sections?.section_name || 'Unknown Section',
+    section_id: booking.event_table_section_id,
   }))
 }
 

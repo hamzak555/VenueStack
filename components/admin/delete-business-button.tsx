@@ -53,7 +53,7 @@ export function DeleteBusinessButton({ businessId, businessName }: DeleteBusines
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="sm" disabled={isDeleting}>
+        <Button size="sm" className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30" disabled={isDeleting}>
           <Trash2 className="h-4 w-4 mr-2" />
           Delete Business
         </Button>
@@ -76,7 +76,7 @@ export function DeleteBusinessButton({ businessId, businessName }: DeleteBusines
               handleDelete()
             }}
             disabled={isDeleting}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30"
           >
             {isDeleting ? 'Deleting...' : 'Delete Business'}
           </AlertDialogAction>

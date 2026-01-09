@@ -39,14 +39,27 @@ export async function getEventsWithTicketStats(businessId: string): Promise<Even
 
   const eventIds = events.map(e => e.id)
 
+  // Get ticket types for these events (to filter out events with no ticket types)
+  const { data: ticketTypes } = await supabase
+    .from('ticket_types')
+    .select('event_id')
+    .in('event_id', eventIds)
+
+  // Get set of event IDs that have ticket types
+  const eventsWithTicketTypes = new Set(ticketTypes?.map(tt => tt.event_id) || [])
+
+  // Filter to only include events that have at least one ticket type
+  const eventsWithTypes = events.filter(e => eventsWithTicketTypes.has(e.id))
+  const filteredEventIds = eventsWithTypes.map(e => e.id)
+
   // Get tickets for these events
   const { data: tickets } = await supabase
     .from('tickets')
     .select('event_id, checked_in_at')
-    .in('event_id', eventIds)
+    .in('event_id', filteredEventIds)
 
   // Aggregate data per event
-  return events.map(event => {
+  return eventsWithTypes.map(event => {
     const eventTickets = tickets?.filter(t => t.event_id === event.id) || []
     const totalTickets = eventTickets.length
     const scannedTickets = eventTickets.filter(t => t.checked_in_at !== null).length
@@ -157,13 +170,13 @@ export async function createTickets(
 ) {
   const supabase = await createServerClient()
 
-  const tickets: TicketInsert[] = Array.from({ length: quantity }, () => ({
+  const tickets = Array.from({ length: quantity }, () => ({
     event_id: eventId,
     ticket_number: generateTicketNumber(),
     customer_name: customerName,
     customer_email: customerEmail,
     customer_phone: customerPhone,
-  }))
+  })) as TicketInsert[]
 
   const { data, error } = await supabase
     .from('tickets')

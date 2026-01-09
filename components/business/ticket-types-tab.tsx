@@ -390,7 +390,7 @@ export default function TicketTypesTab({ eventId, isRecurringEvent }: TicketType
 
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleDeleteCancel}>Cancel</AlertDialogCancel>
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30" onClick={handleDelete}>
               Delete
             </Button>
           </AlertDialogFooter>

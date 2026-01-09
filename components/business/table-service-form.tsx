@@ -611,9 +611,8 @@ export function TableServiceForm({
                                 <AlertDialogTrigger asChild>
                                   <Button
                                     type="button"
-                                    variant="destructive"
                                     size="sm"
-                                    className="h-6 px-2 text-xs"
+                                    className="h-6 px-2 text-xs bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30"
                                   >
                                     <Trash2 className="h-3 w-3 mr-1" />
                                     Delete

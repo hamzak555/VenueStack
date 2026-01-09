@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Settings, CreditCard, Megaphone, LayoutGrid, Users, ChevronDown } from 'lucide-react'
+import { Settings, CreditCard, Megaphone, LayoutGrid, Users, ChevronDown, Receipt } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SettingsNavProps {
@@ -23,6 +23,11 @@ export function SettingsNav({ businessSlug, isAdmin }: SettingsNavProps) {
       href: `/${businessSlug}/dashboard/settings/account`,
       icon: Settings,
       label: 'Account',
+    },
+    {
+      href: `/${businessSlug}/dashboard/settings/subscription`,
+      icon: Receipt,
+      label: 'Subscription',
     },
     {
       href: `/${businessSlug}/dashboard/settings/stripe`,

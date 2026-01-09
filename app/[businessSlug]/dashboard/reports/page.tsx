@@ -1,11 +1,15 @@
 import { getEventsByBusinessId } from '@/lib/db/events'
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { getBusinessAnalytics } from '@/lib/db/analytics'
+import { getTrackingLinkAnalytics } from '@/lib/db/tracking-links'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils/currency'
+import { parseDateRangeParams } from '@/lib/utils/date-range'
 import { createClient } from '@/lib/supabase/server'
 import { Ticket, Armchair, DollarSign, TrendingUp, Receipt, MinusCircle } from 'lucide-react'
 import { EventPerformanceTable } from '@/components/business/event-performance-table'
+import { TrackingLinkAnalytics } from '@/components/business/tracking-link-analytics'
+import { ReportsDateFilter } from '@/components/business/reports-date-filter'
 
 // Force dynamic rendering to always show current data
 export const dynamic = 'force-dynamic'
@@ -14,13 +18,25 @@ interface ReportsPageProps {
   params: Promise<{
     businessSlug: string
   }>
+  searchParams: Promise<{
+    preset?: string
+    from?: string
+    to?: string
+  }>
 }
 
-export default async function ReportsPage({ params }: ReportsPageProps) {
+export default async function ReportsPage({ params, searchParams }: ReportsPageProps) {
   const { businessSlug } = await params
+  const resolvedSearchParams = await searchParams
+
   const business = await getBusinessBySlug(businessSlug)
   const events = await getEventsByBusinessId(business.id)
-  const analytics = await getBusinessAnalytics(business.id)
+
+  // Parse date range from URL params
+  const dateRange = parseDateRangeParams(resolvedSearchParams)
+
+  const analytics = await getBusinessAnalytics(business.id, dateRange)
+  const trackingAnalytics = await getTrackingLinkAnalytics(business.id, dateRange)
 
   // Get ticket types for all events to calculate available tickets
   const supabase = await createClient()
@@ -49,11 +65,14 @@ export default async function ReportsPage({ params }: ReportsPageProps) {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
-        <p className="text-muted-foreground">
-          View performance metrics and sales data for your events
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
+          <p className="text-muted-foreground">
+            View performance metrics and sales data for your events
+          </p>
+        </div>
+        <ReportsDateFilter />
       </div>
 
       {/* Revenue Summary */}
@@ -90,7 +109,7 @@ export default async function ReportsPage({ params }: ReportsPageProps) {
               <MinusCircle className="h-4 w-4 text-orange-500" />
               <p className="text-sm font-medium text-muted-foreground">Processing Fees</p>
             </div>
-            <div className="text-2xl font-bold text-orange-500">-{formatCurrency(totalFees)}</div>
+            <div className="text-2xl font-bold text-orange-500">{formatCurrency(totalFees)}</div>
             <p className="text-xs text-muted-foreground">
               Platform + Stripe fees
             </p>
@@ -139,7 +158,7 @@ export default async function ReportsPage({ params }: ReportsPageProps) {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Processing Fees</span>
-                  <span className="font-medium text-orange-500">-{formatCurrency(analytics.ticket_fees)}</span>
+                  <span className="font-medium text-orange-500">{formatCurrency(analytics.ticket_fees)}</span>
                 </div>
                 <div className="flex justify-between items-center border-t pt-2">
                   <span className="text-sm font-medium">You Receive</span>
@@ -242,9 +261,13 @@ export default async function ReportsPage({ params }: ReportsPageProps) {
           title: e.title,
           status: e.status,
           event_date: e.event_date,
+          image_url: e.image_url,
         }))}
         eventAnalytics={analytics.events}
       />
+
+      {/* Tracking Link Performance */}
+      <TrackingLinkAnalytics analytics={trackingAnalytics} />
     </div>
   )
 }

@@ -12,6 +12,7 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
   const resolvedParams = use(params)
   const searchParams = useSearchParams()
   const paymentIntent = searchParams.get('payment_intent')
+  const orderId = searchParams.get('orderId')
 
   const [isVerifying, setIsVerifying] = useState(true)
   const [bookingDetails, setBookingDetails] = useState<any>(null)
@@ -25,11 +26,14 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
   useEffect(() => {
     if (paymentIntent) {
       verifyPayment()
+    } else if (orderId) {
+      // Free booking - fetch details directly
+      fetchFreeBookingDetails()
     } else {
-      setError('No payment information provided')
+      setError('No booking information provided')
       setIsVerifying(false)
     }
-  }, [paymentIntent])
+  }, [paymentIntent, orderId])
 
   useEffect(() => {
     if (!bookingDetails?.eventImageUrl) return
@@ -105,6 +109,22 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
     }
   }
 
+  const fetchFreeBookingDetails = async () => {
+    try {
+      const response = await fetch(`/api/checkout/get-table-booking?orderId=${orderId}`)
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to fetch booking details')
+      }
+      const data = await response.json()
+      setBookingDetails(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
   const addToCalendar = () => {
     if (!bookingDetails || !bookingDetails.eventDate) return
 
@@ -135,11 +155,11 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
     const lines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Ticketing Platform//EN',
+      'PRODID:-//VenueStack//EN',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       'BEGIN:VEVENT',
-      `UID:${bookingDetails.paymentIntentId}@ticketing-platform.com`,
+      `UID:${bookingDetails.paymentIntentId || bookingDetails.orderId}@venuestack.io`,
       `DTSTAMP:${formatICSDate(new Date().toISOString())}`,
       `DTSTART:${startDate}`,
       `DTEND:${endDate}`,
@@ -179,7 +199,9 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
           <CardContent className="pt-6">
             <div className="flex flex-col items-center justify-center space-y-4">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-lg text-center">Verifying your payment...</p>
+              <p className="text-lg text-center">
+                {paymentIntent ? 'Verifying your payment...' : 'Loading your reservation...'}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -192,9 +214,9 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
       <div className="flex items-center justify-center min-h-screen p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-destructive">Payment Verification Failed</CardTitle>
+            <CardTitle className="text-destructive">Reservation Error</CardTitle>
             <CardDescription>
-              {error || 'We could not verify your payment. Please contact support.'}
+              {error || 'We could not load your reservation details. Please contact support.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -267,7 +289,9 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total</span>
-                <span className="font-medium">${bookingDetails.amount.toFixed(2)}</span>
+                <span className="font-medium">
+                  {bookingDetails.amount > 0 ? `$${bookingDetails.amount.toFixed(2)}` : 'No Deposit Required'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Customer</span>

@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       user_id: null, // TODO: Link to user when auth is implemented
       is_active: true,
       logo_url: null,
-    })
+    } as any)
 
     return NextResponse.json(business, { status: 201 })
   } catch (error) {

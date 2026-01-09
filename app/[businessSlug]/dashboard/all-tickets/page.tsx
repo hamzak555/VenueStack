@@ -2,11 +2,14 @@ import Link from 'next/link'
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { getTicketsByBusinessId, getEventsWithTicketStats } from '@/lib/db/tickets'
 import { getEventById } from '@/lib/db/events'
+import { getTicketTypes } from '@/lib/db/ticket-types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AllTicketsTable } from '@/components/business/all-tickets-table'
 import { TicketsEventSelector } from '@/components/business/tickets-event-selector'
+import { TicketTypeSalesProgress } from '@/components/business/ticket-type-sales-progress'
 import { Ticket, ArrowLeft } from 'lucide-react'
+import Image from 'next/image'
 
 // Force dynamic rendering to always show current data
 export const dynamic = 'force-dynamic'
@@ -48,10 +51,14 @@ export default async function AllTicketsPage({ params, searchParams }: AllTicket
   // Event selected - show tickets
   let tickets: any[] = []
   let event = null
+  let ticketTypes: any[] = []
 
   try {
     event = await getEventById(eventId)
-    tickets = await getTicketsByBusinessId(business.id, eventId)
+    ;[tickets, ticketTypes] = await Promise.all([
+      getTicketsByBusinessId(business.id, eventId),
+      getTicketTypes(eventId)
+    ])
   } catch (error) {
     console.error('Error fetching tickets:', error)
   }
@@ -73,12 +80,23 @@ export default async function AllTicketsPage({ params, searchParams }: AllTicket
         </Button>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <Ticket className="h-6 w-6 text-muted-foreground" />
-            <h1 className="text-3xl font-bold tracking-tight">{event?.title || 'Tickets'}</h1>
+      <div className="flex items-center gap-4">
+        {event?.image_url ? (
+          <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
+            <Image
+              src={event.image_url}
+              alt={event.title}
+              fill
+              className="object-cover"
+            />
           </div>
+        ) : (
+          <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+            <Ticket className="h-8 w-8 text-muted-foreground" />
+          </div>
+        )}
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{event?.title || 'Tickets'}</h1>
           <p className="text-muted-foreground mt-1">
             {event && (
               <>
@@ -88,63 +106,75 @@ export default async function AllTicketsPage({ params, searchParams }: AllTicket
                   month: 'long',
                   day: 'numeric',
                 })}
-                {event.event_time && ` at ${event.event_time}`}
+                {event.event_time && ` at ${new Date(`1970-01-01T${event.event_time}`).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true,
+                })}`}
               </>
             )}
           </p>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
-            <Ticket className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalTickets}</div>
-            <p className="text-xs text-muted-foreground">
-              Tickets sold for this event
-            </p>
-          </CardContent>
-        </Card>
+      {/* Stats and Sales Progress Side by Side */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Stats Grid - 2x2 */}
+        <div className="grid gap-4 grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
+              <Ticket className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalTickets}</div>
+              <p className="text-xs text-muted-foreground">
+                Tickets sold
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Scanned Tickets</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{scannedTickets}</div>
-            <p className="text-xs text-muted-foreground">
-              Checked in
-            </p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Scanned</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{scannedTickets}</div>
+              <p className="text-xs text-muted-foreground">
+                Checked in
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unscanned Tickets</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unscannedTickets}</div>
-            <p className="text-xs text-muted-foreground">
-              Not yet checked in
-            </p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Unscanned</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{unscannedTickets}</div>
+              <p className="text-xs text-muted-foreground">
+                Not checked in
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Scan Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{scanRate}%</div>
-            <p className="text-xs text-muted-foreground">
-              Tickets checked in
-            </p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Scan Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{scanRate}%</div>
+              <p className="text-xs text-muted-foreground">
+                Checked in
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Ticket Type Sales Progress */}
+        {ticketTypes.length > 0 && (
+          <TicketTypeSalesProgress ticketTypes={ticketTypes} compact />
+        )}
       </div>
 
       {/* Tickets Table */}

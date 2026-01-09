@@ -81,6 +81,8 @@ export interface TableBooking {
   customer_email: string
   customer_phone: string | null
   status: 'reserved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
+  tracking_link_id: string | null // Reference to tracking link
+  tracking_ref: string | null // Raw ref code (persists even if link is deleted)
   created_at: string
   updated_at: string
 }
@@ -127,6 +129,14 @@ export interface Business {
   percentage_fee: number | null // Custom percentage fee (overrides global if use_custom_fee_settings is true)
   venue_layout_url: string | null // URL to the venue floor plan image/PDF
   table_service_config: TableServiceConfig | null // Table sections configuration
+  // Subscription fields (for SaaS billing)
+  stripe_customer_id: string | null // Stripe Customer ID for subscription billing (separate from stripe_account_id)
+  subscription_status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete' | 'unpaid' | null
+  subscription_id: string | null // Stripe Subscription ID
+  subscription_current_period_end: string | null // When current billing period ends
+  subscription_cancel_at_period_end: boolean // Whether subscription will cancel at period end
+  trial_end_date: string | null // Extended trial end date (for admin-extended trials)
+  subscription_created_at: string | null // When subscription was first created
   created_at: string
   updated_at: string
 }
@@ -219,6 +229,8 @@ export interface Order {
   total: number
   stripe_payment_intent_id: string | null
   status: 'pending' | 'completed' | 'cancelled' | 'refunded' | 'partially_refunded'
+  tracking_link_id: string | null // Reference to tracking link
+  tracking_ref: string | null // Raw ref code (persists even if link is deleted)
   created_at: string
   updated_at: string
 }
@@ -240,9 +252,16 @@ export interface PlatformSettings {
   flat_fee_amount: number
   percentage_fee: number
   platform_stripe_account_id: string | null
+  // Subscription settings
+  subscription_monthly_fee: number
+  subscription_trial_days: number
+  stripe_subscription_product_id: string | null
+  stripe_subscription_price_id: string | null
   created_at: string
   updated_at: string
 }
+
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete' | 'unpaid' | null
 
 export interface BusinessUser {
   id: string
@@ -264,6 +283,29 @@ export interface AdminUser {
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+export interface TrackingLink {
+  id: string
+  business_id: string
+  name: string // Display name (e.g., "Instagram Bio Link")
+  ref_code: string // URL parameter value (e.g., "instagram")
+  description: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface TrackingLinkAnalytics {
+  tracking_ref: string
+  link_name: string | null // null if link was deleted
+  total_orders: number
+  total_revenue: number
+  ticket_orders: number
+  ticket_revenue: number
+  table_bookings: number
+  table_revenue: number
+  last_activity: string | null // ISO date of most recent order/booking
 }
 
 export interface Database {
@@ -318,6 +360,11 @@ export interface Database {
         Row: AdminUser
         Insert: Omit<AdminUser, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<AdminUser, 'id' | 'created_at' | 'updated_at'>>
+      }
+      tracking_links: {
+        Row: TrackingLink
+        Insert: Omit<TrackingLink, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<TrackingLink, 'id' | 'created_at' | 'updated_at'>>
       }
     }
   }

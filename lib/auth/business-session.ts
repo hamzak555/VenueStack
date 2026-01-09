@@ -15,6 +15,7 @@ export interface BusinessSession {
   role: 'admin' | 'regular'
   name: string
   adminBypass?: boolean // Set to true when accessed from admin dashboard
+  [key: string]: unknown
 }
 
 /**

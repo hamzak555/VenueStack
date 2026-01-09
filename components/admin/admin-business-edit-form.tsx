@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -74,10 +74,11 @@ export function AdminBusinessEditForm({ businessId, business }: AdminBusinessEdi
   }
 
   const handleNameChange = (name: string) => {
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       name,
       slug: generateSlug(name),
-    })
+    }))
   }
 
   const handleResetToDefault = () => {
@@ -92,6 +93,22 @@ export function AdminBusinessEditForm({ businessId, business }: AdminBusinessEdi
     }))
     toast.info('Fee settings reset to global defaults')
   }
+
+  // Check if form has changes from original business data
+  const hasChanges = useMemo(() => {
+    if (formData.name !== (business.name || '')) return true
+    if (formData.slug !== (business.slug || '')) return true
+    if (formData.use_custom_fee_settings !== (business.use_custom_fee_settings || false)) return true
+
+    // If using custom settings, compare fee fields
+    if (formData.use_custom_fee_settings) {
+      if (formData.platform_fee_type !== (business.platform_fee_type || 'higher_of_both')) return true
+      if (formData.flat_fee_amount !== (business.flat_fee_amount?.toString() || '')) return true
+      if (formData.percentage_fee !== (business.percentage_fee?.toString() || '')) return true
+    }
+
+    return false
+  }, [formData, business])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -323,7 +340,7 @@ export function AdminBusinessEditForm({ businessId, business }: AdminBusinessEdi
 
       {/* Submit Buttons */}
       <div className="flex gap-4 pt-4">
-        <Button type="submit" disabled={isLoading}>
+        <Button type="submit" disabled={isLoading || !hasChanges}>
           {isLoading ? 'Saving...' : 'Save Changes'}
         </Button>
         <Button

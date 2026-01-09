@@ -21,6 +21,9 @@ interface BusinessPageProps {
   params: Promise<{
     businessSlug: string
   }>
+  searchParams: Promise<{
+    ref?: string
+  }>
 }
 
 // Helper function to format time to 12-hour format
@@ -31,8 +34,13 @@ function formatTimeTo12Hour(time: string): string {
   return `${displayHours}${minutes > 0 ? `:${minutes.toString().padStart(2, '0')}` : ''}${period}`
 }
 
-export default async function BusinessPage({ params }: BusinessPageProps) {
+export default async function BusinessPage({ params, searchParams }: BusinessPageProps) {
   const { businessSlug } = await params
+  const { ref } = await searchParams
+
+  // Build ref query string for checkout links
+  const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : ''
+  const refParamFirst = ref ? `?ref=${encodeURIComponent(ref)}` : ''
 
   // Fetch business data
   let business
@@ -235,6 +243,7 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
               businessSlug={businessSlug}
               themeColor={themeColor}
               title="Upcoming Events"
+              trackingRef={ref}
             />
           ) : (
             /* Grid view for 12 or fewer events */
@@ -286,14 +295,14 @@ export default async function BusinessPage({ params }: BusinessPageProps) {
                         </div>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" asChild disabled={availableTickets === 0} className="flex-1">
-                            <Link href={`/${businessSlug}/events/${event.id}/checkout`}>
+                            <Link href={`/${businessSlug}/events/${event.id}/checkout${refParamFirst}`}>
                               <Ticket className="mr-1 h-3 w-3" />
                               {availableTickets > 0 ? 'Buy Tickets' : 'Sold Out'}
                             </Link>
                           </Button>
                           {eventTableServiceMap[event.id] > 0 && (
                             <Button size="sm" variant="outline" asChild className="flex-1">
-                              <Link href={`/${businessSlug}/events/${event.id}/checkout?mode=tables`}>
+                              <Link href={`/${businessSlug}/events/${event.id}/checkout?mode=tables${refParam}`}>
                                 <Armchair className="mr-1 h-3 w-3" />
                                 Book Table
                               </Link>

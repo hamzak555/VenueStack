@@ -473,7 +473,7 @@ export function AdminUsersManagement() {
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30"
               onClick={handleDeleteUser}
               disabled={deleteLoading}
             >

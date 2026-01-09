@@ -229,12 +229,14 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                           )}
                         </div>
                       ) : !pastDay ? (
-                        <button
-                          onClick={() => openCreateModal(day)}
-                          className="h-full w-full min-h-[42px] flex items-center justify-center border-2 border-dashed border-muted-foreground/20 rounded-lg hover:border-primary/50 hover:bg-accent/50 transition-colors group"
-                        >
-                          <Plus className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                        </button>
+                        <div className="relative rounded-lg overflow-hidden border border-dashed border-muted-foreground/20 hover:border-primary/50 transition-all">
+                          <button
+                            onClick={() => openCreateModal(day)}
+                            className="w-full aspect-square flex items-center justify-center hover:bg-accent/50 transition-colors group"
+                          >
+                            <Plus className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                          </button>
+                        </div>
                       ) : null}
                     </div>
                   </div>
@@ -272,6 +274,9 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
+            <span className="text-sm font-medium px-2">
+              {new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </span>
             <Button variant="outline" size="sm" className="h-8" onClick={onToday}>
               Today
             </Button>
@@ -326,9 +331,9 @@ function EventCard({ event, businessSlug, compact }: { event: EventWithSales; bu
     </div>
   ) : (
     // Full-size card for single event
-    <div className="relative rounded-lg overflow-hidden border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">
+    <div className="relative rounded-lg overflow-hidden border bg-card hover:border-primary/50 hover:shadow-md transition-all">
       {event.image_url ? (
-        <div className="relative w-full h-full">
+        <div className="relative w-full aspect-square">
           <Image
             src={event.image_url}
             alt={event.title}
@@ -371,7 +376,7 @@ function EventCard({ event, businessSlug, compact }: { event: EventWithSales; bu
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className={cn("block text-left w-full group", !compact && "h-full")}>
+        <button className="block text-left w-full group">
           {cardContent}
         </button>
       </PopoverTrigger>

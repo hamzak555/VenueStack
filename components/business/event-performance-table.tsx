@@ -12,15 +12,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatCurrency } from '@/lib/utils/currency'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import Image from 'next/image'
 
 interface EventData {
   id: string
   title: string
   status: 'draft' | 'published' | 'cancelled'
   event_date: string
+  image_url?: string | null
 }
 
 interface EventAnalytics {
@@ -41,77 +42,36 @@ interface EventPerformanceTableProps {
 const ITEMS_PER_PAGE = 10
 
 export function EventPerformanceTable({ events, eventAnalytics }: EventPerformanceTableProps) {
-  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'past'>('all')
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Filter events based on active tab
-  const filteredEvents = useMemo(() => {
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-
-    let filtered = events
-    if (activeTab === 'upcoming') {
-      filtered = events.filter(e => new Date(e.event_date) >= now)
-    } else if (activeTab === 'past') {
-      filtered = events.filter(e => new Date(e.event_date) < now)
-    }
-
-    // Sort by date (newest first for all/past, soonest first for upcoming)
-    return filtered.sort((a, b) => {
+  // Sort events by date (newest first)
+  const sortedEvents = useMemo(() => {
+    return [...events].sort((a, b) => {
       const dateA = new Date(a.event_date).getTime()
       const dateB = new Date(b.event_date).getTime()
-      return activeTab === 'upcoming' ? dateA - dateB : dateB - dateA
+      return dateB - dateA
     })
-  }, [events, activeTab])
+  }, [events])
 
   // Calculate pagination
-  const totalPages = Math.ceil(filteredEvents.length / ITEMS_PER_PAGE)
-  const paginatedEvents = filteredEvents.slice(
+  const totalPages = Math.ceil(sortedEvents.length / ITEMS_PER_PAGE)
+  const paginatedEvents = sortedEvents.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   )
 
-  // Reset to page 1 when switching tabs
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab as 'all' | 'upcoming' | 'past')
-    setCurrentPage(1)
-  }
-
-  // Get counts for each tab
-  const now = new Date()
-  now.setHours(0, 0, 0, 0)
-  const upcomingCount = events.filter(e => new Date(e.event_date) >= now).length
-  const pastCount = events.filter(e => new Date(e.event_date) < now).length
-
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <CardTitle>Event Performance</CardTitle>
-            <CardDescription>
-              Detailed breakdown of each event's sales and revenue
-            </CardDescription>
-          </div>
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList>
-              <TabsTrigger value="all">All ({events.length})</TabsTrigger>
-              <TabsTrigger value="upcoming">Upcoming ({upcomingCount})</TabsTrigger>
-              <TabsTrigger value="past">Past ({pastCount})</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        <CardTitle>Event Performance</CardTitle>
+        <CardDescription>
+          Detailed breakdown of each event's sales and revenue
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        {filteredEvents.length === 0 ? (
+        {sortedEvents.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              {activeTab === 'all'
-                ? 'No events to report on yet'
-                : activeTab === 'upcoming'
-                ? 'No upcoming events'
-                : 'No past events'}
-            </p>
+            <p className="text-muted-foreground">No events to report on yet</p>
           </div>
         ) : (
           <>
@@ -143,7 +103,24 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
 
                     return (
                       <TableRow key={event.id}>
-                        <TableCell className="font-medium">{event.title}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            {event.image_url ? (
+                              <Image
+                                src={event.image_url}
+                                alt={event.title}
+                                width={40}
+                                height={40}
+                                className="rounded object-cover"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-muted-foreground text-xs">
+                                No img
+                              </div>
+                            )}
+                            <span className="font-medium">{event.title}</span>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Badge
                             variant={
@@ -170,7 +147,7 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
                         <TableCell className="text-right">{tablesBooked}</TableCell>
                         <TableCell className="text-right">{formatCurrency(tableRevenue)}</TableCell>
                         <TableCell className="text-right text-orange-500">
-                          {ticketFees > 0 ? `-${formatCurrency(ticketFees)}` : '$0.00'}
+                          {formatCurrency(ticketFees)}
                         </TableCell>
                         <TableCell className="text-right font-medium text-green-600">
                           {formatCurrency(totalNet)}
@@ -186,7 +163,7 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t">
                 <p className="text-sm text-muted-foreground">
-                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredEvents.length)} of {filteredEvents.length} events
+                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, sortedEvents.length)} of {sortedEvents.length} events
                 </p>
                 <div className="flex items-center gap-2">
                   <Button

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getTicketType } from '@/lib/db/ticket-types'
 import { getPromoCodeById, incrementPromoCodeUsage } from '@/lib/db/promo-codes'
+import { getTrackingLinkByRefCode } from '@/lib/db/tracking-links'
 import { nanoid } from 'nanoid'
 
 export async function POST(request: NextRequest) {
@@ -14,7 +15,8 @@ export async function POST(request: NextRequest) {
       customerName,
       customerEmail,
       customerPhone,
-      promoCodeId
+      promoCodeId,
+      trackingRef // Marketing attribution tracking
     } = body
 
     if (!eventId || !customerName || !customerEmail) {
@@ -131,6 +133,20 @@ export async function POST(request: NextRequest) {
     // Generate order number
     const orderNumber = nanoid(10).toUpperCase()
 
+    // Look up tracking link ID if trackingRef is provided
+    let trackingLinkId: string | null = null
+    if (trackingRef) {
+      try {
+        const trackingLink = await getTrackingLinkByRefCode(event.business_id, trackingRef)
+        if (trackingLink) {
+          trackingLinkId = trackingLink.id
+        }
+      } catch (error) {
+        console.error('Error looking up tracking link:', error)
+        // Continue anyway - tracking is optional
+      }
+    }
+
     // Create the order
     const { data: order, error: orderError } = await supabase
       .from('orders')
@@ -149,6 +165,8 @@ export async function POST(request: NextRequest) {
         total: 0,
         status: 'completed',
         promo_code: promoCode?.code || null,
+        tracking_ref: trackingRef || null,
+        tracking_link_id: trackingLinkId,
       })
       .select()
       .single()
@@ -169,7 +187,7 @@ export async function POST(request: NextRequest) {
         const ticketType = ticketTypeMetadata[selection.ticketTypeId]
 
         for (let i = 0; i < selection.quantity; i++) {
-          const ticketNumber = `${orderNumber}-${ticketsToCreate.length + 1}`
+          const ticketNumber: string = `${orderNumber}-${ticketsToCreate.length + 1}`
           ticketsToCreate.push({
             order_id: order.id,
             event_id: eventId,

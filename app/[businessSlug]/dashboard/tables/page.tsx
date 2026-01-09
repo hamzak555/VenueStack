@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getTableBookingsByBusinessId, getEventsWithTableService } from '@/lib/db/table-bookings'
+import { getTableBookingsByBusinessId, getEventsWithTableService, TableBooking } from '@/lib/db/table-bookings'
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { getEventById } from '@/lib/db/events'
 import { Button } from '@/components/ui/button'
@@ -48,7 +48,7 @@ export default async function TablesPage({ params, searchParams }: TablesPagePro
   }
 
   // Event selected - show table bookings
-  let bookings = []
+  let bookings: TableBooking[] = []
   let errorMessage = ''
   let event = null
   let sectionTableNames: Record<string, string[]> = {}
@@ -168,7 +168,7 @@ export default async function TablesPage({ params, searchParams }: TablesPagePro
         eventDate={event?.event_date}
         eventTime={event?.event_time}
         eventImage={event?.image_url}
-        bookings={bookings}
+        bookings={bookings as any}
         businessSlug={businessSlug}
         sectionTableNames={sectionTableNames}
         venueLayoutUrl={venueLayoutUrl}

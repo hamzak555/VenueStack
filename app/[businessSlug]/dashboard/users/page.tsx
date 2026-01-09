@@ -29,7 +29,7 @@ export default async function UsersPage({ params }: UsersPageProps) {
         </p>
       </div>
 
-      <UsersManagement businessId={business.id} />
+      <UsersManagement businessId={business.id} businessSlug={businessSlug} />
     </div>
   )
 }

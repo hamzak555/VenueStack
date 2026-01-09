@@ -359,7 +359,7 @@ export async function POST(request: NextRequest) {
     const pages = []
 
     // First page: Header and event information
-    const firstPageChildren = [
+    const firstPageChildren: React.ReactElement[] = [
       React.createElement(Text, { style: styles.header }, 'Your Tickets'),
     ]
 
@@ -553,7 +553,7 @@ export async function POST(request: NextRequest) {
     // Create additional pages for remaining tickets
     for (let groupIndex = 1; groupIndex < ticketGroups.length; groupIndex++) {
       const ticketGroup = ticketGroups[groupIndex]
-      const pageChildren = [
+      const pageChildren: React.ReactElement[] = [
         React.createElement(Text, { style: styles.ticketsHeader }, 'Your Tickets (continued)')
       ]
 

@@ -82,8 +82,8 @@ export function DeleteEventButton({
 
   const button = (
     <Button
-      variant="destructive"
       size="sm"
+      className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30"
       onClick={() => setShowDialog(true)}
       disabled={!canDelete || isDeleting}
     >
@@ -146,7 +146,7 @@ export function DeleteEventButton({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <Button
-              variant="destructive"
+              className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30"
               onClick={handleDelete}
               disabled={isDeleting}
             >

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -44,6 +44,30 @@ export default function TicketTypeForm({ eventId, ticketType, isRecurringEvent, 
     sale_start_date: ticketType?.sale_start_date ? new Date(ticketType.sale_start_date) : undefined,
     sale_end_date: ticketType?.sale_end_date ? new Date(ticketType.sale_end_date) : undefined,
   })
+
+  // For edit mode, check if form has changes from original
+  const hasChanges = useMemo(() => {
+    // For create mode, always allow save if required fields are filled
+    if (!ticketType) {
+      return formData.name.trim() !== '' && formData.price !== '' && formData.total_quantity !== ''
+    }
+
+    // For edit mode, compare with original values
+    if (formData.name !== ticketType.name) return true
+    if (formData.description !== (ticketType.description || '')) return true
+    if (formData.price !== ticketType.price.toString()) return true
+    if (formData.total_quantity !== ticketType.total_quantity.toString()) return true
+    if (formData.max_per_customer !== (ticketType.max_per_customer?.toString() || '')) return true
+    if (formData.is_active !== ticketType.is_active) return true
+
+    // Compare dates
+    const origStartDate = ticketType.sale_start_date ? new Date(ticketType.sale_start_date).toDateString() : undefined
+    const origEndDate = ticketType.sale_end_date ? new Date(ticketType.sale_end_date).toDateString() : undefined
+    if (formData.sale_start_date?.toDateString() !== origStartDate) return true
+    if (formData.sale_end_date?.toDateString() !== origEndDate) return true
+
+    return false
+  }, [formData, ticketType])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -257,7 +281,7 @@ export default function TicketTypeForm({ eventId, ticketType, isRecurringEvent, 
           )}
 
           <div className="flex gap-4">
-            <Button type="submit" disabled={isLoading} className="flex-1">
+            <Button type="submit" disabled={isLoading || !hasChanges} className="flex-1">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

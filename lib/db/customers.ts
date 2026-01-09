@@ -26,6 +26,7 @@ export async function getCustomersByBusinessId(businessId: string): Promise<Cust
       customer_name,
       customer_email,
       customer_phone,
+      quantity,
       total,
       platform_fee,
       stripe_fee,
@@ -197,8 +198,9 @@ export async function getCustomersByBusinessId(businessId: string): Promise<Cust
     const platformFee = parseFloat(order.platform_fee?.toString() || '0')
     const stripeFee = parseFloat(order.stripe_fee?.toString() || '0')
     const netRevenue = total - platformFee - stripeFee
+    const quantity = order.quantity || 1
 
-    customer.total_tickets += 1
+    customer.total_tickets += quantity
     customer.total_spent += netRevenue
 
     if (new Date(order.created_at) > new Date(customer.last_purchase)) {
@@ -312,6 +314,7 @@ export async function getCustomerWithRatings(
       customer_name,
       customer_email,
       customer_phone,
+      quantity,
       total,
       platform_fee,
       stripe_fee,
@@ -358,7 +361,7 @@ export async function getCustomerWithRatings(
   }
 
   // Aggregate customer data
-  let totalTickets = orders?.length || 0
+  let totalTickets = 0
   let totalReservations = tableBookings?.length || 0
   let totalSpent = 0
   let firstPurchase: string | null = null
@@ -370,6 +373,8 @@ export async function getCustomerWithRatings(
     const total = parseFloat(order.total?.toString() || '0')
     const platformFee = parseFloat(order.platform_fee?.toString() || '0')
     const stripeFee = parseFloat(order.stripe_fee?.toString() || '0')
+    const quantity = order.quantity || 1
+    totalTickets += quantity
     totalSpent += total - platformFee - stripeFee
 
     if (!firstPurchase || new Date(order.created_at) < new Date(firstPurchase)) {

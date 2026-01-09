@@ -1,5 +1,5 @@
 import { getBusinessBySlug } from '@/lib/db/businesses'
-import { getCustomersByBusinessId } from '@/lib/db/customers'
+import { getCustomersByBusinessId, Customer } from '@/lib/db/customers'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CustomersTable } from '@/components/business/customers-table'
 import { formatCurrency } from '@/lib/utils/currency'
@@ -16,7 +16,7 @@ interface CustomersPageProps {
 export default async function CustomersPage({ params }: CustomersPageProps) {
   const { businessSlug } = await params
   const business = await getBusinessBySlug(businessSlug)
-  let customers = []
+  let customers: Customer[] = []
   let errorMessage = ''
 
   try {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -52,6 +52,25 @@ export function BusinessForm({ initialData, businessId }: BusinessFormProps) {
         : prev.slug,
     }))
   }
+
+  // Check if form has changes
+  const hasChanges = useMemo(() => {
+    // For create mode, allow save if required fields are filled
+    if (!businessId) {
+      return formData.name.trim() !== '' && formData.slug.trim() !== ''
+    }
+
+    // For edit mode, compare with initial values
+    if (!initialData) return false
+    if (formData.name !== initialData.name) return true
+    if (formData.slug !== initialData.slug) return true
+    if (formData.description !== (initialData.description || '')) return true
+    if (formData.contact_email !== (initialData.contact_email || '')) return true
+    if (formData.contact_phone !== (initialData.contact_phone || '')) return true
+    if (formData.website !== (initialData.website || '')) return true
+
+    return false
+  }, [formData, initialData, businessId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -193,7 +212,7 @@ export function BusinessForm({ initialData, businessId }: BusinessFormProps) {
           </div>
 
           <div className="flex gap-4 pt-4">
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || !hasChanges}>
               {isLoading ? 'Saving...' : businessId ? 'Update Business' : 'Create Business'}
             </Button>
             <Button

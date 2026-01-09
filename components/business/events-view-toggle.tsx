@@ -153,7 +153,7 @@ export function EventsViewToggle({ events, businessSlug, businessId, defaultLoca
 
   return (
     <Card>
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-0">
         <div className="flex items-center justify-between gap-4">
           {/* Left side - Calendar navigation */}
           <div className="flex items-center gap-2">

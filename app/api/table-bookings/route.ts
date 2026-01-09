@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         customer_name: customerName,
         customer_email: customerEmail || null,
         customer_phone: customerPhone || null,
-        status: 'confirmed', // Manual reservations are confirmed by default
+        status: 'seated', // Manual reservations are seated by default
         amount: null, // No payment for manual reservations
         order_id: null,
       })

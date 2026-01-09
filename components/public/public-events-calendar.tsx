@@ -25,6 +25,7 @@ interface PublicEventsCalendarProps {
   businessSlug: string
   themeColor?: string
   title?: string
+  trackingRef?: string
 }
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -36,7 +37,7 @@ function formatTimeTo12Hour(time: string): string {
   return `${displayHours}${minutes > 0 ? `:${minutes.toString().padStart(2, '0')}` : ''}${period}`
 }
 
-export function PublicEventsCalendar({ events, businessSlug, themeColor = '#3b82f6', title }: PublicEventsCalendarProps) {
+export function PublicEventsCalendar({ events, businessSlug, themeColor = '#3b82f6', title, trackingRef }: PublicEventsCalendarProps) {
   const [currentDate, setCurrentDate] = useState(() => {
     // Start on the month of the first event, or current month if no events
     if (events.length > 0) {
@@ -229,6 +230,7 @@ export function PublicEventsCalendar({ events, businessSlug, themeColor = '#3b82
                               businessSlug={businessSlug}
                               compact={useCompactCards}
                               themeColor={themeColor}
+                              trackingRef={trackingRef}
                             />
                           ))}
                         </div>
@@ -265,11 +267,15 @@ export function PublicEventsCalendar({ events, businessSlug, themeColor = '#3b82
   )
 }
 
-function PublicEventCard({ event, businessSlug, compact, themeColor }: { event: PublicEvent; businessSlug: string; compact: boolean; themeColor: string }) {
+function PublicEventCard({ event, businessSlug, compact, themeColor, trackingRef }: { event: PublicEvent; businessSlug: string; compact: boolean; themeColor: string; trackingRef?: string }) {
   const ticketsSoldOut = event.availableTickets === 0
   const hasTableService = event.hasTableService
   const hasTickets = event.availableTickets > 0
   const showPrice = event.priceDisplay && event.priceDisplay !== 'N/A' && event.priceDisplay !== 'Free'
+
+  // Build ref query string for checkout links
+  const refParamFirst = trackingRef ? `?ref=${encodeURIComponent(trackingRef)}` : ''
+  const refParam = trackingRef ? `&ref=${encodeURIComponent(trackingRef)}` : ''
 
   // Check if event is in the past
   const eventDateStr = event.event_date.split('T')[0]
@@ -435,7 +441,7 @@ function PublicEventCard({ event, businessSlug, compact, themeColor }: { event: 
   if (hasBothOptions || !ticketsSoldOut) {
     return (
       <Link
-        href={`/${businessSlug}/events/${event.id}/checkout`}
+        href={`/${businessSlug}/events/${event.id}/checkout${refParamFirst}`}
         className={compact ? "block group" : "block group h-full"}
       >
         {cardContent}
@@ -446,7 +452,7 @@ function PublicEventCard({ event, businessSlug, compact, themeColor }: { event: 
   // Only table service available (tickets sold out) - link directly to checkout with tables mode
   return (
     <Link
-      href={`/${businessSlug}/events/${event.id}/checkout?mode=tables`}
+      href={`/${businessSlug}/events/${event.id}/checkout?mode=tables${refParam}`}
       className={compact ? "block group" : "block group h-full"}
     >
       {cardContent}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
@@ -63,6 +63,36 @@ export function PromoCodeForm({ eventId, businessId, businessSlug, ticketTypes, 
     is_active: initialData?.is_active ?? true,
     ticket_type_ids: initialData?.ticket_type_ids || [] as string[],
   })
+
+  // For edit mode, check if form has changes from original
+  const hasChanges = useMemo(() => {
+    // For create mode, allow save if code is filled
+    if (!initialData) {
+      return formData.code.trim() !== '' && formData.discount_value > 0
+    }
+
+    // For edit mode, compare with original values
+    if (formData.code !== initialData.code) return true
+    if (formData.discount_type !== initialData.discount_type) return true
+    if (formData.discount_value !== initialData.discount_value) return true
+    if (formData.max_uses !== initialData.max_uses) return true
+    if (formData.is_active !== initialData.is_active) return true
+
+    // Compare dates
+    const origValidFrom = initialData.valid_from ? new Date(initialData.valid_from).toDateString() : undefined
+    const origValidUntil = initialData.valid_until ? new Date(initialData.valid_until).toDateString() : undefined
+    if (formData.valid_from?.toDateString() !== origValidFrom) return true
+    if (formData.valid_until?.toDateString() !== origValidUntil) return true
+
+    // Compare ticket type arrays
+    const origTicketTypes = initialData.ticket_type_ids || []
+    if (formData.ticket_type_ids.length !== origTicketTypes.length) return true
+    const sortedCurrent = [...formData.ticket_type_ids].sort()
+    const sortedOrig = [...origTicketTypes].sort()
+    if (sortedCurrent.some((id, i) => id !== sortedOrig[i])) return true
+
+    return false
+  }, [formData, initialData])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -301,7 +331,7 @@ export function PromoCodeForm({ eventId, businessId, businessSlug, ticketTypes, 
           )}
 
           <div className="flex gap-4">
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || !hasChanges}>
               {loading ? 'Saving...' : initialData ? 'Update Promo Code' : 'Create Promo Code'}
             </Button>
             <Button

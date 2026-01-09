@@ -218,7 +218,7 @@ export default function UnifiedLoginPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {error && (
-              <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded p-3 mb-4">
+              <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3 mb-4">
                 {error}
               </div>
             )}
@@ -402,7 +402,7 @@ export default function UnifiedLoginPage() {
                 </div>
               </div>
               {error && (
-                <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded p-3">
+                <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
                   {error}
                 </div>
               )}
@@ -431,7 +431,7 @@ export default function UnifiedLoginPage() {
                 </p>
               </div>
               {error && (
-                <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded p-3">
+                <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
                   {error}
                 </div>
               )}
@@ -464,7 +464,7 @@ export default function UnifiedLoginPage() {
                 </p>
               </div>
               {error && (
-                <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded p-3">
+                <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
                   {error}
                 </div>
               )}

@@ -32,12 +32,20 @@ export interface BusinessAnalytics {
   events: EventAnalytics[]
 }
 
-export async function getBusinessAnalytics(businessId: string): Promise<BusinessAnalytics> {
+export interface DateRangeFilter {
+  from: Date
+  to: Date
+}
+
+export async function getBusinessAnalytics(
+  businessId: string,
+  dateRange?: DateRangeFilter
+): Promise<BusinessAnalytics> {
   const supabase = await createClient()
 
   // Get all completed orders for this business's events
   // Include fee fields to calculate net revenue (what business actually receives)
-  const { data: orders, error } = await supabase
+  let ordersQuery = supabase
     .from('orders')
     .select(`
       id,
@@ -48,6 +56,7 @@ export async function getBusinessAnalytics(businessId: string): Promise<Business
       platform_fee,
       stripe_fee,
       status,
+      created_at,
       event:events!inner (
         id,
         title,
@@ -59,19 +68,29 @@ export async function getBusinessAnalytics(businessId: string): Promise<Business
     .eq('event.business_id', businessId)
     .eq('status', 'completed')
 
+  // Apply date filter if provided
+  if (dateRange) {
+    ordersQuery = ordersQuery
+      .gte('created_at', dateRange.from.toISOString())
+      .lte('created_at', dateRange.to.toISOString())
+  }
+
+  const { data: orders, error } = await ordersQuery
+
   if (error) {
     console.error('Error fetching analytics:', error)
     throw new Error('Failed to fetch analytics data')
   }
 
   // Get all confirmed table bookings for this business's events
-  const { data: tableBookings, error: tableBookingsError } = await supabase
+  let tableBookingsQuery = supabase
     .from('table_bookings')
     .select(`
       id,
       event_id,
       amount,
       status,
+      created_at,
       event:events!inner (
         id,
         title,
@@ -82,6 +101,15 @@ export async function getBusinessAnalytics(businessId: string): Promise<Business
     `)
     .eq('event.business_id', businessId)
     .eq('status', 'confirmed')
+
+  // Apply date filter if provided
+  if (dateRange) {
+    tableBookingsQuery = tableBookingsQuery
+      .gte('created_at', dateRange.from.toISOString())
+      .lte('created_at', dateRange.to.toISOString())
+  }
+
+  const { data: tableBookings, error: tableBookingsError } = await tableBookingsQuery
 
   if (tableBookingsError) {
     console.error('Error fetching table bookings:', tableBookingsError)

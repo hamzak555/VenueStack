@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency } from '@/lib/utils/currency'
@@ -30,11 +31,13 @@ interface Order {
   customer_name: string
   customer_email: string
   customer_phone: string | null
+  quantity: number
   total: number
   status: 'pending' | 'completed' | 'cancelled' | 'refunded' | 'partially_refunded'
   created_at: string
   event_title: string
   event_date: string
+  event_image_url: string | null
 }
 
 interface TicketsTableProps {
@@ -153,6 +156,7 @@ export function TicketsTable({ orders, businessSlug }: TicketsTableProps) {
                   <TableHead>Event</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead className="text-center">Tickets</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
@@ -164,15 +168,31 @@ export function TicketsTable({ orders, businessSlug }: TicketsTableProps) {
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.order_number}</TableCell>
                   <TableCell>
-                    <div>
-                      <p className="font-medium">{order.event_title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(order.event_date).toLocaleDateString()}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      {order.event_image_url ? (
+                        <Image
+                          src={order.event_image_url}
+                          alt={order.event_title}
+                          width={40}
+                          height={40}
+                          className="rounded object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground">No img</span>
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium">{order.event_title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(order.event_date).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>{order.customer_name}</TableCell>
                   <TableCell className="text-sm">{order.customer_email}</TableCell>
+                  <TableCell className="text-center">{order.quantity}</TableCell>
                   <TableCell className="text-right font-medium">
                     {formatCurrency(order.total)}
                   </TableCell>

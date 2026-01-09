@@ -1,4 +1,4 @@
-import { getOrdersByBusinessId } from '@/lib/db/orders'
+import { getOrdersByBusinessId, Order } from '@/lib/db/orders'
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { TicketsTable } from '@/components/business/tickets-table'
@@ -15,7 +15,7 @@ interface TicketsPageProps {
 export default async function TicketsPage({ params }: TicketsPageProps) {
   const { businessSlug } = await params
   const business = await getBusinessBySlug(businessSlug)
-  let orders = []
+  let orders: Order[] = []
   let errorMessage = ''
 
   try {

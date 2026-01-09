@@ -23,6 +23,7 @@ interface UnifiedLoginSession {
   email: string
   name: string
   affiliations: UserAffiliation[]
+  [key: string]: unknown
 }
 
 export async function POST(request: NextRequest) {

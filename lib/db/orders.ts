@@ -88,11 +88,13 @@ export interface Order {
   customer_name: string
   customer_email: string
   customer_phone: string | null
+  quantity: number
   total: number
   status: 'pending' | 'completed' | 'cancelled' | 'refunded'
   created_at: string
   event_title: string
   event_date: string
+  event_image_url: string | null
   payment_intent_id?: string
 }
 
@@ -108,6 +110,7 @@ export async function getOrdersByBusinessId(businessId: string, eventId?: string
         id,
         title,
         event_date,
+        image_url,
         business_id
       )
     `)
@@ -137,11 +140,13 @@ export async function getOrdersByBusinessId(businessId: string, eventId?: string
     customer_name: order.customer_name,
     customer_email: order.customer_email,
     customer_phone: order.customer_phone,
+    quantity: order.quantity || 0,
     total: order.total,
     status: order.status,
     created_at: order.created_at,
     event_title: order.events.title,
     event_date: order.events.event_date,
+    event_image_url: order.events.image_url,
   }))
 }
 

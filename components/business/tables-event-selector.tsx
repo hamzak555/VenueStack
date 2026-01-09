@@ -21,6 +21,13 @@ interface EventWithTableInfo {
   table_bookings_count: number
   total_tables: number
   available_tables: number
+  bookings_by_status: {
+    seated: number
+    arrived: number
+    confirmed: number
+    reserved: number
+    completed: number
+  }
 }
 
 interface TablesEventSelectorProps {
@@ -238,16 +245,39 @@ export function TablesEventSelector({ events, businessSlug }: TablesEventSelecto
 
                             {/* Table Stats */}
                             <div className="flex-shrink-0 text-right">
-                              <div className="flex items-center gap-2 justify-end mb-1">
-                                <Wine className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-semibold">{event.table_bookings_count}</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {event.table_bookings_count === 1 ? 'booking' : 'bookings'}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground mb-2">
                                 {event.available_tables} of {event.total_tables} tables available
                               </p>
+                              <div className="flex items-center gap-1.5 justify-end flex-wrap">
+                                {event.bookings_by_status.arrived > 0 && (
+                                  <Badge variant="success" className="text-xs">
+                                    {event.bookings_by_status.arrived} Arrived
+                                  </Badge>
+                                )}
+                                {event.bookings_by_status.seated > 0 && (
+                                  <Badge variant="teal" className="text-xs">
+                                    {event.bookings_by_status.seated} Seated
+                                  </Badge>
+                                )}
+                                {event.bookings_by_status.confirmed > 0 && (
+                                  <Badge variant="warning" className="text-xs">
+                                    {event.bookings_by_status.confirmed} Confirmed
+                                  </Badge>
+                                )}
+                                {event.bookings_by_status.completed > 0 && (
+                                  <Badge variant="purple" className="text-xs">
+                                    {event.bookings_by_status.completed} Completed
+                                  </Badge>
+                                )}
+                                {event.bookings_by_status.reserved > 0 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {event.bookings_by_status.reserved} Reserved
+                                  </Badge>
+                                )}
+                                {event.table_bookings_count === 0 && (
+                                  <span className="text-xs text-muted-foreground">No bookings</span>
+                                )}
+                              </div>
                             </div>
 
                             {/* Arrow */}

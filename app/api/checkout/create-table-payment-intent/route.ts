@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
       customerName,
       customerEmail,
       customerPhone,
+      trackingRef, // Marketing attribution tracking
     } = body
 
     if (!eventId || !tableSelections || !customerName || !customerEmail) {
@@ -209,6 +210,7 @@ export async function POST(request: NextRequest) {
         platformFeePayer: event.businesses.platform_fee_payer,
         taxPercentage: taxPercentage.toString(),
         taxAmount: (taxInCents / 100).toFixed(2),
+        ...(trackingRef ? { trackingRef } : {}),
       },
       description,
     })

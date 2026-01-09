@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
       customerName,
       customerEmail,
       customerPhone,
-      promoCodeId // Promo code to apply
+      promoCodeId, // Promo code to apply
+      trackingRef // Marketing attribution tracking
     } = body
 
     if (!eventId || !customerName || !customerEmail) {
@@ -259,7 +260,9 @@ export async function POST(request: NextRequest) {
         } : {
           quantity: quantity.toString(),
           hasTicketTypes: 'false'
-        })
+        }),
+        // Marketing attribution tracking
+        ...(trackingRef ? { trackingRef } : {})
       },
       description,
     })

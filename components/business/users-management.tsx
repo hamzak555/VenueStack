@@ -309,7 +309,7 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
                       </p>
                     </div>
                     {formError && (
-                      <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded p-3">
+                      <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
                         {formError}
                       </div>
                     )}
@@ -454,7 +454,7 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
                 </Select>
               </div>
               {formError && (
-                <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded p-3">
+                <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
                   {formError}
                 </div>
               )}
@@ -491,7 +491,7 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
             </div>
           )}
           {formError && (
-            <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded p-3">
+            <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
               {formError}
             </div>
           )}
@@ -499,7 +499,7 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={formLoading}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30" onClick={handleDelete} disabled={formLoading}>
               {formLoading ? 'Deleting...' : 'Delete User'}
             </Button>
           </DialogFooter>

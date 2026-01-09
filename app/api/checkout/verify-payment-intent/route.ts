@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe/server'
 import { createClient } from '@/lib/supabase/server'
 import { updateTicketTypeAvailability } from '@/lib/db/ticket-types'
 import { incrementPromoCodeUsage } from '@/lib/db/promo-codes'
+import { getTrackingLinkByRefCode } from '@/lib/db/tracking-links'
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,6 +51,8 @@ export async function GET(request: NextRequest) {
       orderDetails, // JSON string of order details array
       totalTables,
       totalTablePrice,
+      // Marketing attribution tracking
+      trackingRef,
     } = paymentIntent.metadata
 
     const supabase = await createClient()
@@ -73,6 +76,7 @@ export async function GET(request: NextRequest) {
           taxPercentageStr,
           platformFeeStr,
           stripeFeeStr,
+          trackingRef,
         }
       )
     }
@@ -161,6 +165,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Look up tracking link ID if trackingRef is provided
+    let trackingLinkId: string | null = null
+    if (trackingRef) {
+      try {
+        const trackingLink = await getTrackingLinkByRefCode(businessId, trackingRef)
+        if (trackingLink) {
+          trackingLinkId = trackingLink.id
+        }
+      } catch (error) {
+        console.error('Error looking up tracking link:', error)
+        // Continue anyway - tracking is optional
+      }
+    }
+
     // Create order record
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
     const ticketQuantity = parseInt(totalTickets)
@@ -186,6 +204,8 @@ export async function GET(request: NextRequest) {
           total: totalAmount,
           stripe_payment_intent_id: paymentIntentId,
           status: 'completed',
+          tracking_ref: trackingRef || null,
+          tracking_link_id: trackingLinkId,
         })
         .select()
         .single()
@@ -306,17 +326,34 @@ async function handleTableBookingVerification(
     taxPercentageStr?: string
     platformFeeStr?: string
     stripeFeeStr?: string
+    trackingRef?: string
   }
 ) {
   const {
     eventId,
+    businessId,
     tableSelections,
     orderDetails,
     totalTables,
     customerName,
     customerEmail,
     customerPhone,
+    trackingRef,
   } = metadata
+
+  // Look up tracking link ID if trackingRef is provided
+  let trackingLinkId: string | null = null
+  if (trackingRef) {
+    try {
+      const trackingLink = await getTrackingLinkByRefCode(businessId, trackingRef)
+      if (trackingLink) {
+        trackingLinkId = trackingLink.id
+      }
+    } catch (error) {
+      console.error('Error looking up tracking link:', error)
+      // Continue anyway - tracking is optional
+    }
+  }
 
   // Check if table bookings already exist for this payment intent
   const { data: existingBookings, error: existingBookingsError } = await supabase
@@ -413,6 +450,8 @@ async function handleTableBookingVerification(
           customer_phone: customerPhone || null,
           amount: detail.price, // Store the price per table
           status: 'confirmed',
+          tracking_ref: trackingRef || null,
+          tracking_link_id: trackingLinkId,
         })
         .select()
         .single()

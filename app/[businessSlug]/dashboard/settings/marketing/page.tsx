@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { MarketingSettingsForm } from '@/components/business/marketing-settings-form'
+import { TrackingLinksForm } from '@/components/business/tracking-links-form'
 
 // Force dynamic rendering to always fetch fresh data
 export const dynamic = 'force-dynamic'
@@ -29,6 +30,11 @@ export default async function MarketingSettingsPage({ params }: MarketingSetting
           Manage tracking pixels, analytics, and embed options for your public page
         </p>
       </div>
+
+      <TrackingLinksForm
+        businessId={business.id}
+        businessSlug={businessSlug}
+      />
 
       <MarketingSettingsForm
         businessId={business.id}

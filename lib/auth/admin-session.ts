@@ -11,6 +11,7 @@ export interface AdminSession {
   userId: string
   email: string
   name: string
+  [key: string]: unknown
 }
 
 /**

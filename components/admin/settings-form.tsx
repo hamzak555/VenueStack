@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -15,14 +16,16 @@ interface PlatformSettings {
   flat_fee_amount: number
   percentage_fee: number
   platform_stripe_account_id: string | null
+  subscription_monthly_fee: number
+  subscription_trial_days: number
+  stripe_subscription_product_id: string | null
+  stripe_subscription_price_id: string | null
 }
 
 export default function AdminSettingsForm() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
 
   const [settings, setSettings] = useState<PlatformSettings | null>(null)
   const [formData, setFormData] = useState({
@@ -30,6 +33,10 @@ export default function AdminSettingsForm() {
     flat_fee_amount: '',
     percentage_fee: '',
     platform_stripe_account_id: '',
+    subscription_monthly_fee: '',
+    subscription_trial_days: '',
+    stripe_subscription_product_id: '',
+    stripe_subscription_price_id: '',
   })
 
   useEffect(() => {
@@ -49,19 +56,37 @@ export default function AdminSettingsForm() {
         flat_fee_amount: data.flat_fee_amount.toString(),
         percentage_fee: data.percentage_fee.toString(),
         platform_stripe_account_id: data.platform_stripe_account_id || '',
+        subscription_monthly_fee: (data.subscription_monthly_fee || 49).toString(),
+        subscription_trial_days: (data.subscription_trial_days || 14).toString(),
+        stripe_subscription_product_id: data.stripe_subscription_product_id || '',
+        stripe_subscription_price_id: data.stripe_subscription_price_id || '',
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      toast.error(err instanceof Error ? err.message : 'Failed to load settings')
     } finally {
       setIsLoading(false)
     }
   }
 
+  // Check if form has changes from original settings
+  const hasChanges = useMemo(() => {
+    if (!settings) return false
+
+    if (formData.platform_fee_type !== settings.platform_fee_type) return true
+    if (formData.flat_fee_amount !== settings.flat_fee_amount.toString()) return true
+    if (formData.percentage_fee !== settings.percentage_fee.toString()) return true
+    if (formData.platform_stripe_account_id !== (settings.platform_stripe_account_id || '')) return true
+    if (formData.subscription_monthly_fee !== (settings.subscription_monthly_fee || 49).toString()) return true
+    if (formData.subscription_trial_days !== (settings.subscription_trial_days || 14).toString()) return true
+    if (formData.stripe_subscription_product_id !== (settings.stripe_subscription_product_id || '')) return true
+    if (formData.stripe_subscription_price_id !== (settings.stripe_subscription_price_id || '')) return true
+
+    return false
+  }, [formData, settings])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
-    setError(null)
-    setSuccess(false)
 
     try {
       const response = await fetch('/api/admin/settings', {
@@ -72,6 +97,10 @@ export default function AdminSettingsForm() {
           flat_fee_amount: parseFloat(formData.flat_fee_amount),
           percentage_fee: parseFloat(formData.percentage_fee),
           platform_stripe_account_id: formData.platform_stripe_account_id || null,
+          subscription_monthly_fee: parseFloat(formData.subscription_monthly_fee) || 49,
+          subscription_trial_days: formData.subscription_trial_days !== '' ? parseInt(formData.subscription_trial_days) : 14,
+          stripe_subscription_product_id: formData.stripe_subscription_product_id || null,
+          stripe_subscription_price_id: formData.stripe_subscription_price_id || null,
         }),
       })
 
@@ -80,11 +109,10 @@ export default function AdminSettingsForm() {
         throw new Error(data.error || 'Failed to update settings')
       }
 
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
+      toast.success('Settings updated successfully')
       await fetchSettings()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      toast.error(err instanceof Error ? err.message : 'Failed to update settings')
     } finally {
       setIsSaving(false)
     }
@@ -132,20 +160,6 @@ export default function AdminSettingsForm() {
           Configure platform fees and payment settings
         </p>
       </div>
-
-      {success && (
-        <div className="p-4 bg-green-500/10 border border-green-500 rounded-md">
-          <p className="text-sm text-green-600 dark:text-green-400">
-            Settings updated successfully!
-          </p>
-        </div>
-      )}
-
-      {error && (
-        <div className="p-4 bg-destructive/10 border border-destructive rounded-md">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
@@ -279,8 +293,77 @@ export default function AdminSettingsForm() {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Subscription Settings</CardTitle>
+            <CardDescription>
+              Configure monthly subscription pricing and trial period for businesses
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="subscription_monthly_fee">Monthly Fee ($)</Label>
+                <Input
+                  id="subscription_monthly_fee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.subscription_monthly_fee}
+                  onChange={(e) => setFormData({ ...formData, subscription_monthly_fee: e.target.value })}
+                  placeholder="49.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Monthly subscription fee for businesses
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="subscription_trial_days">Trial Period (days)</Label>
+                <Input
+                  id="subscription_trial_days"
+                  type="number"
+                  min="0"
+                  value={formData.subscription_trial_days}
+                  onChange={(e) => setFormData({ ...formData, subscription_trial_days: e.target.value })}
+                  placeholder="14"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Free trial period before billing starts (0 for no trial)
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="stripe_subscription_product_id">Stripe Product ID</Label>
+              <Input
+                id="stripe_subscription_product_id"
+                value={formData.stripe_subscription_product_id}
+                onChange={(e) => setFormData({ ...formData, stripe_subscription_product_id: e.target.value })}
+                placeholder="prod_..."
+              />
+              <p className="text-xs text-muted-foreground">
+                The Stripe product ID for the subscription plan
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="stripe_subscription_price_id">Stripe Price ID</Label>
+              <Input
+                id="stripe_subscription_price_id"
+                value={formData.stripe_subscription_price_id}
+                onChange={(e) => setFormData({ ...formData, stripe_subscription_price_id: e.target.value })}
+                placeholder="price_..."
+              />
+              <p className="text-xs text-muted-foreground">
+                The Stripe price ID for the monthly subscription. Create this in your Stripe dashboard.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex gap-4">
-          <Button type="submit" disabled={isSaving}>
+          <Button type="submit" disabled={isSaving || !hasChanges}>
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
