@@ -199,7 +199,14 @@ export default function UnifiedLoginPage() {
     return (
       <div className="relative flex min-h-screen items-center justify-center bg-background p-4 overflow-hidden">
         <div className="absolute top-8 left-8 z-10">
-          <h1 className="text-2xl font-bold text-foreground">VenueStack</h1>
+          <Image
+            src="/VenueStack Logo.svg"
+            alt="VenueStack"
+            width={160}
+            height={40}
+            className="dark:invert"
+            priority
+          />
         </div>
         <div className="absolute inset-0">
           <InteractiveGridPattern
@@ -307,7 +314,14 @@ export default function UnifiedLoginPage() {
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background p-4 overflow-hidden">
       <div className="absolute top-8 left-8 z-10">
-        <h1 className="text-2xl font-bold text-foreground">VenueStack</h1>
+        <Image
+          src="/VenueStack Logo.svg"
+          alt="VenueStack"
+          width={160}
+          height={40}
+          className="dark:invert"
+          priority
+        />
       </div>
       <div className="absolute inset-0">
         <InteractiveGridPattern
