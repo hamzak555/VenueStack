@@ -360,95 +360,101 @@ export function BookingDetailsModal({
                 </div>
               )}
 
-              {/* Payment Info */}
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Payment Details</h4>
-                {data.paymentMetadata ? (
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Subtotal ({data.relatedBookings.length > 1 ? `${data.relatedBookings.length} tables` : '1 table'})
-                      </span>
-                      <span>{formatCurrency(data.paymentMetadata.subtotal)}</span>
-                    </div>
-
-                    {data.paymentMetadata.taxAmount > 0 && (
+              {/* Payment Info - Only show for paid bookings */}
+              {(data.bookingAmount > 0 || data.paymentMetadata) && (
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-3">Payment Details</h4>
+                  {data.paymentMetadata ? (
+                    <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">
-                          Tax{data.paymentMetadata.taxPercentage > 0 && ` (${data.paymentMetadata.taxPercentage}%)`}
+                          Subtotal ({data.relatedBookings.length > 1 ? `${data.relatedBookings.length} tables` : '1 table'})
                         </span>
-                        <span>{formatCurrency(data.paymentMetadata.taxAmount)}</span>
+                        <span>{formatCurrency(data.paymentMetadata.subtotal)}</span>
                       </div>
-                    )}
 
-                    {(data.paymentMetadata.platformFee + data.paymentMetadata.stripeFee) > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Processing Fee</span>
-                        <span>{formatCurrency(data.paymentMetadata.platformFee + data.paymentMetadata.stripeFee)}</span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between pt-2 border-t font-medium">
-                      <span>Total Charged</span>
-                      <span className="text-lg">{formatCurrency(data.paymentMetadata.totalCharged)}</span>
-                    </div>
-
-                    <div className="mt-3 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-green-900 dark:text-green-100">Transferred to Business</span>
-                        <span className="text-lg font-bold text-green-700 dark:text-green-400">
-                          {formatCurrency(data.paymentMetadata.transferAmount)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Amount</span>
-                    <span className="text-xl font-bold">{formatCurrency(data.bookingAmount)}</span>
-                  </div>
-                )}
-
-                {data.totalRefunded > 0 && (
-                  <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-orange-900 dark:text-orange-100">Total Refunded</span>
-                      <span className="text-lg font-bold text-orange-700 dark:text-orange-400">
-                        {formatCurrency(data.totalRefunded)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Actions</h4>
-                <div className="flex flex-wrap gap-3">
-                  {data.booking.status === 'completed' && (
-                    <Button
-                      variant="outline"
-                      onClick={handleReopen}
-                      disabled={isReopening}
-                    >
-                      {isReopening ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <RotateCcw className="mr-2 h-4 w-4" />
+                      {data.paymentMetadata.taxAmount > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Tax{data.paymentMetadata.taxPercentage > 0 && ` (${data.paymentMetadata.taxPercentage}%)`}
+                          </span>
+                          <span>{formatCurrency(data.paymentMetadata.taxAmount)}</span>
+                        </div>
                       )}
-                      Reopen
-                    </Button>
+
+                      {(data.paymentMetadata.platformFee + data.paymentMetadata.stripeFee) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Processing Fee</span>
+                          <span>{formatCurrency(data.paymentMetadata.platformFee + data.paymentMetadata.stripeFee)}</span>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between pt-2 border-t font-medium">
+                        <span>Total Charged</span>
+                        <span className="text-lg">{formatCurrency(data.paymentMetadata.totalCharged)}</span>
+                      </div>
+
+                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-green-900 dark:text-green-100">Transferred to Business</span>
+                          <span className="text-lg font-bold text-green-700 dark:text-green-400">
+                            {formatCurrency(data.paymentMetadata.transferAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Amount</span>
+                      <span className="text-xl font-bold">{formatCurrency(data.bookingAmount)}</span>
+                    </div>
                   )}
-                  <TableBookingRefundDialog
-                    bookingId={data.booking.id}
-                    maxRefundable={data.bookingAmount}
-                    totalRefunded={data.totalRefunded}
-                    sectionName={data.booking.section.name || 'Table'}
-                    tableNumber={data.booking.table_number}
-                    onRefundComplete={handleStatusChange}
-                  />
+
+                  {data.totalRefunded > 0 && (
+                    <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-orange-900 dark:text-orange-100">Total Refunded</span>
+                        <span className="text-lg font-bold text-orange-700 dark:text-orange-400">
+                          {formatCurrency(data.totalRefunded)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
+
+              {/* Actions - Only show if there are relevant actions */}
+              {(data.booking.status === 'completed' || data.bookingAmount > 0) && (
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-3">Actions</h4>
+                  <div className="flex flex-wrap gap-3">
+                    {data.booking.status === 'completed' && (
+                      <Button
+                        variant="outline"
+                        onClick={handleReopen}
+                        disabled={isReopening}
+                      >
+                        {isReopening ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                        )}
+                        Reopen
+                      </Button>
+                    )}
+                    {data.bookingAmount > 0 && (
+                      <TableBookingRefundDialog
+                        bookingId={data.booking.id}
+                        maxRefundable={data.bookingAmount}
+                        totalRefunded={data.totalRefunded}
+                        sectionName={data.booking.section.name || 'Table'}
+                        tableNumber={data.booking.table_number}
+                        onRefundComplete={handleStatusChange}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Refund History */}
               {data.refunds.length > 0 && (

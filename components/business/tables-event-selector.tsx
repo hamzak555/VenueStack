@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, MapPin, Wine, Search, ChevronRight } from 'lucide-react'
+import { Clock, MapPin, Wine, Search, ChevronRight } from 'lucide-react'
 import { parseLocalDate } from '@/lib/utils'
 
 interface EventWithTableInfo {
@@ -109,6 +109,13 @@ export function TablesEventSelector({ events, businessSlug }: TablesEventSelecto
   const isPast = (dateStr: string) => {
     const eventDate = parseLocalDate(dateStr)
     return eventDate < now
+  }
+
+  const formatTimeTo12Hour = (time: string): string => {
+    const [hours, minutes] = time.split(':').map(Number)
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const displayHours = hours % 12 || 12
+    return `${displayHours}:${minutes.toString().padStart(2, '0')}${period}`
   }
 
   const handleMouseMove = (eventId: string, e: React.MouseEvent<HTMLDivElement>) => {
@@ -230,8 +237,8 @@ export function TablesEventSelector({ events, businessSlug }: TablesEventSelecto
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                 {event.event_time && (
                                   <span className="flex items-center gap-1">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    {event.event_time}
+                                    <Clock className="h-3.5 w-3.5" />
+                                    {formatTimeTo12Hour(event.event_time)}
                                   </span>
                                 )}
                                 {event.location && (

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { AllTicketsTable } from '@/components/business/all-tickets-table'
 import { TicketsEventSelector } from '@/components/business/tickets-event-selector'
 import { TicketTypeSalesProgress } from '@/components/business/ticket-type-sales-progress'
-import { Ticket, ArrowLeft } from 'lucide-react'
+import { Ticket, ArrowLeft, Pencil } from 'lucide-react'
 import Image from 'next/image'
 
 // Force dynamic rendering to always show current data
@@ -96,7 +96,18 @@ export default async function AllTicketsPage({ params, searchParams }: AllTicket
           </div>
         )}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{event?.title || 'Tickets'}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold tracking-tight">{event?.title || 'Tickets'}</h1>
+            {event && (
+              <Link
+                href={`/${businessSlug}/dashboard/events/${eventId}`}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="Edit event"
+              >
+                <Pencil className="h-4 w-4" />
+              </Link>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1">
             {event && (
               <>

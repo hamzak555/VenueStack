@@ -69,6 +69,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // For free sections, calculate actual availability based on assigned bookings only
+    // Get bookings with assigned table numbers for these sections
+    const { data: assignedBookings } = await supabase
+      .from('table_bookings')
+      .select('event_table_section_id')
+      .eq('event_id', eventId)
+      .in('event_table_section_id', sectionIds)
+      .neq('status', 'cancelled')
+      .not('table_number', 'is', null)
+
+    // Count assigned bookings per section
+    const assignedPerSection: Record<string, number> = {}
+    if (assignedBookings) {
+      assignedBookings.forEach(booking => {
+        const sectionId = booking.event_table_section_id
+        assignedPerSection[sectionId] = (assignedPerSection[sectionId] || 0) + 1
+      })
+    }
+
     // Validate each section and calculate totals
     let totalTablePrice = 0
     let totalTables = 0
@@ -85,9 +104,24 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (section.available_tables < quantity) {
+      // For free sections ($0), calculate availability based on assigned bookings only
+      // This allows unlimited booking requests that the business can then confirm
+      const isFreeSection = (section.price || 0) === 0
+      let actualAvailable: number
+
+      if (isFreeSection) {
+        const totalTables = section.total_tables || 0
+        const closedTables = section.closed_tables?.length || 0
+        const assignedCount = assignedPerSection[section.id] || 0
+        actualAvailable = Math.max(0, totalTables - closedTables - assignedCount)
+      } else {
+        // For paid sections, use the stored available_tables (should be accurate)
+        actualAvailable = section.available_tables
+      }
+
+      if (actualAvailable < quantity) {
         return NextResponse.json(
-          { error: `Not enough tables available in "${section.section_name}". Only ${section.available_tables} available.` },
+          { error: `Not enough tables available in "${section.section_name}". Only ${actualAvailable} available.` },
           { status: 400 }
         )
       }
@@ -142,7 +176,6 @@ export async function POST(request: NextRequest) {
     const orderId = `FREE-${nanoid(12).toUpperCase()}`
 
     const createdBookings: any[] = []
-    const sectionUpdates: { sectionId: string; decrement: number }[] = []
 
     // Process each section and create bookings
     for (const detail of orderDetails) {
@@ -175,26 +208,10 @@ export async function POST(request: NextRequest) {
           })
         }
       }
-
-      // Track section update
-      sectionUpdates.push({ sectionId, decrement: quantity })
     }
 
-    // Update available tables count for each section
-    for (const update of sectionUpdates) {
-      const { data: currentSection } = await supabase
-        .from('event_table_sections')
-        .select('available_tables')
-        .eq('id', update.sectionId)
-        .single()
-
-      if (currentSection) {
-        await supabase
-          .from('event_table_sections')
-          .update({ available_tables: Math.max(0, currentSection.available_tables - update.decrement) })
-          .eq('id', update.sectionId)
-      }
-    }
+    // Note: We no longer update available_tables in the database for free sections
+    // Availability is calculated dynamically based on assigned bookings
 
     // Build summary for response
     const sectionSummary = createdBookings.reduce((acc: Record<string, number>, b: any) => {
@@ -202,6 +219,36 @@ export async function POST(request: NextRequest) {
       return acc
     }, {})
     const sectionNames = Object.entries(sectionSummary).map(([name, count]) => `${count}x ${name}`).join(', ')
+
+    // Send broadcast notification for new bookings
+    if (createdBookings.length > 0) {
+      try {
+        const channel = supabase.channel(`table-bookings-${event.business_id}`)
+        await channel.subscribe()
+
+        for (const booking of createdBookings) {
+          await channel.send({
+            type: 'broadcast',
+            event: 'new_booking',
+            payload: {
+              bookingId: booking.id,
+              eventId: eventId,
+              customerName: customerName,
+              sectionName: booking.sectionName,
+              eventTitle: event.title,
+              eventDate: event.event_date || '',
+              eventTime: event.event_time || null,
+              createdAt: booking.created_at || new Date().toISOString(),
+            },
+          })
+        }
+
+        await supabase.removeChannel(channel)
+      } catch (broadcastError) {
+        console.error('Error sending broadcast notification:', broadcastError)
+        // Continue anyway - booking was created successfully
+      }
+    }
 
     return NextResponse.json({
       success: true,

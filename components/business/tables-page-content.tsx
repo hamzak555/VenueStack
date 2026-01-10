@@ -1,12 +1,14 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, Pencil } from 'lucide-react'
 import { TablesLayoutView } from './tables-layout-view'
 import { NewReservationModal } from './new-reservation-modal'
 import { TableServiceConfig } from '@/lib/types'
+import { parseLocalDate } from '@/lib/utils'
 
 interface TableBooking {
   id: string
@@ -68,7 +70,7 @@ export function TablesPageContent({
   const [preSelectedSection, setPreSelectedSection] = useState<string | undefined>()
   const [preSelectedTable, setPreSelectedTable] = useState<string | undefined>()
 
-  const formattedDate = eventDate ? new Date(eventDate).toLocaleDateString('en-US', {
+  const formattedDate = eventDate ? parseLocalDate(eventDate).toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -120,7 +122,16 @@ export function TablesPageContent({
             </div>
           )}
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{eventTitle}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">{eventTitle}</h1>
+              <Link
+                href={`/${businessSlug}/dashboard/events/${eventId}`}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="Edit event"
+              >
+                <Pencil className="h-4 w-4" />
+              </Link>
+            </div>
             {eventDate && (
               <p className="text-sm text-muted-foreground">
                 {formattedDate}{eventTime && ` at ${formatTimeTo12Hour(eventTime)}`}

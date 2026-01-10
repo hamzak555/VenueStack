@@ -756,7 +756,7 @@ export function TablesLayoutView({
                       const minimumSpend = businessSectionId ? sectionMinimumSpendMap[businessSectionId] : 0
                       return (
                         <div className="flex items-center gap-2">
-                          {booking.amount && booking.amount > 0 && (
+                          {booking.amount != null && booking.amount > 0 && (
                             <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount)}</span>
                           )}
                           {minimumSpend > 0 && (
@@ -1006,7 +1006,7 @@ export function TablesLayoutView({
                                 <Badge variant={getStatusColor(booking.status)}>
                                   {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                                 </Badge>
-                                {booking.amount && booking.amount > 0 && (
+                                {booking.amount != null && booking.amount > 0 && (
                                   <div className="flex flex-col items-center leading-none">
                                     <span className="text-[10px] text-muted-foreground">Deposit</span>
                                     <span className="text-xs font-medium text-green-500">{formatCurrency(booking.amount)}</span>

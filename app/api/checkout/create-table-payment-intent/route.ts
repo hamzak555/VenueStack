@@ -77,6 +77,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Calculate actual availability dynamically
+    // Get all bookings (both assigned and unassigned) for these sections
+    const { data: allBookings } = await supabase
+      .from('table_bookings')
+      .select('event_table_section_id, table_number')
+      .eq('event_id', eventId)
+      .in('event_table_section_id', sectionIds)
+      .neq('status', 'cancelled')
+
+    // Count bookings per section (both assigned and unassigned for paid sections)
+    const assignedPerSection: Record<string, number> = {}
+    const unassignedPerSection: Record<string, number> = {}
+    if (allBookings) {
+      allBookings.forEach(booking => {
+        const sectionId = booking.event_table_section_id
+        if (booking.table_number) {
+          assignedPerSection[sectionId] = (assignedPerSection[sectionId] || 0) + 1
+        } else {
+          unassignedPerSection[sectionId] = (unassignedPerSection[sectionId] || 0) + 1
+        }
+      })
+    }
+
     // Validate each section and calculate totals
     let totalTablePrice = 0
     let totalTables = 0
@@ -93,9 +116,16 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (section.available_tables < quantity) {
+      // Calculate actual availability dynamically
+      const totalSectionTables = section.total_tables || 0
+      const closedTables = section.closed_tables?.length || 0
+      const assignedCount = assignedPerSection[section.id] || 0
+      const unassignedCount = unassignedPerSection[section.id] || 0
+      const actualAvailable = Math.max(0, totalSectionTables - closedTables - assignedCount - unassignedCount)
+
+      if (actualAvailable < quantity) {
         return NextResponse.json(
-          { error: `Not enough tables available in "${section.section_name}". Only ${section.available_tables} available.` },
+          { error: `Not enough tables available in "${section.section_name}". Only ${actualAvailable} available.` },
           { status: 400 }
         )
       }

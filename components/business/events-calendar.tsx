@@ -527,6 +527,7 @@ function EventCard({ event, businessSlug, compact }: { event: EventWithSales; bu
             src={event.image_url}
             alt={event.title}
             fill
+            sizes="42px"
             className="object-cover"
           />
         </div>
@@ -554,6 +555,7 @@ function EventCard({ event, businessSlug, compact }: { event: EventWithSales; bu
             src={event.image_url}
             alt={event.title}
             fill
+            sizes="(max-width: 768px) 100vw, 200px"
             className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

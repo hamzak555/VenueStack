@@ -416,7 +416,6 @@ async function handleTableBookingVerification(
   }
 
   const createdBookings: any[] = []
-  const sectionUpdates: { sectionId: string; decrement: number }[] = []
 
   // Process each section
   for (const detail of parsedOrderDetails) {
@@ -463,26 +462,10 @@ async function handleTableBookingVerification(
         })
       }
     }
-
-    // Track section update
-    sectionUpdates.push({ sectionId, decrement: quantity })
   }
 
-  // Update available tables count for each section
-  for (const update of sectionUpdates) {
-    const { data: currentSection } = await supabase
-      .from('event_table_sections')
-      .select('available_tables')
-      .eq('id', update.sectionId)
-      .single()
-
-    if (currentSection) {
-      await supabase
-        .from('event_table_sections')
-        .update({ available_tables: Math.max(0, currentSection.available_tables - update.decrement) })
-        .eq('id', update.sectionId)
-    }
-  }
+  // Note: We no longer update available_tables in the database
+  // Availability is calculated dynamically based on actual bookings
 
   // Build summary for response
   const sectionSummary = createdBookings.reduce((acc: Record<string, number>, b: any) => {
@@ -490,6 +473,36 @@ async function handleTableBookingVerification(
     return acc
   }, {})
   const sectionNames = Object.entries(sectionSummary).map(([name, count]) => `${count}x ${name}`).join(', ')
+
+  // Send broadcast notification for new bookings
+  if (createdBookings.length > 0) {
+    try {
+      const channel = supabase.channel(`table-bookings-${businessId}`)
+      await channel.subscribe()
+
+      for (const booking of createdBookings) {
+        await channel.send({
+          type: 'broadcast',
+          event: 'new_booking',
+          payload: {
+            bookingId: booking.id,
+            eventId: eventId,
+            customerName: customerName,
+            sectionName: booking.sectionName,
+            eventTitle: event.title,
+            eventDate: event.event_date || '',
+            eventTime: event.event_time || null,
+            createdAt: booking.created_at || new Date().toISOString(),
+          },
+        })
+      }
+
+      await supabase.removeChannel(channel)
+    } catch (broadcastError) {
+      console.error('Error sending broadcast notification:', broadcastError)
+      // Continue anyway - booking was created successfully
+    }
+  }
 
   return NextResponse.json({
     success: true,

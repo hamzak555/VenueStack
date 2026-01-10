@@ -74,6 +74,23 @@ export async function GET(
         .neq('status', 'cancelled')
         .not('table_number', 'is', null)
 
+      // Also get unassigned bookings (for free reservations where table isn't assigned yet)
+      const { data: unassignedBookings } = await supabase
+        .from('table_bookings')
+        .select('event_table_section_id')
+        .eq('event_id', eventId)
+        .neq('status', 'cancelled')
+        .is('table_number', null)
+
+      // Count unassigned bookings per section
+      const unassignedCountBySection: Record<string, number> = {}
+      if (unassignedBookings) {
+        for (const booking of unassignedBookings) {
+          const sectionId = booking.event_table_section_id
+          unassignedCountBySection[sectionId] = (unassignedCountBySection[sectionId] || 0) + 1
+        }
+      }
+
       if (bookings) {
         // Map event_table_section_id to section_id for the component
         const sectionIdMap: Record<string, string> = {}
@@ -113,7 +130,7 @@ export async function GET(
 
           // Check if closed
           const isClosed = section.closed_tables?.includes(tableName)
-          // Check if booked
+          // Check if booked (with assigned table number)
           const isBooked = bookedTables.some(b => b.section_id === sectionId && b.table_number === tableName)
           // Check if linked
           const isLinked = linkedTablesSet.has(`${sectionId}-${tableName}`)
@@ -122,6 +139,15 @@ export async function GET(
             available++
           }
         }
+
+        // For PAID sections only: also subtract unassigned bookings to prevent overbooking
+        // For FREE sections ($0): only count assigned tables, allow unlimited booking requests
+        const isFreeSection = (section.price || 0) === 0
+        if (!isFreeSection) {
+          const unassignedCount = unassignedCountBySection[section.id] || 0
+          available = Math.max(0, available - unassignedCount)
+        }
+
         section.available_tables = available
       }
     }

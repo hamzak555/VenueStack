@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Bell, X } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
+import { parseLocalDate } from '@/lib/utils'
 
 interface Notification {
   id: string
@@ -32,16 +33,46 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const router = useRouter()
-  const supabase = useMemo(() => createClient(), [])
+  const supabase = createClient()
+  const seenBookingIds = useRef<Set<string>>(new Set())
 
   // Load notifications from localStorage
   useEffect(() => {
     const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${businessId}`)
+    console.log('[NotificationCenter] Loading from localStorage:', stored)
     if (stored) {
       try {
-        setNotifications(JSON.parse(stored))
-      } catch {
-        // Invalid stored data
+        const parsed = JSON.parse(stored) as Notification[]
+        console.log('[NotificationCenter] Parsed notifications:', parsed)
+        // Filter out invalid notifications (missing required fields or invalid dates)
+        const validNotifications = parsed.filter((n) => {
+          if (!n.id || !n.bookingId || !n.customerName) {
+            console.log('[NotificationCenter] Filtering out - missing fields:', n)
+            return false
+          }
+          // Validate eventDate if present and not empty
+          if (n.eventDate && n.eventDate !== '') {
+            try {
+              parseLocalDate(n.eventDate)
+            } catch {
+              console.log('[NotificationCenter] Filtering out - invalid date:', n.eventDate)
+              return false
+            }
+          }
+          return true
+        })
+        console.log('[NotificationCenter] Valid notifications:', validNotifications)
+        setNotifications(validNotifications)
+        // Save back only valid notifications
+        if (validNotifications.length !== parsed.length) {
+          localStorage.setItem(`${STORAGE_KEY_PREFIX}${businessId}`, JSON.stringify(validNotifications))
+        }
+        // Add all existing booking IDs to seen set
+        validNotifications.forEach((n) => seenBookingIds.current.add(n.bookingId))
+      } catch (e) {
+        console.error('[NotificationCenter] Error parsing localStorage:', e)
+        // Invalid stored data - clear it
+        localStorage.removeItem(`${STORAGE_KEY_PREFIX}${businessId}`)
       }
     }
   }, [businessId])
@@ -51,82 +82,54 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
     localStorage.setItem(`${STORAGE_KEY_PREFIX}${businessId}`, JSON.stringify(notifs))
   }, [businessId])
 
-  // Subscribe to real-time table booking inserts
+  // Subscribe to broadcast notifications
   useEffect(() => {
     const channel = supabase
       .channel(`table-bookings-${businessId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'table_bookings',
-        },
-        async (payload) => {
-          console.log('[NotificationCenter] Received table booking insert:', payload.new.id)
-
-          // Fetch additional details about the booking
-          const { data: booking, error } = await supabase
-            .from('table_bookings')
-            .select(`
-              id,
-              event_id,
-              customer_name,
-              created_at,
-              event_table_sections (
-                section_name
-              ),
-              events!inner (
-                business_id,
-                title,
-                event_date,
-                event_time
-              )
-            `)
-            .eq('id', payload.new.id)
-            .single()
-
-          if (error) {
-            console.error('[NotificationCenter] Error fetching booking details:', error)
-            return
-          }
-
-          console.log('[NotificationCenter] Booking details:', booking)
-          console.log('[NotificationCenter] Business ID check:', (booking?.events as any)?.business_id, '===', businessId)
-
-          // Only add notification if booking belongs to this business
-          if (booking && (booking.events as any)?.business_id === businessId) {
-            const event = booking.events as any
-            const newNotification: Notification = {
-              id: crypto.randomUUID(),
-              bookingId: booking.id,
-              eventId: booking.event_id,
-              customerName: booking.customer_name,
-              sectionName: (booking.event_table_sections as any)?.section_name || 'Unknown Section',
-              eventTitle: event?.title || 'Unknown Event',
-              eventDate: event?.event_date || '',
-              eventTime: event?.event_time || null,
-              createdAt: booking.created_at || new Date().toISOString(),
-            }
-
-            console.log('[NotificationCenter] Adding notification:', newNotification)
-
-            setNotifications((prev) => {
-              const updated = [newNotification, ...prev]
-              saveNotifications(updated)
-              return updated
-            })
-          }
+      .on('broadcast', { event: 'new_booking' }, (payload) => {
+        const data = payload.payload as {
+          bookingId: string
+          eventId: string
+          customerName: string
+          sectionName: string
+          eventTitle: string
+          eventDate: string
+          eventTime: string | null
+          createdAt: string
         }
-      )
-      .subscribe((status) => {
-        console.log('[NotificationCenter] Subscription status:', status)
+
+        // Skip if we've already seen this booking
+        if (seenBookingIds.current.has(data.bookingId)) {
+          return
+        }
+
+        // Mark as seen
+        seenBookingIds.current.add(data.bookingId)
+
+        const newNotification: Notification = {
+          id: crypto.randomUUID(),
+          bookingId: data.bookingId,
+          eventId: data.eventId,
+          customerName: data.customerName,
+          sectionName: data.sectionName,
+          eventTitle: data.eventTitle,
+          eventDate: data.eventDate,
+          eventTime: data.eventTime,
+          createdAt: data.createdAt || new Date().toISOString(),
+        }
+
+        setNotifications((prev) => {
+          const updated = [newNotification, ...prev]
+          saveNotifications(updated)
+          return updated
+        })
       })
+      .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [businessId, supabase, saveNotifications])
+  }, [businessId, saveNotifications, supabase])
 
   const handleNotificationClick = (notification: Notification) => {
     router.push(`/${businessSlug}/dashboard/tables?eventId=${notification.eventId}&bookingId=${notification.bookingId}`)
@@ -159,7 +162,7 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-80 p-0" align="start" sideOffset={8}>
         <div className="flex items-center justify-between p-4 border-b">
           <h4 className="font-semibold">Notifications</h4>
           {notifications.length > 0 && (
@@ -186,17 +189,35 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
                       {notification.customerName}
                     </p>
                     <p className="text-sm text-muted-foreground truncate">
-                      {notification.sectionName} - {notification.eventTitle}
+                      {notification.eventTitle} - {notification.sectionName}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {notification.eventDate && format(new Date(notification.eventDate + 'T00:00:00'), 'MMM d')}
-                      {notification.eventTime && ` at ${notification.eventTime.slice(0, 5)}`}
-                      {notification.createdAt && (
-                        <>
-                          {' · '}
-                          {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                        </>
-                      )}
+                      {notification.eventDate && (() => {
+                        try {
+                          return format(parseLocalDate(notification.eventDate), 'MMM d')
+                        } catch {
+                          return null
+                        }
+                      })()}
+                      {notification.eventTime && (() => {
+                        try {
+                          return ` at ${notification.eventTime.slice(0, 5)}`
+                        } catch {
+                          return null
+                        }
+                      })()}
+                      {notification.createdAt && (() => {
+                        try {
+                          return (
+                            <>
+                              {' · '}
+                              {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                            </>
+                          )
+                        } catch {
+                          return null
+                        }
+                      })()}
                     </p>
                   </div>
                   <Button

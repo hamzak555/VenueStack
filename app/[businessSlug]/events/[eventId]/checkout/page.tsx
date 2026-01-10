@@ -10,11 +10,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2, Minus, Plus, Ticket, Armchair, Map } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { AnimatedImageGlow } from '@/components/business/animated-image-glow'
 import { EventMap } from '@/components/business/event-map'
 import { TermsModal } from '@/components/business/terms-modal'
 import { Checkbox } from '@/components/ui/checkbox'
 import { calculateStripeFee, calculateCustomerPaysAmount, calculateBusinessPaysAmount } from '@/lib/utils/stripe-fees'
+import { parseLocalDate } from '@/lib/utils'
 import { InteractiveTableMap } from '@/components/business/interactive-table-map'
 import { TableServiceConfig } from '@/lib/types'
 import {
@@ -958,7 +960,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                   <div className="flex items-center gap-2">
                     <span className="font-medium">Date & Time:</span>
                     <span className="text-muted-foreground">
-                      {new Date(event.event_date).toLocaleDateString('en-US', {
+                      {parseLocalDate(event.event_date).toLocaleDateString('en-US', {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -1255,18 +1257,25 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                       const maxQty = section.max_per_customer
                         ? Math.min(section.available_tables, section.max_per_customer)
                         : section.available_tables
-                      const isDisabled = section.available_tables === 0
+                      const isSoldOut = section.available_tables === 0
                       return (
-                        <Card key={section.id} className={isDisabled ? 'opacity-50' : ''}>
+                        <Card key={section.id} className={isSoldOut ? 'opacity-50 bg-muted/50' : ''}>
                           <CardContent className="px-4 py-3">
                             <div className="space-y-3">
                               <div className="flex items-start justify-between">
                                 <div>
-                                  <h3 className="font-medium">{section.section_name}</h3>
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-medium">{section.section_name}</h3>
+                                    {isSoldOut && (
+                                      <span className="text-xs font-medium text-destructive bg-destructive/10 px-2 py-0.5 rounded">
+                                        Sold Out
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="text-xs text-muted-foreground">
-                                    {section.available_tables} available
+                                    {isSoldOut ? 'No tables available' : `${section.available_tables} available`}
                                     {section.capacity && ` · ${section.capacity} guests per table`}
-                                    {section.max_per_customer && ` · Limit ${section.max_per_customer}`}
+                                    {!isSoldOut && section.max_per_customer && ` · Limit ${section.max_per_customer}`}
                                   </p>
                                   {Number(section.minimum_spend) > 0 && (
                                     <p className="text-xs text-amber-500 mt-1">
@@ -1274,41 +1283,45 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                                     </p>
                                   )}
                                 </div>
-                                {section.price > 0 ? (
+                                {isSoldOut ? (
+                                  <span className="text-sm font-medium text-muted-foreground">Unavailable</span>
+                                ) : section.price > 0 ? (
                                   <span className="font-bold text-lg">${section.price.toFixed(2)}</span>
                                 ) : (
                                   <span className="text-sm font-medium text-green-600">No Deposit Required</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-3">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => updateTableSelection(section.id, -1)}
-                                  disabled={quantity === 0 || !!clientSecret}
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  max={maxQty}
-                                  value={quantity}
-                                  onChange={(e) => setTableQuantity(section.id, parseInt(e.target.value) || 0)}
-                                  className="w-20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  disabled={isDisabled || !!clientSecret}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => updateTableSelection(section.id, 1)}
-                                  disabled={quantity >= maxQty || !!clientSecret}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {!isSoldOut && (
+                                <div className="flex items-center gap-3">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => updateTableSelection(section.id, -1)}
+                                    disabled={quantity === 0 || !!clientSecret}
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </Button>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={maxQty}
+                                    value={quantity}
+                                    onChange={(e) => setTableQuantity(section.id, parseInt(e.target.value) || 0)}
+                                    className="w-20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    disabled={!!clientSecret}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => updateTableSelection(section.id, 1)}
+                                    disabled={quantity >= maxQty || !!clientSecret}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -1600,6 +1613,28 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
             </Card>
           </div>
         </div>
+
+        {/* Footer */}
+        <footer className="mt-6 pt-4">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <span>Powered by</span>
+            <Link
+              href="https://venuestack.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            >
+              <Image
+                src="/venuestack-icon.svg"
+                alt="VenueStack"
+                width={18}
+                height={18}
+                className="invert dark:invert-0"
+              />
+              <span className="font-medium">VenueStack.io</span>
+            </Link>
+          </div>
+        </footer>
       </div>
 
       {/* Terms Modal */}

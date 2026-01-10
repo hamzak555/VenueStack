@@ -64,15 +64,68 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
   const eventTableServiceMap: Record<string, number> = {}
 
   if (eventsWithTableService.length > 0) {
+    const eventIds = eventsWithTableService.map(e => e.id)
+
+    // Get table sections with total tables and price
     const { data: tableSections } = await supabase
       .from('event_table_sections')
-      .select('event_id, available_tables')
-      .in('event_id', eventsWithTableService.map(e => e.id))
+      .select('id, event_id, total_tables, closed_tables, price')
+      .in('event_id', eventIds)
       .eq('is_enabled', true)
 
+    // Get bookings WITH assigned table numbers (counts for both free and paid sections)
+    const { data: assignedBookings } = await supabase
+      .from('table_bookings')
+      .select('event_table_section_id')
+      .in('event_id', eventIds)
+      .neq('status', 'cancelled')
+      .not('table_number', 'is', null)
+
+    // Get bookings WITHOUT assigned table numbers (only counts for paid sections)
+    const { data: unassignedBookings } = await supabase
+      .from('table_bookings')
+      .select('event_table_section_id')
+      .in('event_id', eventIds)
+      .neq('status', 'cancelled')
+      .is('table_number', null)
+
+    // Count assigned bookings per section
+    const assignedPerSection: Record<string, number> = {}
+    if (assignedBookings) {
+      assignedBookings.forEach(booking => {
+        const sectionId = booking.event_table_section_id
+        assignedPerSection[sectionId] = (assignedPerSection[sectionId] || 0) + 1
+      })
+    }
+
+    // Count unassigned bookings per section
+    const unassignedPerSection: Record<string, number> = {}
+    if (unassignedBookings) {
+      unassignedBookings.forEach(booking => {
+        const sectionId = booking.event_table_section_id
+        unassignedPerSection[sectionId] = (unassignedPerSection[sectionId] || 0) + 1
+      })
+    }
+
+    // Calculate actual available tables per event
     if (tableSections) {
       tableSections.forEach(section => {
-        eventTableServiceMap[section.event_id] = (eventTableServiceMap[section.event_id] || 0) + section.available_tables
+        const totalTables = section.total_tables || 0
+        const closedTables = section.closed_tables?.length || 0
+        const assignedCount = assignedPerSection[section.id] || 0
+        const isFreeSection = (section.price || 0) === 0
+
+        let availableTables: number
+        if (isFreeSection) {
+          // Free sections: only count tables with assigned bookings
+          availableTables = Math.max(0, totalTables - closedTables - assignedCount)
+        } else {
+          // Paid sections: count all bookings (assigned + unassigned)
+          const unassignedCount = unassignedPerSection[section.id] || 0
+          availableTables = Math.max(0, totalTables - closedTables - assignedCount - unassignedCount)
+        }
+
+        eventTableServiceMap[section.event_id] = (eventTableServiceMap[section.event_id] || 0) + availableTables
       })
     }
   }
@@ -332,7 +385,7 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
         )}
 
         {/* Footer */}
-        <footer className="mt-16 pt-8 border-t">
+        <footer className="mt-6 pt-4">
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <span>Powered by</span>
             <Link
