@@ -342,7 +342,7 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
               className="flex items-center gap-1.5 hover:text-foreground transition-colors"
             >
               <Image
-                src="/VenueStack Icon.svg"
+                src="/venuestack-icon.svg"
                 alt="VenueStack"
                 width={18}
                 height={18}

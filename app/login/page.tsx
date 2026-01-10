@@ -200,7 +200,7 @@ export default function UnifiedLoginPage() {
       <div className="relative flex min-h-screen items-center justify-center bg-background p-4 overflow-hidden">
         <div className="absolute top-8 left-8 z-10">
           <Image
-            src="/VenueStack Logo.svg"
+            src="/venuestack-logo.svg"
             alt="VenueStack"
             width={160}
             height={40}
@@ -315,7 +315,7 @@ export default function UnifiedLoginPage() {
     <div className="relative flex min-h-screen items-center justify-center bg-background p-4 overflow-hidden">
       <div className="absolute top-8 left-8 z-10">
         <Image
-          src="/VenueStack Logo.svg"
+          src="/venuestack-logo.svg"
           alt="VenueStack"
           width={160}
           height={40}
