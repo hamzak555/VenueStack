@@ -204,7 +204,7 @@ export default function UnifiedLoginPage() {
             alt="VenueStack"
             width={160}
             height={40}
-            className="dark:invert"
+            className="invert dark:invert-0"
             priority
           />
         </div>
@@ -319,7 +319,7 @@ export default function UnifiedLoginPage() {
           alt="VenueStack"
           width={160}
           height={40}
-          className="dark:invert"
+          className="invert dark:invert-0"
           priority
         />
       </div>

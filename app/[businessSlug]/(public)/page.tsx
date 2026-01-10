@@ -346,7 +346,7 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
                 alt="VenueStack"
                 width={18}
                 height={18}
-                className="dark:invert"
+                className="invert dark:invert-0"
               />
               <span className="font-medium">VenueStack.io</span>
             </Link>
