@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -32,7 +32,7 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Load notifications from localStorage
   useEffect(() => {
@@ -63,8 +63,10 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
           table: 'table_bookings',
         },
         async (payload) => {
+          console.log('[NotificationCenter] Received table booking insert:', payload.new.id)
+
           // Fetch additional details about the booking
-          const { data: booking } = await supabase
+          const { data: booking, error } = await supabase
             .from('table_bookings')
             .select(`
               id,
@@ -84,6 +86,14 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
             .eq('id', payload.new.id)
             .single()
 
+          if (error) {
+            console.error('[NotificationCenter] Error fetching booking details:', error)
+            return
+          }
+
+          console.log('[NotificationCenter] Booking details:', booking)
+          console.log('[NotificationCenter] Business ID check:', (booking?.events as any)?.business_id, '===', businessId)
+
           // Only add notification if booking belongs to this business
           if (booking && (booking.events as any)?.business_id === businessId) {
             const event = booking.events as any
@@ -99,6 +109,8 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
               createdAt: booking.created_at || new Date().toISOString(),
             }
 
+            console.log('[NotificationCenter] Adding notification:', newNotification)
+
             setNotifications((prev) => {
               const updated = [newNotification, ...prev]
               saveNotifications(updated)
@@ -107,7 +119,9 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[NotificationCenter] Subscription status:', status)
+      })
 
     return () => {
       supabase.removeChannel(channel)
