@@ -199,7 +199,7 @@ export default function UnifiedLoginPage() {
     return (
       <div className="relative flex min-h-screen items-center justify-center bg-background p-4 overflow-hidden">
         <div className="absolute top-8 left-8 z-10">
-          <h1 className="text-2xl font-bold text-foreground">Ticketing</h1>
+          <h1 className="text-2xl font-bold text-foreground">VenueStack</h1>
         </div>
         <div className="absolute inset-0">
           <InteractiveGridPattern
@@ -307,7 +307,7 @@ export default function UnifiedLoginPage() {
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background p-4 overflow-hidden">
       <div className="absolute top-8 left-8 z-10">
-        <h1 className="text-2xl font-bold text-foreground">Ticketing</h1>
+        <h1 className="text-2xl font-bold text-foreground">VenueStack</h1>
       </div>
       <div className="absolute inset-0">
         <InteractiveGridPattern

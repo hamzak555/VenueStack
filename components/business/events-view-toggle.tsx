@@ -152,10 +152,10 @@ export function EventsViewToggle({ events, businessSlug, businessId, defaultLoca
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-0">
+    <Card className="pt-6 pb-4 lg:py-6">
+      <CardHeader className="hidden lg:grid pb-4">
         <div className="flex items-center justify-between gap-4">
-          {/* Left side - Calendar navigation */}
+          {/* Left side - Calendar navigation (desktop only, mobile has week nav in calendar) */}
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousMonth}>
               <ChevronLeft className="h-4 w-4" />

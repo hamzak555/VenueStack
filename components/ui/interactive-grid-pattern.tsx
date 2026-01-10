@@ -28,7 +28,7 @@ export function InteractiveGridPattern({
         "absolute inset-0 h-full w-full border border-gray-400/30",
         className,
       )}
-      preserveAspectRatio="xMaxYMid meet"
+      preserveAspectRatio="xMidYMid slice"
       {...props}
     >
       {Array.from({ length: horizontal * vertical }).map((_, index) => {

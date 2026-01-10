@@ -62,16 +62,82 @@ interface EventsCalendarProps {
 }
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DAYS_OF_WEEK_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 export function EventsCalendar({ events, businessSlug, businessId, currentDate, defaultLocation, defaultTimezone, onPreviousMonth, onNextMonth, onToday }: EventsCalendarProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
 
-  const openCreateModal = (day: number) => {
+  // Mobile week navigation - track the start of the current week
+  const [mobileWeekStart, setMobileWeekStart] = useState(() => {
+    const today = new Date()
+    const dayOfWeek = today.getDay()
+    const weekStart = new Date(today)
+    weekStart.setDate(today.getDate() - dayOfWeek)
+    weekStart.setHours(0, 0, 0, 0)
+    return weekStart
+  })
+
+  const openCreateModal = (date: Date) => {
+    setSelectedDate(date)
+    setModalOpen(true)
+  }
+
+  const openCreateModalByDay = (day: number) => {
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
     setSelectedDate(date)
     setModalOpen(true)
   }
+
+  // Mobile week navigation
+  const goToPreviousWeek = () => {
+    const newStart = new Date(mobileWeekStart)
+    newStart.setDate(mobileWeekStart.getDate() - 7)
+    setMobileWeekStart(newStart)
+  }
+
+  const goToNextWeek = () => {
+    const newStart = new Date(mobileWeekStart)
+    newStart.setDate(mobileWeekStart.getDate() + 7)
+    setMobileWeekStart(newStart)
+  }
+
+  const goToCurrentWeek = () => {
+    const today = new Date()
+    const dayOfWeek = today.getDay()
+    const weekStart = new Date(today)
+    weekStart.setDate(today.getDate() - dayOfWeek)
+    weekStart.setHours(0, 0, 0, 0)
+    setMobileWeekStart(weekStart)
+  }
+
+  // Get the 7 days of the current mobile week
+  const mobileWeekDays = useMemo(() => {
+    const days: Date[] = []
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(mobileWeekStart)
+      day.setDate(mobileWeekStart.getDate() + i)
+      days.push(day)
+    }
+    return days
+  }, [mobileWeekStart])
+
+  // Format the mobile week header
+  const mobileWeekLabel = useMemo(() => {
+    const endOfWeek = new Date(mobileWeekStart)
+    endOfWeek.setDate(mobileWeekStart.getDate() + 6)
+
+    const startMonth = mobileWeekStart.toLocaleDateString('en-US', { month: 'short' })
+    const endMonth = endOfWeek.toLocaleDateString('en-US', { month: 'short' })
+    const startDay = mobileWeekStart.getDate()
+    const endDay = endOfWeek.getDate()
+    const year = mobileWeekStart.getFullYear()
+
+    if (startMonth === endMonth) {
+      return `${startMonth} ${startDay} - ${endDay}, ${year}`
+    }
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`
+  }, [mobileWeekStart])
 
   const { year, month, calendarDays } = useMemo(() => {
     const year = currentDate.getFullYear()
@@ -97,16 +163,29 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
     return { year, month, calendarDays: days }
   }, [currentDate])
 
-  // Group events by date
+  // Group events by date string (YYYY-MM-DD format)
+  const eventsByDateStr = useMemo(() => {
+    const map = new Map<string, EventWithSales[]>()
+
+    events.forEach(event => {
+      const dateStr = event.event_date.split('T')[0]
+      if (!map.has(dateStr)) {
+        map.set(dateStr, [])
+      }
+      map.get(dateStr)!.push(event)
+    })
+
+    return map
+  }, [events])
+
+  // Group events by day number for monthly view
   const eventsByDate = useMemo(() => {
     const map = new Map<string, EventWithSales[]>()
 
     events.forEach(event => {
-      // Parse date string as local timezone (not UTC)
-      // Handle both "2026-01-29" and "2026-01-29T00:00:00" formats
-      const dateStr = event.event_date.split('T')[0] // Get just the date part
+      const dateStr = event.event_date.split('T')[0]
       const [y, m, d] = dateStr.split('-').map(Number)
-      const eventDate = new Date(y, m - 1, d) // Month is 0-indexed
+      const eventDate = new Date(y, m - 1, d)
 
       if (eventDate.getFullYear() === year && eventDate.getMonth() === month) {
         const day = eventDate.getDate()
@@ -121,11 +200,26 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
     return map
   }, [events, year, month])
 
+  const isTodayDate = (date: Date) => {
+    const today = new Date()
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear()
+  }
+
   const isToday = (day: number) => {
     const today = new Date()
     return day === today.getDate() &&
            month === today.getMonth() &&
            year === today.getFullYear()
+  }
+
+  const isPastDate = (date: Date) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const checkDate = new Date(date)
+    checkDate.setHours(0, 0, 0, 0)
+    return checkDate < today
   }
 
   const isPast = (day: number) => {
@@ -135,122 +229,113 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
     return checkDate < today
   }
 
+  const formatDateKey = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
   return (
     <div className="space-y-4">
-      {/* Calendar Grid */}
-      <div className="border rounded-lg overflow-hidden">
-        {/* Days of week header */}
-        <div className="grid grid-cols-7 bg-muted">
-          {DAYS_OF_WEEK.map(day => (
-            <div key={day} className="p-3 text-center text-sm font-medium text-muted-foreground border-b">
-              {day}
-            </div>
-          ))}
+      {/* Mobile Weekly View */}
+      <div className="lg:hidden">
+        {/* Week Navigation */}
+        <div className="flex items-center gap-2 mb-6">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousWeek}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextWeek}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <span className="text-base font-bold ml-1">{mobileWeekLabel}</span>
+          <Button variant="outline" size="sm" className="ml-2 h-8" onClick={goToCurrentWeek}>
+            This Week
+          </Button>
         </div>
 
-        {/* Calendar days */}
-        <div className="grid grid-cols-7">
-          {calendarDays.map((day, index) => {
-            const dayEvents = day ? eventsByDate.get(day.toString()) || [] : []
-            const hasEvents = dayEvents.length > 0
-            const pastDay = day ? isPast(day) : false
+        {/* Weekly Days List */}
+        <div className="border rounded-lg overflow-hidden divide-y">
+          {mobileWeekDays.map((date, index) => {
+            const dateKey = formatDateKey(date)
+            const dayEvents = eventsByDateStr.get(dateKey) || []
+            const isCurrentDay = isTodayDate(date)
+            const pastDay = isPastDate(date)
 
             return (
               <div
                 key={index}
                 className={cn(
-                  "h-[240px] p-2 border-b border-r",
-                  "[&:nth-child(7n)]:border-r-0",
-                  day === null && "bg-muted/30",
-                  pastDay && day !== null && "bg-muted/20"
+                  "p-3",
+                  pastDay && "bg-muted/20",
+                  isCurrentDay && "bg-primary/5"
                 )}
               >
-                {day !== null && (
-                  <div className="h-full flex flex-col">
-                    {/* Day number and event count */}
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={cn(
-                        "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full",
-                        isToday(day) && "bg-primary text-primary-foreground",
-                        pastDay && !isToday(day) && "text-muted-foreground"
-                      )}>
-                        {day}
-                      </span>
-                      {dayEvents.length > 0 && (
-                        <span className="text-[10px] text-muted-foreground">
-                          {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Events or Add button */}
-                    <div className="flex-1 relative overflow-hidden">
-                      {hasEvents ? (
-                        <div className="relative h-full">
-                          {/* Single event uses full space, multiple events are compact */}
-                          {dayEvents.length === 1 ? (
-                            <EventCard
-                              event={dayEvents[0]}
-                              businessSlug={businessSlug}
-                              compact={false}
-                            />
-                          ) : (
-                            <>
-                              <div className={cn(
-                                "space-y-1.5 h-full",
-                                dayEvents.length >= 4 ? "pb-14 overflow-y-auto scrollbar-thin" : "pb-1"
-                              )}>
-                                {dayEvents.map(event => (
-                                  <EventCard
-                                    key={event.id}
-                                    event={event}
-                                    businessSlug={businessSlug}
-                                    compact={true}
-                                  />
-                                ))}
-                              </div>
-                              {dayEvents.length >= 4 && (
-                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card via-card/80 to-transparent pointer-events-none" />
-                              )}
-                            </>
-                          )}
-                          {/* Add button for days with events */}
-                          {!pastDay && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openCreateModal(day)
-                              }}
-                              className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center rounded-full bg-background/80 hover:bg-primary/20 border border-primary/30 hover:border-primary/50 transition-colors group z-10"
-                              title="Add event"
-                            >
-                              <Plus className="h-3.5 w-3.5 text-primary/70 group-hover:text-primary transition-colors" />
-                            </button>
-                          )}
-                        </div>
-                      ) : !pastDay ? (
-                        <div className="relative rounded-lg overflow-hidden border border-dashed border-muted-foreground/20 hover:border-primary/50 transition-all">
-                          <button
-                            onClick={() => openCreateModal(day)}
-                            className="w-full aspect-square flex items-center justify-center hover:bg-accent/50 transition-colors group"
-                          >
-                            <Plus className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
+                {/* Day Header */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "text-base font-semibold w-8 h-8 flex items-center justify-center rounded-full",
+                      isCurrentDay && "bg-primary text-primary-foreground",
+                      pastDay && !isCurrentDay && "text-muted-foreground"
+                    )}>
+                      {date.getDate()}
+                    </span>
+                    <span className={cn(
+                      "text-sm",
+                      isCurrentDay && "font-medium",
+                      pastDay && !isCurrentDay && "text-muted-foreground"
+                    )}>
+                      {DAYS_OF_WEEK_FULL[date.getDay()]}
+                    </span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    {dayEvents.length > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
+                      </span>
+                    )}
+                    {!pastDay && dayEvents.length > 0 && (
+                      <button
+                        onClick={() => openCreateModal(date)}
+                        className="w-6 h-6 flex items-center justify-center rounded-full bg-background/80 hover:bg-primary/20 border border-primary/30 hover:border-primary/50 transition-colors group"
+                        title="Add event"
+                      >
+                        <Plus className="h-3.5 w-3.5 text-primary/70 group-hover:text-primary transition-colors" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Events for this day */}
+                {dayEvents.length > 0 ? (
+                  <div className="space-y-2">
+                    {dayEvents.map(event => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        businessSlug={businessSlug}
+                        compact={true}
+                      />
+                    ))}
+                  </div>
+                ) : !pastDay ? (
+                  <button
+                    onClick={() => openCreateModal(date)}
+                    className="w-full h-10 rounded-lg border border-dashed border-muted-foreground/20 hover:border-primary/50 hover:bg-accent/50 transition-all flex items-center justify-center group"
+                  >
+                    <Plus className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                  </button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No events</p>
                 )}
               </div>
             )
           })}
         </div>
-      </div>
 
-      {/* Legend and Navigation */}
-      <div className="flex items-center justify-between">
-        {/* Legend */}
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        {/* Mobile Legend */}
+        <div className="flex items-center gap-4 text-xs text-muted-foreground pt-6">
           <div className="flex items-center gap-1.5">
             <Badge variant="success" className="h-2 w-2 p-0 rounded-full" />
             <span>Published</span>
@@ -264,24 +349,155 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
             <span>Cancelled</span>
           </div>
         </div>
+      </div>
 
-        {/* Navigation */}
-        {(onPreviousMonth || onNextMonth || onToday) && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPreviousMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <span className="text-sm font-medium px-2">
-              {new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </span>
-            <Button variant="outline" size="sm" className="h-8" onClick={onToday}>
-              Today
-            </Button>
+      {/* Desktop Monthly View */}
+      <div className="hidden lg:block">
+        <div className="border rounded-lg overflow-hidden">
+          {/* Days of week header */}
+          <div className="grid grid-cols-7 bg-muted">
+            {DAYS_OF_WEEK.map(day => (
+              <div key={day} className="p-3 text-center text-sm font-medium text-muted-foreground border-b">
+                {day}
+              </div>
+            ))}
           </div>
-        )}
+
+          {/* Calendar days */}
+          <div className="grid grid-cols-7">
+            {calendarDays.map((day, index) => {
+              const dayEvents = day ? eventsByDate.get(day.toString()) || [] : []
+              const hasEvents = dayEvents.length > 0
+              const pastDay = day ? isPast(day) : false
+
+              return (
+                <div
+                  key={index}
+                  className={cn(
+                    "h-[240px] p-2 border-b border-r",
+                    "[&:nth-child(7n)]:border-r-0",
+                    day === null && "bg-muted/30",
+                    pastDay && day !== null && "bg-muted/20"
+                  )}
+                >
+                  {day !== null && (
+                    <div className="h-full flex flex-col">
+                      {/* Day number and event count */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={cn(
+                          "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full",
+                          isToday(day) && "bg-primary text-primary-foreground",
+                          pastDay && !isToday(day) && "text-muted-foreground"
+                        )}>
+                          {day}
+                        </span>
+                        {dayEvents.length > 0 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Events or Add button */}
+                      <div className="flex-1 relative overflow-hidden">
+                        {hasEvents ? (
+                          <div className="relative h-full">
+                            {/* Single event uses full space, multiple events are compact */}
+                            {dayEvents.length === 1 ? (
+                              <EventCard
+                                event={dayEvents[0]}
+                                businessSlug={businessSlug}
+                                compact={false}
+                              />
+                            ) : (
+                              <>
+                                <div className={cn(
+                                  "space-y-1.5 h-full",
+                                  dayEvents.length >= 4 ? "pb-14 overflow-y-auto scrollbar-thin" : "pb-1"
+                                )}>
+                                  {dayEvents.map(event => (
+                                    <EventCard
+                                      key={event.id}
+                                      event={event}
+                                      businessSlug={businessSlug}
+                                      compact={true}
+                                    />
+                                  ))}
+                                </div>
+                                {dayEvents.length >= 4 && (
+                                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card via-card/80 to-transparent pointer-events-none" />
+                                )}
+                              </>
+                            )}
+                            {/* Add button for days with events */}
+                            {!pastDay && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openCreateModalByDay(day)
+                                }}
+                                className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center rounded-full bg-background/80 hover:bg-primary/20 border border-primary/30 hover:border-primary/50 transition-colors group z-10"
+                                title="Add event"
+                              >
+                                <Plus className="h-3.5 w-3.5 text-primary/70 group-hover:text-primary transition-colors" />
+                              </button>
+                            )}
+                          </div>
+                        ) : !pastDay ? (
+                          <div className="relative rounded-lg overflow-hidden border border-dashed border-muted-foreground/20 hover:border-primary/50 transition-all">
+                            <button
+                              onClick={() => openCreateModalByDay(day)}
+                              className="w-full aspect-square flex items-center justify-center hover:bg-accent/50 transition-colors group"
+                            >
+                              <Plus className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Legend and Navigation */}
+        <div className="flex items-center justify-between mt-4">
+          {/* Legend */}
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Badge variant="success" className="h-2 w-2 p-0 rounded-full" />
+              <span>Published</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="secondary" className="h-2 w-2 p-0 rounded-full" />
+              <span>Draft</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="destructive" className="h-2 w-2 p-0 rounded-full" />
+              <span>Cancelled</span>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          {(onPreviousMonth || onNextMonth || onToday) && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPreviousMonth}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNextMonth}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium px-2">
+                {new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </span>
+              <Button variant="outline" size="sm" className="h-8" onClick={onToday}>
+                Today
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Quick Event Creation Modal */}

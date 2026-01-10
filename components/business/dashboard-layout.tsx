@@ -12,6 +12,7 @@ import { SettingsNav } from '@/components/business/settings-nav'
 import { SubscriptionGate } from '@/components/business/subscription-gate'
 import { Calendar, Receipt, BarChart3, UserCircle, Ticket, Armchair } from 'lucide-react'
 import { NotificationCenter } from '@/components/business/notification-center'
+import { MobileNav } from '@/components/business/mobile-nav'
 
 interface DashboardLayoutProps {
   businessSlug: string
@@ -47,9 +48,20 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="w-64 border-r bg-card flex flex-col h-screen sticky top-0">
+    <div className="min-h-screen bg-background">
+      {/* Mobile Navigation */}
+      <MobileNav
+        businessSlug={businessSlug}
+        businessName={business.name}
+        businessId={business.id}
+        isAdmin={isAdmin}
+        showAdminBypass={session.adminBypass ?? false}
+        hideLogout={session.adminBypass ?? false}
+      />
+
+      <div className="flex">
+        {/* Desktop Sidebar - hidden on mobile */}
+        <aside className="hidden lg:flex w-64 border-r bg-card flex-col h-screen sticky top-0">
         <div className="p-6 flex-shrink-0">
           <div className="flex items-center justify-between gap-2">
             <Link href={`/${businessSlug}/dashboard/events`} className="text-xl font-bold hover:text-primary truncate flex-1 min-w-0">
@@ -117,7 +129,7 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
+      <main className="flex-1 p-4 lg:p-8 overflow-auto">
         <SubscriptionGate
           business={business}
           businessSlug={businessSlug}
@@ -127,6 +139,7 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
           {children}
         </SubscriptionGate>
       </main>
+      </div>
     </div>
   )
 }

@@ -96,7 +96,7 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
               eventTitle: event?.title || 'Unknown Event',
               eventDate: event?.event_date || '',
               eventTime: event?.event_time || null,
-              createdAt: booking.created_at,
+              createdAt: booking.created_at || new Date().toISOString(),
             }
 
             setNotifications((prev) => {
@@ -145,7 +145,7 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
+      <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between p-4 border-b">
           <h4 className="font-semibold">Notifications</h4>
           {notifications.length > 0 && (
@@ -177,8 +177,12 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
                     <p className="text-xs text-muted-foreground mt-1">
                       {notification.eventDate && format(new Date(notification.eventDate + 'T00:00:00'), 'MMM d')}
                       {notification.eventTime && ` at ${notification.eventTime.slice(0, 5)}`}
-                      {' · '}
-                      {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                      {notification.createdAt && (
+                        <>
+                          {' · '}
+                          {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                        </>
+                      )}
                     </p>
                   </div>
                   <Button
