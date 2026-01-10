@@ -330,6 +330,28 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
             />
           </section>
         )}
+
+        {/* Footer */}
+        <footer className="mt-16 pt-8 border-t">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <span>Powered by</span>
+            <Link
+              href="https://venuestack.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            >
+              <Image
+                src="/VenueStack Icon.svg"
+                alt="VenueStack"
+                width={18}
+                height={18}
+                className="dark:invert"
+              />
+              <span className="font-medium">VenueStack.io</span>
+            </Link>
+          </div>
+        </footer>
       </div>
     </div>
   )
