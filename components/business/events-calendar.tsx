@@ -489,16 +489,16 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
           {/* Navigation */}
           {(onPreviousMonth || onNextMonth || onToday) && (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPreviousMonth}>
-                <ChevronLeft className="h-4 w-4" />
+              <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={onPreviousMonth}>
+                <ChevronLeft className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
               </Button>
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNextMonth}>
-                <ChevronRight className="h-4 w-4" />
+              <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={onNextMonth}>
+                <ChevronRight className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
               </Button>
-              <span className="text-sm font-medium px-2">
+              <span className="text-sm font-medium px-2" style={{ color: 'var(--theme-color-hex)' }}>
                 {new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </span>
-              <Button variant="outline" size="sm" className="h-8" onClick={onToday}>
+              <Button variant="outline" size="sm" className="h-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" style={{ color: 'var(--theme-color-hex)' }} onClick={onToday}>
                 Today
               </Button>
             </div>
