@@ -114,7 +114,6 @@ export async function POST(request: NextRequest) {
       name: userName,
       role: 'admin',
       is_active: true,
-      phone: phone,
     })
 
     return NextResponse.json({
