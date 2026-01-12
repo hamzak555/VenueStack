@@ -19,9 +19,7 @@ export function AdminNav() {
   return (
     <>
       {navItems.map((item) => {
-        const isActive = item.exact
-          ? pathname === item.href
-          : pathname === item.href || pathname.startsWith(item.href + '/')
+        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
         return (
           <Link
             key={item.href}
