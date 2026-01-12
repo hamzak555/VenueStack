@@ -471,10 +471,13 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                             )}
                           </div>
                         ) : !pastDay ? (
-                          <div className="relative rounded-lg overflow-hidden border border-dashed border-muted-foreground/20 hover:border-primary/50 transition-all">
+                          <div className="relative rounded-lg overflow-hidden border border-dashed border-muted-foreground/20 hover:border-primary/50 transition-all h-full">
                             <button
                               onClick={() => openCreateModalByDay(day)}
-                              className="w-full aspect-square flex items-center justify-center hover:bg-accent/50 transition-colors group"
+                              className={cn(
+                                "w-full flex items-center justify-center hover:bg-accent/50 transition-colors group",
+                                isCompactRow ? "h-full" : "aspect-square"
+                              )}
                             >
                               <Plus className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
                             </button>
