@@ -242,14 +242,14 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
       <div className="lg:hidden">
         {/* Week Navigation */}
         <div className="flex items-center gap-2 mb-6">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousWeek}>
-            <ChevronLeft className="h-4 w-4" />
+          <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={goToPreviousWeek}>
+            <ChevronLeft className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextWeek}>
-            <ChevronRight className="h-4 w-4" />
+          <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={goToNextWeek}>
+            <ChevronRight className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
           </Button>
-          <span className="text-base font-bold ml-1">{mobileWeekLabel}</span>
-          <Button variant="outline" size="sm" className="ml-2 h-8" onClick={goToCurrentWeek}>
+          <span className="text-base font-bold ml-1" style={{ color: 'var(--theme-color-hex)' }}>{mobileWeekLabel}</span>
+          <Button variant="outline" size="sm" className="ml-2 h-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" style={{ color: 'var(--theme-color-hex)' }} onClick={goToCurrentWeek}>
             This Week
           </Button>
         </div>
@@ -358,9 +358,9 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
       <div className="hidden lg:block">
         <div className="border rounded-lg overflow-hidden">
           {/* Days of week header */}
-          <div className="grid grid-cols-7 bg-muted">
+          <div className="grid grid-cols-7 bg-[rgb(var(--theme-color))]/10">
             {DAYS_OF_WEEK.map(day => (
-              <div key={day} className="p-3 text-center text-sm font-medium text-muted-foreground border-b">
+              <div key={day} className="p-3 text-center text-sm font-medium border-b border-[rgb(var(--theme-color))]/20" style={{ color: 'var(--theme-color-hex)' }}>
                 {day}
               </div>
             ))}
