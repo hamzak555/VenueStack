@@ -53,7 +53,7 @@ export function ThemeColorPicker({ value, onChange, disabled }: ThemeColorPicker
     <div className="space-y-2">
       <Label>Theme Color</Label>
       <p className="text-xs text-muted-foreground mb-3">
-        Choose a color that represents your brand. This will be used for background glow effects on your public page.
+        Choose a color that represents your brand.
       </p>
 
       <Popover open={open} onOpenChange={setOpen}>

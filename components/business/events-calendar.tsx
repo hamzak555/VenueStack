@@ -268,17 +268,20 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                 className={cn(
                   "p-3",
                   pastDay && "bg-muted/20",
-                  isCurrentDay && "bg-primary/5"
+                  isCurrentDay && "bg-[rgb(var(--theme-color))]/5"
                 )}
               >
                 {/* Day Header */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-base font-semibold w-8 h-8 flex items-center justify-center rounded-full",
-                      isCurrentDay && "bg-primary text-primary-foreground",
-                      pastDay && !isCurrentDay && "text-muted-foreground"
-                    )}>
+                    <span
+                      className={cn(
+                        "text-base font-semibold w-8 h-8 flex items-center justify-center rounded-full",
+                        isCurrentDay && "bg-[rgb(var(--theme-color))]/20 border border-[rgb(var(--theme-color))]/50",
+                        pastDay && !isCurrentDay && "text-muted-foreground"
+                      )}
+                      style={isCurrentDay ? { color: 'var(--theme-color-hex)' } : undefined}
+                    >
                       {date.getDate()}
                     </span>
                     <span className={cn(
@@ -384,11 +387,14 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                     <div className="h-full flex flex-col">
                       {/* Day number and event count */}
                       <div className="flex items-center justify-between mb-2">
-                        <span className={cn(
-                          "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full",
-                          isToday(day) && "bg-primary text-primary-foreground",
-                          pastDay && !isToday(day) && "text-muted-foreground"
-                        )}>
+                        <span
+                          className={cn(
+                            "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full",
+                            isToday(day) && "bg-[rgb(var(--theme-color))]/20 border border-[rgb(var(--theme-color))]/50",
+                            pastDay && !isToday(day) && "text-muted-foreground"
+                          )}
+                          style={isToday(day) ? { color: 'var(--theme-color-hex)' } : undefined}
+                        >
                           {day}
                         </span>
                         {dayEvents.length > 0 && (

@@ -218,7 +218,7 @@ export function SalesEventSelector({ events, businessSlug }: SalesEventSelectorP
                               <div className="flex items-center gap-2 mb-1">
                                 <h4 className="font-semibold truncate">{event.title}</h4>
                                 {eventIsToday && (
-                                  <Badge variant="default" className="text-xs">Today</Badge>
+                                  <Badge className="text-xs bg-[rgb(var(--theme-color))]/20 border border-[rgb(var(--theme-color))]/50 hover:bg-[rgb(var(--theme-color))]/30" style={{ color: 'var(--theme-color-hex)' }}>Today</Badge>
                                 )}
                               </div>
 

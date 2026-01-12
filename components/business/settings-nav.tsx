@@ -58,28 +58,28 @@ export function SettingsNav({ businessSlug, isAdmin }: SettingsNavProps) {
       <CollapsibleTrigger asChild>
         <button
           className={cn(
-            'flex items-center justify-between w-full px-3 py-2.5 rounded-lg hover:bg-[rgb(var(--theme-color))]/10 transition-colors group',
+            'flex items-center justify-between w-full px-2.5 py-2 rounded-md hover:bg-[rgb(var(--theme-color))]/10 transition-colors group',
             isSettingsPath && 'bg-[rgb(var(--theme-color))]/10'
           )}
         >
-          <span className="flex items-center gap-3">
+          <span className="flex items-center gap-2.5">
             <div className={cn(
-              'h-8 w-8 rounded-lg bg-[rgb(var(--theme-color))]/10 flex items-center justify-center group-hover:bg-[rgb(var(--theme-color))]/20 transition-colors',
+              'h-7 w-7 rounded-md bg-[rgb(var(--theme-color))]/10 flex items-center justify-center group-hover:bg-[rgb(var(--theme-color))]/20 transition-colors',
               isSettingsPath && 'bg-[rgb(var(--theme-color))]/20'
             )}>
-              <Settings className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
+              <Settings className="h-3.5 w-3.5" style={{ color: 'var(--theme-color-hex)' }} />
             </div>
-            <span className="font-medium text-sm">Settings</span>
+            <span className="font-medium text-xs">Settings</span>
           </span>
           <ChevronDown
             className={cn(
-              'h-4 w-4 text-muted-foreground transition-transform duration-200',
+              'h-3.5 w-3.5 text-muted-foreground transition-transform duration-200',
               isOpen && 'rotate-180'
             )}
           />
         </button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="pl-11 space-y-1 mt-1">
+      <CollapsibleContent className="pl-10 space-y-0.5 mt-1">
         {settingsItems.map((item) => {
           const isActive = pathname === item.href
           return (
@@ -87,12 +87,11 @@ export function SettingsNav({ businessSlug, isAdmin }: SettingsNavProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-[rgb(var(--theme-color))]/10 transition-colors',
+                'flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-[rgb(var(--theme-color))]/10 transition-colors',
                 isActive && 'bg-[rgb(var(--theme-color))]/10'
               )}
-              style={isActive ? { color: 'var(--theme-color-hex)' } : undefined}
             >
-              <item.icon className="h-4 w-4" style={{ color: isActive ? 'var(--theme-color-hex)' : undefined }} />
+              <item.icon className="h-3.5 w-3.5" style={{ color: 'var(--theme-color-hex)' }} />
               <span>{item.label}</span>
             </Link>
           )

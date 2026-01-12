@@ -176,7 +176,7 @@ export function SubscriptionSettings({ businessId, businessSlug }: SubscriptionS
       case 'active':
         return <Badge className="bg-green-500/10 text-green-500 border-green-500/50 hover:bg-green-500/20">Active</Badge>
       case 'trialing':
-        return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/50 hover:bg-blue-500/20">Trial</Badge>
+        return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/20">Trial</Badge>
       case 'past_due':
         return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/20">Past Due</Badge>
       case 'canceled':
@@ -228,8 +228,8 @@ export function SubscriptionSettings({ businessId, businessSlug }: SubscriptionS
         </CardHeader>
         <CardContent className="space-y-4">
           {data?.status === 'trialing' && data.access.trialEndsAt && !data?.cancelAtPeriodEnd && (
-            <div className="bg-blue-500/10 border border-blue-500/50 rounded-lg p-4">
-              <p className="text-sm">
+            <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4">
+              <p className="text-sm text-yellow-500">
                 Your trial ends on <strong>{formatDate(data.access.trialEndsAt)}</strong>.
                 Your card will be charged ${data.settings.monthlyFee}/month after the trial ends.
               </p>
@@ -250,18 +250,20 @@ export function SubscriptionSettings({ businessId, businessSlug }: SubscriptionS
               <p className="text-sm text-muted-foreground">Plan</p>
               <p className="font-medium">${data?.settings.monthlyFee || 49}/month</p>
             </div>
-            {data?.currentPeriodEnd && data?.status !== 'canceled' && (
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {data.cancelAtPeriodEnd ? 'Access Until' : 'Next Billing Date'}
-                </p>
-                <p className="font-medium">{formatDate(data.currentPeriodEnd)}</p>
-              </div>
-            )}
             {data?.createdAt && (
               <div>
                 <p className="text-sm text-muted-foreground">Member Since</p>
                 <p className="font-medium">{formatDate(data.createdAt)}</p>
+              </div>
+            )}
+            {data?.status !== 'canceled' && (data?.currentPeriodEnd || data?.access.trialEndsAt) && (
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {data.cancelAtPeriodEnd ? 'Access Until' : 'Next Billing Date'}
+                </p>
+                <p className="font-medium">
+                  {formatDate(data.status === 'trialing' ? data.access.trialEndsAt : data.currentPeriodEnd)}
+                </p>
               </div>
             )}
           </div>

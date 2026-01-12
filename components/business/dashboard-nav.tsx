@@ -30,24 +30,21 @@ export function DashboardNav({ businessSlug }: DashboardNavProps) {
             key={item.href}
             href={item.href}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group',
+              'flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors group',
               isActive
                 ? 'bg-[rgb(var(--theme-color))]/15'
                 : 'hover:bg-[rgb(var(--theme-color))]/10'
             )}
           >
             <div className={cn(
-              'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
+              'h-7 w-7 rounded-md flex items-center justify-center transition-colors',
               isActive
                 ? 'bg-[rgb(var(--theme-color))]/25'
                 : 'bg-[rgb(var(--theme-color))]/10 group-hover:bg-[rgb(var(--theme-color))]/20'
             )}>
-              <item.icon className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
+              <item.icon className="h-3.5 w-3.5" style={{ color: 'var(--theme-color-hex)' }} />
             </div>
-            <span className={cn(
-              'font-medium text-sm',
-              isActive && 'text-[var(--theme-color-hex)]'
-            )}>{item.label}</span>
+            <span className="font-medium text-xs">{item.label}</span>
           </Link>
         )
       })}

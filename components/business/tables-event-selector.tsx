@@ -201,13 +201,22 @@ export function TablesEventSelector({ events, businessSlug }: TablesEventSelecto
                         <div className="relative z-10 p-4">
                           <div className="flex items-center gap-4">
                             {/* Date Box */}
-                            <div className={`flex-shrink-0 w-16 py-3 rounded-lg flex flex-col items-center justify-center ${
-                              eventIsToday
-                                ? 'bg-primary text-primary-foreground'
-                                : eventIsPast
-                                ? 'bg-muted text-muted-foreground'
-                                : 'bg-primary/10 text-primary'
-                            }`}>
+                            <div
+                              className={`flex-shrink-0 w-16 py-3 rounded-lg flex flex-col items-center justify-center ${
+                                eventIsToday
+                                  ? 'bg-[rgb(var(--theme-color))]'
+                                  : eventIsPast
+                                  ? 'bg-muted text-muted-foreground'
+                                  : 'bg-[rgb(var(--theme-color))]/10'
+                              }`}
+                              style={
+                                eventIsToday
+                                  ? { color: 'var(--theme-color-contrast)' }
+                                  : !eventIsPast
+                                  ? { color: 'var(--theme-color-hex)' }
+                                  : undefined
+                              }
+                            >
                               <span className="text-xs font-medium uppercase">{day}</span>
                               <span className="text-2xl font-bold leading-none my-1">{date}</span>
                               <span className="text-xs">{monthShort}</span>
@@ -230,7 +239,7 @@ export function TablesEventSelector({ events, businessSlug }: TablesEventSelecto
                               <div className="flex items-center gap-2 mb-1">
                                 <h4 className="font-semibold truncate">{event.title}</h4>
                                 {eventIsToday && (
-                                  <Badge variant="default" className="text-xs">Today</Badge>
+                                  <Badge className="text-xs bg-[rgb(var(--theme-color))]/20 border border-[rgb(var(--theme-color))]/50 hover:bg-[rgb(var(--theme-color))]/30" style={{ color: 'var(--theme-color-hex)' }}>Today</Badge>
                                 )}
                               </div>
 

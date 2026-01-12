@@ -547,7 +547,7 @@ export function TableServiceForm({
               return (
                 <Card
                   key={layout.id}
-                  className={`relative ${selectedLayoutId === layout.id ? 'ring-2 ring-primary' : ''}`}
+                  className="relative"
                 >
                   <CardContent className="p-4 space-y-3">
                     {/* Hidden file input */}

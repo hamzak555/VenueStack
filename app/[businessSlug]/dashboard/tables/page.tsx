@@ -115,8 +115,12 @@ export default async function TablesPage({ params, searchParams }: TablesPagePro
     errorMessage = error instanceof Error ? error.message : 'Unknown error'
   }
 
-  // Check if layout view is available (either uploaded image or drawn layout)
-  const hasLayout = (venueLayoutUrl || tableServiceConfig?.drawnLayout?.boundary) && tableServiceConfig && tableServiceConfig.sections?.length > 0
+  // Check if layout view is available (either uploaded image, drawn layout, or multi-layout system)
+  const hasLayoutImage = venueLayoutUrl ||
+    tableServiceConfig?.drawnLayout?.boundary ||
+    (tableServiceConfig?.layouts && tableServiceConfig.layouts.length > 0 &&
+      tableServiceConfig.layouts.some(l => l.imageUrl || l.drawnLayout?.boundary))
+  const hasLayout = hasLayoutImage && tableServiceConfig && tableServiceConfig.sections?.length > 0
 
   if (!hasLayout) {
     return (
