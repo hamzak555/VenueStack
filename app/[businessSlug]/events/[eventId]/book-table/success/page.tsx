@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Wine, Loader2, Calendar } from 'lucide-react'
+import { Armchair, Loader2, Calendar } from 'lucide-react'
 
 export default function TableBookingSuccessPage({ params }: { params: Promise<{ businessSlug: string; eventId: string }> }) {
   const resolvedParams = use(params)
@@ -263,7 +263,7 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="rounded-full bg-green-100 dark:bg-green-900/20 p-2">
-                    <Wine className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    <Armchair className="h-6 w-6 text-green-600 dark:text-green-400" />
                   </div>
                   <CardTitle className="text-2xl">
                     {(bookingDetails.totalTables || 1) > 1 ? 'Tables Reserved!' : 'Table Reserved!'}

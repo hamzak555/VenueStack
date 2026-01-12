@@ -27,9 +27,6 @@ export function TrackingLinkAnalytics({ analytics }: TrackingLinkAnalyticsProps)
             <Link2 className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg">Tracking Link Performance</CardTitle>
           </div>
-          <CardDescription>
-            See which marketing channels are driving sales
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-8">
@@ -53,9 +50,6 @@ export function TrackingLinkAnalytics({ analytics }: TrackingLinkAnalyticsProps)
               <Link2 className="h-5 w-5 text-primary" />
               <CardTitle className="text-lg">Tracking Link Performance</CardTitle>
             </div>
-            <CardDescription>
-              See which marketing channels are driving sales
-            </CardDescription>
           </div>
           <div className="text-right">
             <p className="text-sm text-muted-foreground">Tracked Revenue</p>

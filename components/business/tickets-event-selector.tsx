@@ -26,9 +26,10 @@ interface EventWithTicketStats {
 interface TicketsEventSelectorProps {
   events: EventWithTicketStats[]
   businessSlug: string
+  title?: string
 }
 
-export function TicketsEventSelector({ events, businessSlug }: TicketsEventSelectorProps) {
+export function TicketsEventSelector({ events, businessSlug, title }: TicketsEventSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming')
   const [mousePositions, setMousePositions] = useState<Record<string, { x: number; y: number }>>({})
@@ -122,15 +123,20 @@ export function TicketsEventSelector({ events, businessSlug }: TicketsEventSelec
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
+      {/* Header with Title, Filters, and Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <Tabs value={timeFilter} onValueChange={(v) => setTimeFilter(v as any)}>
-          <TabsList>
-            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-            <TabsTrigger value="past">Past</TabsTrigger>
-            <TabsTrigger value="all">All Events</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-6">
+          {title && (
+            <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+          )}
+          <Tabs value={timeFilter} onValueChange={(v) => setTimeFilter(v as any)}>
+            <TabsList>
+              <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+              <TabsTrigger value="past">Past</TabsTrigger>
+              <TabsTrigger value="all">All Events</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

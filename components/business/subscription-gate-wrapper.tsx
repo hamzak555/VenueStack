@@ -22,10 +22,11 @@ export function SubscriptionGateWrapper({
 }: SubscriptionGateWrapperProps) {
   const pathname = usePathname()
 
-  // Only allow access to subscription settings page for users who need to manage subscription
+  // Allow access to subscription settings and users page for users who need to manage subscription
   const isSubscriptionPage = pathname?.includes('/settings/subscription')
+  const isUsersPage = pathname?.includes('/dashboard/users')
 
-  if (isSubscriptionPage && isCanceledOrNoSubscription) {
+  if ((isSubscriptionPage || isUsersPage) && isCanceledOrNoSubscription) {
     return <>{children}</>
   }
 

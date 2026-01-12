@@ -20,6 +20,7 @@ import { CustomerDetailPanel } from './customer-detail-panel'
 interface CustomersTableProps {
   customers: Customer[]
   businessSlug: string
+  title?: string
 }
 
 type SortColumn = 'name' | 'email' | 'phone' | 'total_reservations' | 'total_tickets' | 'total_spent' | 'average_rating' | 'last_purchase'
@@ -27,7 +28,7 @@ type SortDirection = 'asc' | 'desc'
 
 const ITEMS_PER_PAGE = 25
 
-export function CustomersTable({ customers, businessSlug }: CustomersTableProps) {
+export function CustomersTable({ customers, businessSlug, title }: CustomersTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortColumn, setSortColumn] = useState<SortColumn>('total_spent')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
@@ -147,20 +148,25 @@ export function CustomersTable({ customers, businessSlug }: CustomersTableProps)
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, or phone..."
-            value={searchTerm}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-10"
-          />
+      <div className="flex items-center justify-between">
+        {title && (
+          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+        )}
+        <div className="flex items-center gap-4">
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Button onClick={exportToCSV} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
         </div>
-        <Button onClick={exportToCSV} variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
       </div>
 
       <div className="rounded-md border">

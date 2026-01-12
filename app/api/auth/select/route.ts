@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { jwtVerify, SignJWT } from 'jose'
 import { createAdminSession, getAdminSession, deleteAdminSession } from '@/lib/auth/admin-session'
 import { createBusinessSession, getBusinessSession, deleteBusinessSession } from '@/lib/auth/business-session'
 import { getAdminUserByEmail } from '@/lib/db/admin-users'
 import { getBusinessUserByEmail, getBusinessUsersByEmail } from '@/lib/db/business-users'
 import { createClient } from '@/lib/supabase/server'
+import { createLoginLog } from '@/lib/db/login-logs'
 
 const SECRET_KEY = new TextEncoder().encode(
   process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production'
@@ -92,6 +93,12 @@ export async function POST(request: NextRequest) {
 
     let redirectUrl = '/'
 
+    // Get IP and user agent for login logging
+    const headersList = await headers()
+    const forwardedFor = headersList.get('x-forwarded-for')
+    const ipAddress = forwardedFor ? forwardedFor.split(',')[0].trim() : headersList.get('x-real-ip') || null
+    const userAgent = headersList.get('user-agent') || null
+
     if (affiliationType === 'admin') {
       // Create admin session
       const adminUser = await getAdminUserByEmail(email)
@@ -105,6 +112,19 @@ export async function POST(request: NextRequest) {
       await deleteBusinessSession()
       await createAdminSession(adminUser)
       redirectUrl = '/admin'
+
+      // Log the admin login
+      createLoginLog({
+        user_type: 'admin',
+        user_id: adminUser.id,
+        user_email: adminUser.email,
+        user_name: adminUser.name,
+        business_id: null,
+        business_name: null,
+        business_slug: null,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }).catch(err => console.error('Failed to log admin login:', err))
     } else if (affiliationType === 'business' && businessId) {
       // Get business user and verify access
       const businessUser = await getBusinessUserByEmail(businessId, email)
@@ -127,6 +147,19 @@ export async function POST(request: NextRequest) {
       await deleteAdminSession()
       await createBusinessSession(businessUser)
       redirectUrl = `/${business?.slug || businessId}/dashboard`
+
+      // Log the business login
+      createLoginLog({
+        user_type: 'business',
+        user_id: businessUser.id,
+        user_email: businessUser.email,
+        user_name: businessUser.name,
+        business_id: businessId,
+        business_name: business?.name || null,
+        business_slug: business?.slug || null,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      }).catch(err => console.error('Failed to log business login:', err))
 
       // Create a longer-lived token for mobile apps
       const mobileToken = await new SignJWT({

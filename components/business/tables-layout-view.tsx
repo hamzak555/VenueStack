@@ -820,7 +820,7 @@ export function TablesLayoutView({
         className="flex-1 relative border rounded-lg bg-neutral-900 flex flex-col"
       >
         {/* Scrollable content area */}
-        <div className="absolute inset-0 overflow-auto scrollbar-thin">
+        <div className="absolute inset-0 overflow-auto">
           <div
             className="min-h-full relative flex items-start justify-center pt-6"
             style={{

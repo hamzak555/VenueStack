@@ -5,10 +5,22 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Bell, X } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { parseLocalDate } from '@/lib/utils'
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  return isMobile
+}
 
 interface Notification {
   id: string
@@ -35,6 +47,7 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
   const router = useRouter()
   const supabase = createClient()
   const seenBookingIds = useRef<Set<string>>(new Set())
+  const isMobile = useIsMobile()
 
   // Load notifications from localStorage
   useEffect(() => {
@@ -158,13 +171,13 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
             <Bell className="h-3.5 w-3.5" style={{ color: 'var(--theme-color-hex)' }} />
           </div>
           {notifications.length > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-medium">
+            <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-red-500 text-white text-[8px] flex items-center justify-center font-medium">
               {notifications.length > 9 ? '9+' : notifications.length}
             </span>
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start" sideOffset={8}>
+      <PopoverContent className="w-80 p-0 max-h-[500px] overflow-hidden" align={isMobile ? "end" : "start"} sideOffset={8}>
         <div className="flex items-center justify-between p-4 border-b">
           <h4 className="font-semibold">Notifications</h4>
           {notifications.length > 0 && (
@@ -173,7 +186,7 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
             </Button>
           )}
         </div>
-        <ScrollArea className="max-h-80">
+        <div className="max-h-[400px] overflow-y-auto">
           {notifications.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               No new notifications
@@ -184,7 +197,7 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
                 <div
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className="p-3 hover:bg-muted cursor-pointer flex items-start gap-3 group"
+                  className="px-4 py-3 hover:bg-muted cursor-pointer flex items-start gap-3 group"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">
@@ -234,7 +247,7 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   )

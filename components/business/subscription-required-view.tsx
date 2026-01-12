@@ -28,6 +28,19 @@ interface SubscriptionRequiredViewProps {
   access: SubscriptionAccess
   monthlyFee?: number
   trialDays?: number
+  themeColor?: string
+}
+
+// Helper to convert hex to RGB
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : null
 }
 
 export function SubscriptionRequiredView({
@@ -36,9 +49,14 @@ export function SubscriptionRequiredView({
   access,
   monthlyFee = 49,
   trialDays = 14,
+  themeColor = '#6366f1',
 }: SubscriptionRequiredViewProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Convert theme color to RGB for use with opacity
+  const rgb = hexToRgb(themeColor) || { r: 99, g: 102, b: 241 } // fallback to indigo
+  const themeRgb = `${rgb.r}, ${rgb.g}, ${rgb.b}`
 
   const handleStartSubscription = async () => {
     setIsLoading(true)
@@ -112,28 +130,41 @@ export function SubscriptionRequiredView({
         <div className="relative">
           <div className="bg-background rounded-2xl border shadow-2xl overflow-hidden">
             {/* Header with gradient */}
-            <div className={`relative px-6 pt-8 pb-6 ${
-              isCanceled
-                ? 'bg-gradient-to-br from-red-500/10 via-red-600/5 to-transparent'
-                : isPastDue
-                ? 'bg-gradient-to-br from-amber-500/10 via-orange-600/5 to-transparent'
-                : 'bg-gradient-to-br from-violet-500/10 via-purple-600/5 to-transparent'
-            }`}>
+            <div
+              className={`relative px-6 pt-8 pb-6 ${
+                isPastDue
+                  ? 'bg-gradient-to-br from-amber-500/10 via-orange-600/5 to-transparent'
+                  : ''
+              }`}
+              style={!isPastDue ? {
+                background: `linear-gradient(to bottom right, rgba(${themeRgb}, 0.1), rgba(${themeRgb}, 0.05), transparent)`
+              } : undefined}
+            >
               {/* Decorative elements */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-indigo-500/10 to-transparent rounded-tr-full" />
+              <div
+                className="absolute top-0 right-0 w-32 h-32 rounded-bl-full"
+                style={{ background: `linear-gradient(to bottom left, rgba(${themeRgb}, 0.1), transparent)` }}
+              />
+              <div
+                className="absolute bottom-0 left-0 w-24 h-24 rounded-tr-full"
+                style={{ background: `linear-gradient(to top right, rgba(${themeRgb}, 0.1), transparent)` }}
+              />
               {/* Bottom fade gradient */}
               <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
 
               <div className="relative text-center">
                 {/* Icon */}
-                <div className={`mx-auto mb-3 h-10 w-10 rounded-xl flex items-center justify-center ${
-                  isCanceled
-                    ? 'bg-red-500/15 text-red-600 dark:text-red-400'
-                    : isPastDue
-                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                    : 'bg-violet-500/15 text-violet-600 dark:text-violet-400'
-                }`}>
+                <div
+                  className={`mx-auto mb-3 h-10 w-10 rounded-xl flex items-center justify-center ${
+                    isPastDue
+                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                      : ''
+                  }`}
+                  style={!isPastDue ? {
+                    backgroundColor: `rgba(${themeRgb}, 0.15)`,
+                    color: themeColor
+                  } : undefined}
+                >
                   {isCanceled ? (
                     <Lock className="h-5 w-5" />
                   ) : isPastDue ? (
@@ -164,7 +195,10 @@ export function SubscriptionRequiredView({
               {/* Pricing - only show for new subscriptions */}
               {access.reason === 'no_subscription' && (
                 <div className="relative -mt-4 mb-6">
-                  <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl p-[1px]">
+                  <div
+                    className="rounded-xl p-[1px]"
+                    style={{ background: `linear-gradient(to right, ${themeColor}, ${themeColor})` }}
+                  >
                     <div className="bg-background rounded-xl p-4 text-center">
                       <div className="flex items-baseline justify-center gap-1">
                         <span className="text-4xl font-bold text-foreground">
@@ -191,8 +225,13 @@ export function SubscriptionRequiredView({
                       key={feature.label}
                       className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
                     >
-                      <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-600/20 flex items-center justify-center">
-                        <feature.icon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                      <div
+                        className="flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center"
+                        style={{
+                          background: `linear-gradient(to bottom right, rgba(${themeRgb}, 0.2), rgba(${themeRgb}, 0.2))`
+                        }}
+                      >
+                        <feature.icon className="h-4 w-4" style={{ color: themeColor }} />
                       </div>
                       <p className="font-medium text-sm">{feature.label}</p>
                     </div>

@@ -26,9 +26,6 @@ export default async function MarketingSettingsPage({ params }: MarketingSetting
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Marketing & Analytics</h1>
-        <p className="text-muted-foreground">
-          Manage tracking pixels, analytics, and embed options for your public page
-        </p>
       </div>
 
       <TrackingLinksForm

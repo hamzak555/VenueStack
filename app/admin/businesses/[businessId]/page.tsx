@@ -38,9 +38,6 @@ export default async function AdminBusinessEditPage({ params }: AdminBusinessEdi
 
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Edit Business</h1>
-        <p className="text-muted-foreground">
-          Update business information and settings
-        </p>
       </div>
 
       <Card>

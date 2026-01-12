@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { UserPlus, Pencil, Trash2 } from 'lucide-react'
+import { UserPlus, Pencil, Trash2, Eye, EyeOff, Copy, Check } from 'lucide-react'
 import { AdminUser } from '@/lib/types'
 
 type AdminUserWithoutPassword = Omit<AdminUser, 'password_hash'>
@@ -60,6 +60,36 @@ export function AdminUsersManagement() {
   const [deletingUser, setDeletingUser] = useState<AdminUserWithoutPassword | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+
+  // Password visibility and copy state
+  const [showPassword, setShowPassword] = useState(false)
+  const [copiedField, setCopiedField] = useState<'email' | 'password' | 'all' | null>(null)
+
+  // Generate a random password
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%'
+    let password = ''
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return password
+  }
+
+  // Copy to clipboard helper
+  const copyToClipboard = async (text: string, field: 'email' | 'password' | 'all') => {
+    await navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
+
+  // Open create dialog with auto-generated password
+  const openCreateDialog = () => {
+    setCreateForm({ email: '', password: generatePassword(), name: '' })
+    setCreateError('')
+    setShowPassword(true)
+    setCopiedField(null)
+    setCreateDialogOpen(true)
+  }
 
   useEffect(() => {
     fetchUsers()
@@ -221,13 +251,10 @@ export function AdminUsersManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Users</h1>
-          <p className="text-muted-foreground">
-            Manage admin user accounts and permissions
-          </p>
         </div>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={openCreateDialog}>
               <UserPlus className="mr-2 h-4 w-4" />
               Add User
             </Button>
@@ -255,30 +282,100 @@ export function AdminUsersManagement() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="create-email">Email</Label>
-                  <Input
-                    id="create-email"
-                    type="email"
-                    placeholder="john@example.com"
-                    value={createForm.email}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, email: e.target.value })
-                    }
-                    required
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="create-email"
+                      type="email"
+                      placeholder="john@example.com"
+                      value={createForm.email}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, email: e.target.value })
+                      }
+                      required
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => copyToClipboard(createForm.email, 'email')}
+                      disabled={!createForm.email}
+                      title="Copy email"
+                    >
+                      {copiedField === 'email' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="create-password">Password</Label>
-                  <Input
-                    id="create-password"
-                    type="password"
-                    placeholder="Minimum 6 characters"
-                    value={createForm.password}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, password: e.target.value })
-                    }
-                    required
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="create-password">Password</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCreateForm({ ...createForm, password: generatePassword() })}
+                      disabled={createLoading}
+                      className="h-auto py-1 px-2 text-xs"
+                    >
+                      Regenerate
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="create-password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Minimum 6 characters"
+                        value={createForm.password}
+                        onChange={(e) =>
+                          setCreateForm({ ...createForm, password: e.target.value })
+                        }
+                        required
+                        className="pr-10 font-mono"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        title={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => copyToClipboard(createForm.password, 'password')}
+                      disabled={!createForm.password}
+                      title="Copy password"
+                    >
+                      {copiedField === 'password' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
+                {createForm.email && createForm.password && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => copyToClipboard(`Email: ${createForm.email}\nPassword: ${createForm.password}`, 'all')}
+                    className="w-full"
+                  >
+                    {copiedField === 'all' ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4 text-green-500" />
+                        Credentials Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy Login Credentials
+                      </>
+                    )}
+                  </Button>
+                )}
                 {createError && (
                   <p className="text-sm text-red-500">{createError}</p>
                 )}
@@ -314,7 +411,7 @@ export function AdminUsersManagement() {
               <p className="text-muted-foreground mb-4">
                 No admin users found
               </p>
-              <Button onClick={() => setCreateDialogOpen(true)}>
+              <Button onClick={openCreateDialog}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 Create Your First Admin User
               </Button>

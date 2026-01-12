@@ -253,6 +253,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
   const [fieldErrors, setFieldErrors] = useState({
     name: false,
     email: false,
+    phone: false,
   })
 
   // Promo code state
@@ -633,7 +634,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
 
   const initializePayment = async () => {
     const totalTickets = getTotalTicketCount()
-    if (totalTickets === 0 || !customerInfo.name.trim() || !customerInfo.email.trim()) {
+    if (totalTickets === 0 || !customerInfo.name.trim() || !customerInfo.email.trim() || !customerInfo.phone.trim()) {
       return
     }
 
@@ -691,7 +692,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
 
   const completeFreeOrder = async () => {
     const totalTickets = getTotalTicketCount()
-    if (totalTickets === 0 || !customerInfo.name.trim() || !customerInfo.email.trim()) {
+    if (totalTickets === 0 || !customerInfo.name.trim() || !customerInfo.email.trim() || !customerInfo.phone.trim()) {
       return
     }
 
@@ -745,7 +746,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
   }
 
   const completeFreeTableBooking = async () => {
-    if (getTotalTables() === 0 || !customerInfo.name.trim() || !customerInfo.email.trim()) {
+    if (getTotalTables() === 0 || !customerInfo.name.trim() || !customerInfo.email.trim() || !customerInfo.phone.trim()) {
       return
     }
 
@@ -784,7 +785,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
 
   // Table payment initialization
   const initializeTablePayment = async () => {
-    if (getTotalTables() === 0 || !customerInfo.name.trim() || !customerInfo.email.trim()) {
+    if (getTotalTables() === 0 || !customerInfo.name.trim() || !customerInfo.email.trim() || !customerInfo.phone.trim()) {
       return
     }
 
@@ -1130,14 +1131,19 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">Phone Number *</Label>
                   <Input
                     id="phone"
                     type="tel"
                     value={customerInfo.phone}
-                    onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                    onChange={(e) => {
+                      setCustomerInfo({ ...customerInfo, phone: e.target.value })
+                      setFieldErrors({ ...fieldErrors, phone: false })
+                    }}
                     placeholder="+1 (555) 123-4567"
+                    required
                     disabled={!!clientSecret}
+                    className={fieldErrors.phone ? 'border-red-500 focus-visible:ring-red-500' : ''}
                   />
                 </div>
 
@@ -1493,7 +1499,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                 )}
 
                 {/* Complete Free Order Button - Shows for $0 orders (tickets only) */}
-                {checkoutMode === 'tickets' && !clientSecret && totalTickets > 0 && customerInfo.name.trim() && customerInfo.email.trim() && isFreeOrder() && (
+                {checkoutMode === 'tickets' && !clientSecret && totalTickets > 0 && customerInfo.name.trim() && customerInfo.email.trim() && customerInfo.phone.trim() && isFreeOrder() && (
                   <div className="pt-4 border-t">
                     <Button
                       type="button"
@@ -1515,7 +1521,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                 )}
 
                 {/* Continue to Payment Button - Tickets */}
-                {checkoutMode === 'tickets' && !clientSecret && totalTickets > 0 && customerInfo.name.trim() && customerInfo.email.trim() && business.stripe_onboarding_complete && !isFreeOrder() && (
+                {checkoutMode === 'tickets' && !clientSecret && totalTickets > 0 && customerInfo.name.trim() && customerInfo.email.trim() && customerInfo.phone.trim() && business.stripe_onboarding_complete && !isFreeOrder() && (
                   <div className="pt-4 border-t">
                     <Button
                       type="button"
@@ -1537,7 +1543,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                 )}
 
                 {/* Complete Free Table Reservation Button - Shows for $0 table bookings */}
-                {checkoutMode === 'tables' && !clientSecret && totalTables > 0 && customerInfo.name.trim() && customerInfo.email.trim() && isTableFreeBooking() && (
+                {checkoutMode === 'tables' && !clientSecret && totalTables > 0 && customerInfo.name.trim() && customerInfo.email.trim() && customerInfo.phone.trim() && isTableFreeBooking() && (
                   <div className="pt-4 border-t">
                     <Button
                       type="button"
@@ -1559,7 +1565,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                 )}
 
                 {/* Continue to Payment Button - Tables (only for paid bookings) */}
-                {checkoutMode === 'tables' && !clientSecret && totalTables > 0 && customerInfo.name.trim() && customerInfo.email.trim() && business.stripe_onboarding_complete && !isTableFreeBooking() && (
+                {checkoutMode === 'tables' && !clientSecret && totalTables > 0 && customerInfo.name.trim() && customerInfo.email.trim() && customerInfo.phone.trim() && business.stripe_onboarding_complete && !isTableFreeBooking() && (
                   <div className="pt-4 border-t">
                     <Button
                       type="button"

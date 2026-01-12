@@ -1,24 +1,16 @@
 import Link from 'next/link'
 import { getBusinesses } from '@/lib/db/businesses'
 import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BusinessDashboardLink } from '@/components/admin/business-dashboard-link'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AdminDashboardLayout } from '@/components/admin/admin-dashboard-layout'
+import { BusinessesTable } from '@/components/admin/businesses-table'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function BusinessesListPage() {
   let businesses: Awaited<ReturnType<typeof getBusinesses>> = []
   let error: string | null = null
   let globalSettings: any = null
+  let adminUsers: Record<string, { name: string; email: string; phone: string | null }> = {}
 
   try {
     businesses = await getBusinesses()
@@ -30,26 +22,24 @@ export default async function BusinessesListPage() {
       .select('*')
       .single()
     globalSettings = settings
+
+    // Fetch admin users for each business
+    const { data: admins } = await supabase
+      .from('business_users')
+      .select('business_id, name, email, phone')
+      .eq('role', 'admin')
+      .eq('is_active', true)
+
+    if (admins) {
+      admins.forEach((admin) => {
+        // Only store the first admin found for each business
+        if (!adminUsers[admin.business_id]) {
+          adminUsers[admin.business_id] = { name: admin.name, email: admin.email, phone: admin.phone }
+        }
+      })
+    }
   } catch (e) {
     error = e instanceof Error ? e.message : 'Failed to load businesses'
-  }
-
-  // Helper function to get fee configuration display
-  const getFeeConfig = (business: typeof businesses[0]) => {
-    if (business.use_custom_fee_settings && business.platform_fee_type) {
-      return {
-        type: business.platform_fee_type,
-        flat: business.flat_fee_amount,
-        percentage: business.percentage_fee,
-        isCustom: true
-      }
-    }
-    return {
-      type: globalSettings?.platform_fee_type || 'higher_of_both',
-      flat: globalSettings?.flat_fee_amount || 0,
-      percentage: globalSettings?.percentage_fee || 0,
-      isCustom: false
-    }
   }
 
   return (
@@ -58,9 +48,6 @@ export default async function BusinessesListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Businesses</h1>
-          <p className="text-muted-foreground">
-            Manage business accounts and their settings
-          </p>
         </div>
         <Button asChild>
           <Link href="/admin/businesses/new">Create Business</Link>
@@ -82,13 +69,7 @@ export default async function BusinessesListPage() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>All Businesses</CardTitle>
-          <CardDescription>
-            {businesses.length} business{businesses.length !== 1 ? 'es' : ''} registered
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {businesses.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">
@@ -99,87 +80,11 @@ export default async function BusinessesListPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Slug (URL)</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Fee Type</TableHead>
-                    <TableHead>Fee Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {businesses.map((business) => {
-                    const feeConfig = getFeeConfig(business)
-                    return (
-                      <TableRow key={business.id}>
-                        <TableCell className="font-medium">{business.name}</TableCell>
-                        <TableCell>
-                          <Link
-                            href={`/${business.slug}`}
-                            target="_blank"
-                            className="text-primary hover:underline"
-                          >
-                            /{business.slug}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {business.contact_email || '-'}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          <div className="flex flex-col gap-1">
-                            <span className="capitalize">
-                              {feeConfig.type?.replace(/_/g, ' ') || 'N/A'}
-                            </span>
-                            {feeConfig.isCustom && (
-                              <Badge variant="outline" className="w-fit text-xs">
-                                Custom
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {feeConfig.type === 'flat' && (
-                            <span>${feeConfig.flat?.toFixed(2)}</span>
-                          )}
-                          {feeConfig.type === 'percentage' && (
-                            <span>{feeConfig.percentage}%</span>
-                          )}
-                          {feeConfig.type === 'higher_of_both' && (
-                            <div className="flex flex-col">
-                              <span>${feeConfig.flat?.toFixed(2)} / {feeConfig.percentage}%</span>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={business.is_active ? 'success' : 'secondary'}>
-                            {business.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(business.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex gap-2 justify-end">
-                            <BusinessDashboardLink businessId={business.id} businessSlug={business.slug} />
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/admin/businesses/${business.id}`}>
-                                Edit
-                              </Link>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <BusinessesTable
+              businesses={businesses}
+              adminUsers={adminUsers}
+              globalSettings={globalSettings}
+            />
           )}
         </CardContent>
       </Card>

@@ -108,17 +108,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Order {order.order_number}</h1>
-          <p className="text-muted-foreground">
-            Placed on {new Date(order.created_at).toLocaleString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            })}
-          </p>
         </div>
         <Badge variant={getStatusColor(order.status)} className="text-sm capitalize">
           {order.status.replace('_', ' ')}

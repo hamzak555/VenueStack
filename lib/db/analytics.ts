@@ -12,14 +12,18 @@ export interface EventAnalytics {
   ticket_gross_revenue: number
   ticket_net_revenue: number
   ticket_fees: number
+  ticket_tax: number
   // Table service specific
   total_table_bookings: number
   table_revenue: number
+  table_tax: number
 }
 
 export interface BusinessAnalytics {
   total_revenue: number
   total_tax_collected: number
+  ticket_tax_collected: number
+  table_tax_collected: number
   total_tickets_sold: number
   total_orders: number
   // Detailed ticket revenue breakdown
@@ -89,6 +93,7 @@ export async function getBusinessAnalytics(
       id,
       event_id,
       amount,
+      tax_amount,
       status,
       created_at,
       event:events!inner (
@@ -119,6 +124,8 @@ export async function getBusinessAnalytics(
     return {
       total_revenue: 0,
       total_tax_collected: 0,
+      ticket_tax_collected: 0,
+      table_tax_collected: 0,
       total_tickets_sold: 0,
       total_orders: 0,
       ticket_gross_revenue: 0,
@@ -132,7 +139,8 @@ export async function getBusinessAnalytics(
 
   // Aggregate by event
   const eventMap = new Map<string, EventAnalytics>()
-  let total_tax_collected = 0
+  let ticket_tax_collected = 0
+  let table_tax_collected = 0
 
   // Process ticket orders
   if (orders) {
@@ -155,8 +163,10 @@ export async function getBusinessAnalytics(
           ticket_gross_revenue: 0,
           ticket_net_revenue: 0,
           ticket_fees: 0,
+          ticket_tax: 0,
           total_table_bookings: 0,
           table_revenue: 0,
+          table_tax: 0,
         })
       }
 
@@ -172,8 +182,8 @@ export async function getBusinessAnalytics(
       const netRevenue = total - platformFee - stripeFee
       const fees = platformFee + stripeFee
 
-      // Track tax collected
-      total_tax_collected += taxAmount
+      // Track ticket tax collected
+      ticket_tax_collected += taxAmount
 
       const analytics = eventMap.get(eventId)!
       analytics.total_orders += 1
@@ -182,6 +192,7 @@ export async function getBusinessAnalytics(
       analytics.ticket_gross_revenue += total
       analytics.ticket_net_revenue += netRevenue
       analytics.ticket_fees += fees
+      analytics.ticket_tax += taxAmount
     }
   }
 
@@ -206,16 +217,23 @@ export async function getBusinessAnalytics(
           ticket_gross_revenue: 0,
           ticket_net_revenue: 0,
           ticket_fees: 0,
+          ticket_tax: 0,
           total_table_bookings: 0,
           table_revenue: 0,
+          table_tax: 0,
         })
       }
 
       const bookingAmount = parseFloat(booking.amount?.toString() || '0')
+      const bookingTax = parseFloat(booking.tax_amount?.toString() || '0')
+
+      // Track table tax collected
+      table_tax_collected += bookingTax
 
       const analytics = eventMap.get(eventId)!
       analytics.total_table_bookings += 1
       analytics.table_revenue += bookingAmount
+      analytics.table_tax += bookingTax
       analytics.total_revenue += bookingAmount // Add to total revenue as well
     }
   }
@@ -233,7 +251,9 @@ export async function getBusinessAnalytics(
 
   return {
     total_revenue,
-    total_tax_collected,
+    total_tax_collected: ticket_tax_collected + table_tax_collected,
+    ticket_tax_collected,
+    table_tax_collected,
     total_tickets_sold,
     total_orders,
     ticket_gross_revenue,

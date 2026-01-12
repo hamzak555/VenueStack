@@ -2,9 +2,9 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, ExternalLink } from 'lucide-react'
 import { TablesLayoutView } from './tables-layout-view'
 import { NewReservationModal } from './new-reservation-modal'
 import { TableServiceConfig, VenueLayout } from '@/lib/types'
@@ -73,12 +73,30 @@ export function TablesPageContent({
 
   // Multi-layout support
   const layouts = tableServiceConfig?.layouts || []
+  const LAYOUT_STORAGE_KEY = `tables_selected_layout_${businessSlug}`
+
   const [selectedLayoutId, setSelectedLayoutId] = useState<string | null>(() => {
-    if (layouts.length > 0) {
-      return tableServiceConfig?.activeLayoutId || layouts.find(l => l.isDefault)?.id || layouts[0]?.id || null
+    if (layouts.length === 0) return null
+
+    // Check localStorage for previously selected layout
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(LAYOUT_STORAGE_KEY)
+      // Verify the stored layout still exists
+      if (stored && layouts.some(l => l.id === stored)) {
+        return stored
+      }
     }
-    return null
+
+    // Fall back to active/default layout
+    return tableServiceConfig?.activeLayoutId || layouts.find(l => l.isDefault)?.id || layouts[0]?.id || null
   })
+
+  // Persist selected layout to localStorage
+  useEffect(() => {
+    if (selectedLayoutId) {
+      localStorage.setItem(LAYOUT_STORAGE_KEY, selectedLayoutId)
+    }
+  }, [selectedLayoutId, LAYOUT_STORAGE_KEY])
 
   const formattedDate = eventDate ? parseLocalDate(eventDate).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -140,6 +158,14 @@ export function TablesPageContent({
                 title="Edit event"
               >
                 <Pencil className="h-4 w-4" />
+              </Link>
+              <Link
+                href={`/${businessSlug}/events/${eventId}/checkout?mode=tables`}
+                target="_blank"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="View checkout page"
+              >
+                <ExternalLink className="h-4 w-4" />
               </Link>
             </div>
             {eventDate && (

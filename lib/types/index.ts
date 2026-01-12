@@ -92,6 +92,8 @@ export interface TableBooking {
   customer_name: string
   customer_email: string
   customer_phone: string | null
+  amount: number | null
+  tax_amount: number | null
   status: 'reserved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
   tracking_link_id: string | null // Reference to tracking link
   tracking_ref: string | null // Raw ref code (persists even if link is deleted)
@@ -297,6 +299,23 @@ export interface AdminUser {
   updated_at: string
 }
 
+export interface LoginLog {
+  id: string
+  user_type: 'admin' | 'business'
+  user_id: string
+  user_email: string
+  user_name: string
+  business_id: string | null
+  business_name: string | null
+  business_slug: string | null
+  ip_address: string | null
+  city: string | null
+  region: string | null
+  country: string | null
+  user_agent: string | null
+  created_at: string
+}
+
 export interface TrackingLink {
   id: string
   business_id: string
@@ -377,6 +396,11 @@ export interface Database {
         Row: TrackingLink
         Insert: Omit<TrackingLink, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<TrackingLink, 'id' | 'created_at' | 'updated_at'>>
+      }
+      login_logs: {
+        Row: LoginLog
+        Insert: Omit<LoginLog, 'id' | 'created_at'>
+        Update: never
       }
     }
   }

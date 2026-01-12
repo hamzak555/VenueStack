@@ -134,9 +134,6 @@ export default function ScannerPage({ params }: { params: Promise<{ businessSlug
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold">Ticket Scanner</h1>
-          <p className="text-muted-foreground mt-2">
-            Scan QR codes to check in attendees at your events
-          </p>
         </div>
         <Button variant="outline" asChild>
           <Link href={`/${resolvedParams.businessSlug}/dashboard/scanner/check-ins`}>

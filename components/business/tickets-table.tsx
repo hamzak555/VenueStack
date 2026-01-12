@@ -43,9 +43,10 @@ interface Order {
 interface TicketsTableProps {
   orders: Order[]
   businessSlug: string
+  title?: string
 }
 
-export function TicketsTable({ orders, businessSlug }: TicketsTableProps) {
+export function TicketsTable({ orders, businessSlug, title }: TicketsTableProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(25)
@@ -106,15 +107,20 @@ export function TicketsTable({ orders, businessSlug }: TicketsTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by order #, customer, email, event, or status..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex items-center gap-6">
+          {title && (
+            <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+          )}
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search orders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Show</span>
@@ -155,7 +161,6 @@ export function TicketsTable({ orders, businessSlug }: TicketsTableProps) {
                   <TableHead>Order #</TableHead>
                   <TableHead>Event</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Email</TableHead>
                   <TableHead className="text-center">Tickets</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Status</TableHead>
@@ -190,8 +195,12 @@ export function TicketsTable({ orders, businessSlug }: TicketsTableProps) {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{order.customer_name}</TableCell>
-                  <TableCell className="text-sm">{order.customer_email}</TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{order.customer_name}</p>
+                      <p className="text-sm text-muted-foreground">{order.customer_email}</p>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-center">{order.quantity}</TableCell>
                   <TableCell className="text-right font-medium">
                     {formatCurrency(order.total)}

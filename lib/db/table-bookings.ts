@@ -143,6 +143,7 @@ export interface TableBooking {
   customer_email: string
   customer_phone: string | null
   amount: number | null
+  tax_amount: number | null
   status: 'reserved' | 'confirmed' | 'cancelled' | 'arrived' | 'completed'
   created_at: string
   updated_at: string
@@ -204,6 +205,7 @@ export async function getTableBookingsByBusinessId(businessId: string, eventId?:
     customer_email: booking.customer_email,
     customer_phone: booking.customer_phone,
     amount: booking.amount,
+    tax_amount: booking.tax_amount,
     status: booking.status,
     created_at: booking.created_at,
     updated_at: booking.updated_at,
@@ -309,6 +311,7 @@ export async function getTableBookingsByOrderId(orderId: string): Promise<TableB
     customer_email: booking.customer_email,
     customer_phone: booking.customer_phone,
     amount: booking.amount,
+    tax_amount: booking.tax_amount,
     status: booking.status,
     created_at: booking.created_at,
     updated_at: booking.updated_at,

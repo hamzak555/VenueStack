@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe/server'
 import { createClient } from '@/lib/supabase/server'
 import { getBusinessSession } from '@/lib/auth/business-session'
+import { getAdminSession } from '@/lib/auth/admin-session'
 import { getSubscriptionSettings, updateBusinessSubscription } from '@/lib/db/subscriptions'
 import { checkSubscriptionAccess } from '@/lib/subscription/check-access'
 
@@ -15,9 +16,14 @@ interface RouteContext {
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { businessId } = await context.params
-    const session = await getBusinessSession()
+    const businessSession = await getBusinessSession()
+    const adminSession = await getAdminSession()
 
-    if (!session || (session.businessId !== businessId && !session.adminBypass)) {
+    // Allow access if: admin session exists, OR business session matches businessId, OR has adminBypass
+    const isAuthorized = adminSession ||
+      (businessSession && (businessSession.businessId === businessId || businessSession.adminBypass))
+
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -83,9 +89,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { businessId } = await context.params
-    const session = await getBusinessSession()
+    const businessSession = await getBusinessSession()
+    const adminSession = await getAdminSession()
 
-    if (!session || (session.businessId !== businessId && !session.adminBypass)) {
+    const isAuthorized = adminSession ||
+      (businessSession && (businessSession.businessId === businessId || businessSession.adminBypass))
+
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -177,9 +187,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { businessId } = await context.params
-    const session = await getBusinessSession()
+    const businessSession = await getBusinessSession()
+    const adminSession = await getAdminSession()
 
-    if (!session || (session.businessId !== businessId && !session.adminBypass)) {
+    // Allow access if: admin session exists, OR business session matches businessId, OR has adminBypass
+    const isAuthorized = adminSession ||
+      (businessSession && (businessSession.businessId === businessId || businessSession.adminBypass))
+
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

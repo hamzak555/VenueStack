@@ -4,15 +4,16 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Settings, CreditCard, Megaphone, LayoutGrid, Users, ChevronDown, Receipt } from 'lucide-react'
+import { Settings, CreditCard, Megaphone, LayoutGrid, Users, ChevronDown, Receipt, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SettingsNavProps {
   businessSlug: string
   isAdmin: boolean
+  showLocks?: boolean
 }
 
-export function SettingsNav({ businessSlug, isAdmin }: SettingsNavProps) {
+export function SettingsNav({ businessSlug, isAdmin, showLocks = false }: SettingsNavProps) {
   const pathname = usePathname()
   const isSettingsPath = pathname.includes('/dashboard/settings') || pathname.includes('/dashboard/users')
   const [isOpen, setIsOpen] = useState(isSettingsPath)
@@ -22,26 +23,31 @@ export function SettingsNav({ businessSlug, isAdmin }: SettingsNavProps) {
       href: `/${businessSlug}/dashboard/settings/account`,
       icon: Settings,
       label: 'Account',
+      showLock: true,
     },
     {
       href: `/${businessSlug}/dashboard/settings/subscription`,
       icon: Receipt,
       label: 'Subscription',
+      showLock: false,
     },
     {
       href: `/${businessSlug}/dashboard/settings/stripe`,
       icon: CreditCard,
       label: 'Payments',
+      showLock: true,
     },
     {
       href: `/${businessSlug}/dashboard/settings/marketing`,
       icon: Megaphone,
       label: 'Marketing',
+      showLock: true,
     },
     {
       href: `/${businessSlug}/dashboard/settings/table-service`,
       icon: LayoutGrid,
       label: 'Floor Plan',
+      showLock: true,
     },
   ]
 
@@ -50,6 +56,7 @@ export function SettingsNav({ businessSlug, isAdmin }: SettingsNavProps) {
       href: `/${businessSlug}/dashboard/users`,
       icon: Users,
       label: 'Users',
+      showLock: false,
     })
   }
 
@@ -62,7 +69,7 @@ export function SettingsNav({ businessSlug, isAdmin }: SettingsNavProps) {
             isSettingsPath && 'bg-[rgb(var(--theme-color))]/10'
           )}
         >
-          <span className="flex items-center gap-2.5">
+          <span className="flex items-center gap-2.5 flex-1">
             <div className={cn(
               'h-7 w-7 rounded-md bg-[rgb(var(--theme-color))]/10 flex items-center justify-center group-hover:bg-[rgb(var(--theme-color))]/20 transition-colors',
               isSettingsPath && 'bg-[rgb(var(--theme-color))]/20'
@@ -92,7 +99,10 @@ export function SettingsNav({ businessSlug, isAdmin }: SettingsNavProps) {
               )}
             >
               <item.icon className="h-3.5 w-3.5" style={{ color: 'var(--theme-color-hex)' }} />
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {showLocks && item.showLock && (
+                <Lock className="h-2.5 w-2.5" style={{ color: 'var(--theme-color-hex)' }} />
+              )}
             </Link>
           )
         })}

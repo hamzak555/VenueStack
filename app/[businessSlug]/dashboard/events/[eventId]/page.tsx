@@ -91,18 +91,6 @@ export default async function EventManagePage({ params }: EventManagePageProps) 
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{event.title}</h1>
-          <p className="text-muted-foreground">
-            {(() => {
-              const dateStr = event.event_date.split('T')[0]
-              const [y, m, d] = dateStr.split('-').map(Number)
-              return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })
-            })()}
-          </p>
         </div>
         <div className="flex items-center gap-3">
           <Badge variant={

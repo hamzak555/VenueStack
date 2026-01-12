@@ -55,9 +55,6 @@ export default async function NewPromoCodePage({ params }: NewPromoCodePageProps
 
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Create Promo Code</h1>
-        <p className="text-muted-foreground">
-          Create a discount code for {event.title}
-        </p>
       </div>
 
       <PromoCodeForm

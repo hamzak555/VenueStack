@@ -32,18 +32,7 @@ export default async function TablesPage({ params, searchParams }: TablesPagePro
     const events = await getEventsWithTableService(business.id)
 
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Tables</h1>
-            <p className="text-muted-foreground">
-              Select an event to view and manage table reservations
-            </p>
-          </div>
-        </div>
-
-        <TablesEventSelector events={events} businessSlug={businessSlug} />
-      </div>
+      <TablesEventSelector events={events} businessSlug={businessSlug} title="Tables" />
     )
   }
 

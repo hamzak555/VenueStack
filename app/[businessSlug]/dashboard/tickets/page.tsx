@@ -1,6 +1,6 @@
 import { getOrdersByBusinessId, Order } from '@/lib/db/orders'
 import { getBusinessBySlug } from '@/lib/db/businesses'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { TicketsTable } from '@/components/business/tickets-table'
 
 // Force dynamic rendering to always show current data
@@ -28,29 +28,14 @@ export default async function TicketsPage({ params }: TicketsPageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ticket Sales</h1>
-          <p className="text-muted-foreground">
-            View and manage all ticket sales
-          </p>
+      {errorMessage && (
+        <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
+          <p className="text-sm text-destructive">Error loading orders: {errorMessage}</p>
         </div>
-      </div>
-
+      )}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Sales</CardTitle>
-          <CardDescription>
-            All ticket purchases across your events
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {errorMessage && (
-            <div className="bg-destructive/10 border border-destructive rounded-lg p-4 mb-4">
-              <p className="text-sm text-destructive">Error loading orders: {errorMessage}</p>
-            </div>
-          )}
-          <TicketsTable orders={orders} businessSlug={businessSlug} />
+        <CardContent className="pt-4">
+          <TicketsTable orders={orders} businessSlug={businessSlug} title="Ticket Sales" />
         </CardContent>
       </Card>
     </div>

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
+import { checkSubscriptionAccess } from '@/lib/subscription/check-access'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { LogoutButton } from '@/components/business/logout-button'
@@ -52,6 +53,10 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
   // Get theme color CSS variables
   const themeStyle = getThemeColorStyle(business.theme_color || '#8b5cf6')
 
+  // Check subscription access to determine if nav items should show locks
+  const subscriptionAccess = checkSubscriptionAccess(business)
+  const showNavLocks = !subscriptionAccess.hasAccess && !session.adminBypass && !bypassSubscriptionGate
+
   return (
     <div className="min-h-screen bg-background" style={themeStyle as React.CSSProperties}>
       {/* Mobile Navigation */}
@@ -62,14 +67,16 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
         isAdmin={isAdmin}
         showAdminBypass={session.adminBypass ?? false}
         hideLogout={session.adminBypass ?? false}
+        showNavLocks={showNavLocks}
+        themeColor={business.theme_color || '#8b5cf6'}
       />
 
       <div className="flex">
         {/* Desktop Sidebar - hidden on mobile */}
         <aside className="hidden lg:flex w-64 border-r bg-card flex-col h-screen sticky top-0">
         {/* Header with gradient */}
-        <div className="relative p-6 flex-shrink-0 overflow-hidden" style={{ background: `linear-gradient(to bottom right, rgb(var(--theme-color), 0.05), rgb(var(--theme-color), 0.02), transparent)` }}>
-          <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full" style={{ background: `linear-gradient(to bottom left, rgb(var(--theme-color), 0.1), transparent)` }} />
+        <div className="relative p-6 flex-shrink-0 overflow-hidden" style={{ background: `linear-gradient(to bottom right, rgb(var(--theme-color) / 0.05), rgb(var(--theme-color) / 0.02), transparent)` }}>
+          <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full" style={{ background: `linear-gradient(to bottom left, rgb(var(--theme-color) / 0.1), transparent)` }} />
           <div className="relative flex items-center justify-between gap-2">
             <Link href={`/${businessSlug}/dashboard/events`} className="text-xl font-bold truncate flex-1 min-w-0">
               {business.name}
@@ -83,7 +90,7 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
               asChild
               className="mt-2 h-6 text-xs"
               style={{
-                borderColor: 'rgb(var(--theme-color), 0.3)',
+                borderColor: 'rgb(var(--theme-color) / 0.3)',
                 color: 'var(--theme-color-hex)'
               }}
             >
@@ -93,8 +100,8 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
         </div>
         <Separator className="flex-shrink-0" />
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <DashboardNav businessSlug={businessSlug} />
-          <SettingsNav businessSlug={businessSlug} isAdmin={isAdmin} />
+          <DashboardNav businessSlug={businessSlug} showLocks={showNavLocks} />
+          <SettingsNav businessSlug={businessSlug} isAdmin={isAdmin} showLocks={showNavLocks} />
         </nav>
         <Separator className="flex-shrink-0" />
         <div className="p-4 space-y-2 flex-shrink-0">

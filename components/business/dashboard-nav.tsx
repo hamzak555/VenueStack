@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Calendar, Receipt, BarChart3, UserCircle, Ticket, Armchair } from 'lucide-react'
+import { Calendar, Receipt, BarChart3, UserCircle, Ticket, Armchair, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface DashboardNavProps {
   businessSlug: string
+  showLocks?: boolean
 }
 
-export function DashboardNav({ businessSlug }: DashboardNavProps) {
+export function DashboardNav({ businessSlug, showLocks = false }: DashboardNavProps) {
   const pathname = usePathname()
 
   const navItems = [
@@ -44,7 +45,10 @@ export function DashboardNav({ businessSlug }: DashboardNavProps) {
             )}>
               <item.icon className="h-3.5 w-3.5" style={{ color: 'var(--theme-color-hex)' }} />
             </div>
-            <span className="font-medium text-xs">{item.label}</span>
+            <span className="font-medium text-xs flex-1">{item.label}</span>
+            {showLocks && (
+              <Lock className="h-2.5 w-2.5" style={{ color: 'var(--theme-color-hex)' }} />
+            )}
           </Link>
         )
       })}

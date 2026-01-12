@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { formatCurrency } from '@/lib/utils/currency'
 import { parseDateRangeParams } from '@/lib/utils/date-range'
 import { createClient } from '@/lib/supabase/server'
-import { Ticket, Armchair, DollarSign, TrendingUp, Receipt, MinusCircle } from 'lucide-react'
+import { Ticket, Armchair, DollarSign, TrendingUp, Receipt } from 'lucide-react'
 import { EventPerformanceTable } from '@/components/business/event-performance-table'
 import { TrackingLinkAnalytics } from '@/components/business/tracking-link-analytics'
 import { ReportsDateFilter } from '@/components/business/reports-date-filter'
@@ -61,22 +61,17 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
   // Calculate totals
   const totalGrossRevenue = analytics.ticket_gross_revenue + analytics.total_table_revenue
   const totalNetRevenue = analytics.ticket_net_revenue + analytics.total_table_revenue
-  const totalFees = analytics.ticket_fees
-
   return (
     <div className="space-y-8">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
-          <p className="text-muted-foreground">
-            View performance metrics and sales data for your events
-          </p>
         </div>
         <ReportsDateFilter />
       </div>
 
       {/* Revenue Summary */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card className="py-4 border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
           <CardContent className="pb-0">
             <div className="flex items-center gap-2">
@@ -106,21 +101,8 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
         <Card className="py-4">
           <CardContent className="pb-0">
             <div className="flex items-center gap-2">
-              <MinusCircle className="h-4 w-4 text-orange-500" />
-              <p className="text-sm font-medium text-muted-foreground">Processing Fees</p>
-            </div>
-            <div className="text-2xl font-bold text-orange-500">{formatCurrency(totalFees)}</div>
-            <p className="text-xs text-muted-foreground">
-              Platform + Stripe fees
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="py-4">
-          <CardContent className="pb-0">
-            <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-muted-foreground">Tax Collected</p>
+              <p className="text-sm font-medium text-muted-foreground">Tax Collected ({business.tax_percentage || 0}%)</p>
             </div>
             <div className="text-2xl font-bold">{formatCurrency(analytics.total_tax_collected)}</div>
             <p className="text-xs text-muted-foreground">
@@ -139,7 +121,6 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
               <Ticket className="h-5 w-5 text-primary" />
               <CardTitle className="text-lg">Ticket Sales</CardTitle>
             </div>
-            <CardDescription>Revenue from ticket purchases</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -157,11 +138,11 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                   <span className="font-medium">{formatCurrency(analytics.ticket_gross_revenue)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Processing Fees</span>
-                  <span className="font-medium text-orange-500">{formatCurrency(analytics.ticket_fees)}</span>
+                  <span className="text-sm text-muted-foreground">Tax Collected</span>
+                  <span className="font-medium">{formatCurrency(analytics.ticket_tax_collected)}</span>
                 </div>
                 <div className="flex justify-between items-center border-t pt-2">
-                  <span className="text-sm font-medium">You Receive</span>
+                  <span className="text-sm font-medium">Net Revenue</span>
                   <span className="font-bold text-green-600">{formatCurrency(analytics.ticket_net_revenue)}</span>
                 </div>
               </div>
@@ -176,7 +157,6 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
               <Armchair className="h-5 w-5 text-primary" />
               <CardTitle className="text-lg">Table Service</CardTitle>
             </div>
-            <CardDescription>Revenue from table bookings</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -190,15 +170,15 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
               </div>
               <div className="border-t pt-3 space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Revenue Collected</span>
+                  <span className="text-sm text-muted-foreground">Gross Revenue</span>
                   <span className="font-medium">{formatCurrency(analytics.total_table_revenue)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Processing Fees</span>
-                  <span className="font-medium">$0.00</span>
+                  <span className="text-sm text-muted-foreground">Tax Collected</span>
+                  <span className="font-medium">{formatCurrency(analytics.table_tax_collected)}</span>
                 </div>
                 <div className="flex justify-between items-center border-t pt-2">
-                  <span className="text-sm font-medium">You Receive</span>
+                  <span className="text-sm font-medium">Net Revenue</span>
                   <span className="font-bold text-green-600">{formatCurrency(analytics.total_table_revenue)}</span>
                 </div>
               </div>

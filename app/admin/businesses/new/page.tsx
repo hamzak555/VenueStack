@@ -15,9 +15,6 @@ export default function NewBusinessPage() {
 
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Create Business Account</h1>
-        <p className="text-muted-foreground">
-          Set up a new business account with a custom public URL
-        </p>
       </div>
 
       <BusinessForm />

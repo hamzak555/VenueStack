@@ -174,19 +174,15 @@ export function SubscriptionSettings({ businessId, businessSlug }: SubscriptionS
   const getStatusBadge = (status: string | null) => {
     switch (status) {
       case 'active':
-        return <Badge className="bg-green-500/10 text-green-500 border-green-500/50 hover:bg-green-500/20">Active</Badge>
+        return <Badge variant="success">Active</Badge>
       case 'trialing':
-        return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/20">Trial</Badge>
+        return <Badge variant="warning">Trial</Badge>
       case 'past_due':
-        return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/20">Past Due</Badge>
+        return <Badge variant="destructive">Past Due</Badge>
       case 'canceled':
-        return <Badge className="bg-red-500/10 text-red-500 border-red-500/50 hover:bg-red-500/20">Canceled</Badge>
-      case 'incomplete':
-        return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/50 hover:bg-orange-500/20">Incomplete</Badge>
-      case 'unpaid':
-        return <Badge className="bg-red-500/10 text-red-500 border-red-500/50 hover:bg-red-500/20">Unpaid</Badge>
+        return <Badge variant="destructive">Canceled</Badge>
       default:
-        return <Badge variant="outline">No Subscription</Badge>
+        return <Badge variant="purple">No Subscription</Badge>
     }
   }
 
@@ -248,7 +244,7 @@ export function SubscriptionSettings({ businessId, businessSlug }: SubscriptionS
           <div className="flex gap-8">
             <div>
               <p className="text-sm text-muted-foreground">Plan</p>
-              <p className="font-medium">${data?.settings.monthlyFee || 49}/month</p>
+              <p className="font-medium">${data?.settings.monthlyFee}/month</p>
             </div>
             {data?.createdAt && (
               <div>

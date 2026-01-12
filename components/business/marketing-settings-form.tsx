@@ -318,8 +318,7 @@ export function MarketingSettingsForm({ businessId, businessSlug, business }: Ma
   // Your custom tracking code
 </script>`}
                 rows={6}
-                className="font-mono text-sm max-h-48 overflow-y-auto resize-none"
-              />
+                className="font-mono text-sm max-h-48 overflow-y-auto resize-none"               />
               <p className="text-xs text-muted-foreground">
                 Scripts will be injected into the &lt;head&gt; section of your public page. Include full &lt;script&gt; tags.
               </p>
@@ -354,8 +353,7 @@ export function MarketingSettingsForm({ businessId, businessSlug, business }: Ma
   });
 </script>`}
                 rows={6}
-                className="font-mono text-sm max-h-48 overflow-y-auto resize-none"
-              />
+                className="font-mono text-sm max-h-48 overflow-y-auto resize-none"               />
               <p className="text-xs text-muted-foreground">
                 These scripts run on the purchase confirmation page after a successful checkout. Include full &lt;script&gt; tags.
               </p>

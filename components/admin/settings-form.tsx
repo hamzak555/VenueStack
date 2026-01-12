@@ -156,9 +156,6 @@ export default function AdminSettingsForm() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Platform Settings</h1>
-        <p className="text-muted-foreground">
-          Configure platform fees and payment settings
-        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

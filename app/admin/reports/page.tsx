@@ -452,28 +452,24 @@ function formatDateShort(dateString: string): string {
 
 function getSubscriptionBadge(status: string | null, cancelAtPeriodEnd: boolean) {
   if (!status) {
-    return <Badge variant="outline" className="text-xs">No Sub</Badge>
+    return <Badge variant="purple" className="text-xs">No Subscription</Badge>
   }
 
   if (cancelAtPeriodEnd && (status === 'active' || status === 'trialing')) {
-    return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/50 text-xs">Canceling</Badge>
+    return <Badge variant="warning" className="text-xs">Canceling</Badge>
   }
 
   switch (status) {
     case 'active':
-      return <Badge className="bg-green-500/10 text-green-500 border-green-500/50 text-xs">Active</Badge>
+      return <Badge variant="success" className="text-xs">Active</Badge>
     case 'trialing':
-      return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/50 text-xs">Trial</Badge>
+      return <Badge variant="warning" className="text-xs">Trial</Badge>
     case 'past_due':
-      return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/50 text-xs">Past Due</Badge>
+      return <Badge variant="destructive" className="text-xs">Past Due</Badge>
     case 'canceled':
-      return <Badge className="bg-gray-500/10 text-gray-500 border-gray-500/50 text-xs">Canceled</Badge>
-    case 'incomplete':
-      return <Badge className="bg-red-500/10 text-red-500 border-red-500/50 text-xs">Incomplete</Badge>
-    case 'unpaid':
-      return <Badge className="bg-red-500/10 text-red-500 border-red-500/50 text-xs">Unpaid</Badge>
+      return <Badge variant="destructive" className="text-xs">Canceled</Badge>
     default:
-      return <Badge variant="outline" className="text-xs">{status}</Badge>
+      return <Badge variant="purple" className="text-xs">No Subscription</Badge>
   }
 }
 
@@ -488,9 +484,6 @@ export default async function ReportsPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Platform Reports</h1>
-          <p className="text-muted-foreground">
-            Comprehensive analytics for all businesses on the platform
-          </p>
         </div>
 
         {/* Platform Revenue Overview */}
@@ -620,23 +613,23 @@ export default async function ReportsPage() {
               <div className="grid gap-4 md:grid-cols-5">
                 <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
                   <div className="text-2xl font-bold text-green-600">{subscriptionSummary.active_subscribers}</div>
-                  <div className="text-sm text-muted-foreground">Active</div>
+                  <div className="text-sm text-green-600">Active</div>
                 </div>
-                <div className="text-center p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <div className="text-2xl font-bold text-blue-600">{subscriptionSummary.trialing_subscribers}</div>
-                  <div className="text-sm text-muted-foreground">Trialing</div>
+                <div className="text-center p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                  <div className="text-2xl font-bold text-yellow-600">{subscriptionSummary.trialing_subscribers}</div>
+                  <div className="text-sm text-yellow-600">Trial</div>
                 </div>
-                <div className="text-center p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                  <div className="text-2xl font-bold text-orange-600">{subscriptionSummary.past_due_subscribers}</div>
-                  <div className="text-sm text-muted-foreground">Past Due</div>
+                <div className="text-center p-4 bg-red-500/10 rounded-lg border border-red-500/20">
+                  <div className="text-2xl font-bold text-red-600">{subscriptionSummary.past_due_subscribers}</div>
+                  <div className="text-sm text-red-600">Past Due</div>
                 </div>
-                <div className="text-center p-4 bg-gray-500/10 rounded-lg border border-gray-500/20">
-                  <div className="text-2xl font-bold text-gray-600">{subscriptionSummary.canceled_subscribers}</div>
-                  <div className="text-sm text-muted-foreground">Canceled</div>
+                <div className="text-center p-4 bg-red-500/10 rounded-lg border border-red-500/20">
+                  <div className="text-2xl font-bold text-red-600">{subscriptionSummary.canceled_subscribers}</div>
+                  <div className="text-sm text-red-600">Canceled</div>
                 </div>
-                <div className="text-center p-4 bg-muted rounded-lg border">
-                  <div className="text-2xl font-bold">{summary.total_businesses - subscriptionSummary.total_subscribers}</div>
-                  <div className="text-sm text-muted-foreground">No Subscription</div>
+                <div className="text-center p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                  <div className="text-2xl font-bold text-purple-600">{summary.total_businesses - subscriptionSummary.total_subscribers}</div>
+                  <div className="text-sm text-purple-600">No Subscription</div>
                 </div>
               </div>
             </CardContent>
@@ -810,8 +803,6 @@ export default async function ReportsPage() {
 
         {/* Needs Attention */}
         {(subscriptionSummary.past_due_subscribers > 0 ||
-          businesses.some(b => b.subscription_status === 'unpaid') ||
-          businesses.some(b => b.subscription_status === 'incomplete') ||
           businesses.some(b => b.subscription_status === 'canceled' && b.total_revenue > 0) ||
           businesses.some(b => !b.stripe_onboarding_complete && b.is_active) ||
           businesses.some(b => !b.is_active && b.total_events > 0)) && (
@@ -827,21 +818,6 @@ export default async function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {/* Unpaid Subscriptions - Most Critical */}
-                {businesses
-                  .filter(b => b.subscription_status === 'unpaid')
-                  .map(business => (
-                    <div key={business.id} className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
-                      <div>
-                        <div className="font-medium">{business.name}</div>
-                        <div className="text-sm text-red-600">Subscription unpaid - multiple failed payments</div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {formatCurrency(business.total_revenue)} lifetime revenue
-                      </div>
-                    </div>
-                  ))}
-
                 {/* Past Due Subscriptions */}
                 {businesses
                   .filter(b => b.subscription_status === 'past_due')
@@ -853,21 +829,6 @@ export default async function ReportsPage() {
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {formatCurrency(business.total_revenue)} lifetime revenue
-                      </div>
-                    </div>
-                  ))}
-
-                {/* Incomplete Subscriptions */}
-                {businesses
-                  .filter(b => b.subscription_status === 'incomplete')
-                  .map(business => (
-                    <div key={business.id} className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                      <div>
-                        <div className="font-medium">{business.name}</div>
-                        <div className="text-sm text-orange-600">Subscription setup incomplete</div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Joined {formatDateShort(business.created_at)}
                       </div>
                     </div>
                   ))}

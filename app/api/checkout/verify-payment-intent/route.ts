@@ -341,6 +341,10 @@ async function handleTableBookingVerification(
     trackingRef,
   } = metadata
 
+  // Get tax amount from metadata (stored as taxAmount in create-table-payment-intent, passed as taxAmountStr)
+  const totalTaxAmount = parseFloat(metadata.taxAmountStr || '0')
+  console.log('Table booking tax from metadata:', { taxAmountStr: metadata.taxAmountStr, totalTaxAmount })
+
   // Look up tracking link ID if trackingRef is provided
   let trackingLinkId: string | null = null
   if (trackingRef) {
@@ -404,10 +408,13 @@ async function handleTableBookingVerification(
     )
   }
 
-  // Parse order details
+  // Parse order details and calculate total price for tax distribution
   let parsedOrderDetails: { sectionId: string; sectionName: string; quantity: number; price: number }[] = []
+  let totalTablePrice = 0
   try {
     parsedOrderDetails = JSON.parse(orderDetails)
+    // Calculate total table price for proportional tax distribution
+    totalTablePrice = parsedOrderDetails.reduce((sum, d) => sum + (d.price * d.quantity), 0)
   } catch (e) {
     return NextResponse.json(
       { error: 'Invalid order details' },
@@ -434,6 +441,12 @@ async function handleTableBookingVerification(
     }
 
     // Create bookings for each table in this section (table_number left null for business to assign)
+    // Calculate tax per table proportionally based on price
+    const taxPerTable = totalTablePrice > 0
+      ? (detail.price / totalTablePrice) * totalTaxAmount
+      : 0
+    console.log('Creating table booking with tax:', { price: detail.price, totalTablePrice, totalTaxAmount, taxPerTable })
+
     for (let i = 0; i < quantity; i++) {
       // Create table booking record with amount (price per table)
       // table_number is left null - business will assign specific table later
@@ -448,6 +461,7 @@ async function handleTableBookingVerification(
           customer_email: customerEmail,
           customer_phone: customerPhone || null,
           amount: detail.price, // Store the price per table
+          tax_amount: taxPerTable, // Store the tax per table
           status: 'confirmed',
           tracking_ref: trackingRef || null,
           tracking_link_id: trackingLinkId,

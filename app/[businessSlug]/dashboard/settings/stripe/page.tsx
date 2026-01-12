@@ -300,9 +300,6 @@ export default function StripeSettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Payment Settings</h1>
-        <p className="text-muted-foreground">
-          Connect your Stripe account to receive payments
-        </p>
       </div>
 
       {success && (

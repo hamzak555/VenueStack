@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, EyeOff, Copy, Check } from 'lucide-react'
 
 interface User {
   id: string
@@ -62,6 +62,25 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
   })
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [copiedField, setCopiedField] = useState<'email' | 'password' | 'all' | null>(null)
+
+  // Generate a random password
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%'
+    let password = ''
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return password
+  }
+
+  // Copy to clipboard helper
+  const copyToClipboard = async (text: string, field: 'email' | 'password' | 'all') => {
+    await navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
 
   const fetchUsers = async () => {
     try {
@@ -206,8 +225,10 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
   }
 
   const openCreateDialog = () => {
-    setFormData({ email: '', password: '', name: '', role: 'regular' })
+    setFormData({ email: '', password: generatePassword(), name: '', role: 'regular' })
     setFormError(null)
+    setShowPassword(true)
+    setCopiedField(null)
     setCreateDialogOpen(true)
   }
 
@@ -267,26 +288,96 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        required
-                        disabled={formLoading}
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          required
+                          disabled={formLoading}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => copyToClipboard(formData.email, 'email')}
+                          disabled={!formData.email}
+                          title="Copy email"
+                        >
+                          {copiedField === 'email' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        required
-                        disabled={formLoading}
-                      />
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setFormData({ ...formData, password: generatePassword() })}
+                          disabled={formLoading}
+                          className="h-auto py-1 px-2 text-xs"
+                        >
+                          Regenerate
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            required
+                            disabled={formLoading}
+                            className="pr-10 font-mono"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            title={showPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                          </Button>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => copyToClipboard(formData.password, 'password')}
+                          disabled={!formData.password}
+                          title="Copy password"
+                        >
+                          {copiedField === 'password' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
                     </div>
+                    {formData.email && formData.password && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => copyToClipboard(`Email: ${formData.email}\nPassword: ${formData.password}`, 'all')}
+                        className="w-full"
+                      >
+                        {copiedField === 'all' ? (
+                          <>
+                            <Check className="mr-2 h-4 w-4 text-green-500" />
+                            Credentials Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy Login Credentials
+                          </>
+                        )}
+                      </Button>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="role">Role</Label>
                       <Select

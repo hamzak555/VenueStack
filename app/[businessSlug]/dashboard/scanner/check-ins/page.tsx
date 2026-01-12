@@ -52,9 +52,6 @@ export default async function CheckInsPage({ params }: { params: Promise<{ busin
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Check-In History</h1>
-          <p className="text-muted-foreground mt-2">
-            View all ticket check-ins across your events
-          </p>
         </div>
       </div>
 

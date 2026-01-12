@@ -33,18 +33,7 @@ export default async function AllTicketsPage({ params, searchParams }: AllTicket
     const events = await getEventsWithTicketStats(business.id)
 
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">All Tickets</h1>
-            <p className="text-muted-foreground">
-              Select an event to view and manage tickets
-            </p>
-          </div>
-        </div>
-
-        <TicketsEventSelector events={events} businessSlug={businessSlug} />
-      </div>
+      <TicketsEventSelector events={events} businessSlug={businessSlug} title="All Tickets" />
     )
   }
 

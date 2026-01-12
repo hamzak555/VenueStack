@@ -7,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface TermsModalProps {
   isOpen: boolean
@@ -26,11 +25,11 @@ export function TermsModal({ isOpen, onClose, businessName, termsAndConditions }
             {businessName}&apos;s terms and conditions
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <div className="max-h-[60vh] pr-4 overflow-y-auto">
           <div className="whitespace-pre-wrap text-sm text-muted-foreground">
             {termsAndConditions}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   )

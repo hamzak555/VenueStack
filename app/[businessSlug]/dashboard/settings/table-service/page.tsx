@@ -26,9 +26,6 @@ export default async function TableServicePage({ params }: TableServicePageProps
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Floor Plan</h1>
-        <p className="text-muted-foreground">
-          Configure your venue layout and table sections for table service
-        </p>
       </div>
 
       <Card>

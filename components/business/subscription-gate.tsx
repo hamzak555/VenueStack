@@ -61,6 +61,7 @@ export async function SubscriptionGate({
       access={access}
       monthlyFee={settings.monthlyFee}
       trialDays={settings.trialDays}
+      themeColor={business.theme_color || '#6366f1'}
     />
   )
 

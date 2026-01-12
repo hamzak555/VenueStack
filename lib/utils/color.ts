@@ -71,7 +71,7 @@ export function getThemeColorStyle(themeColor: string) {
   if (!rgb) {
     // Fallback to violet
     return {
-      '--theme-color': '139, 92, 246',
+      '--theme-color': '139 92 246',
       '--theme-color-hex': '#8b5cf6',
       '--theme-color-contrast': '#ffffff',
     }
@@ -88,7 +88,7 @@ export function getThemeColorStyle(themeColor: string) {
   }
 
   return {
-    '--theme-color': `${visibleRgb.r}, ${visibleRgb.g}, ${visibleRgb.b}`,
+    '--theme-color': `${visibleRgb.r} ${visibleRgb.g} ${visibleRgb.b}`,
     '--theme-color-hex': visibleHex,
     '--theme-color-contrast': contrastColor,
   }

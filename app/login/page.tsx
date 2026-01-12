@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Eye, EyeOff, Building2, Shield, ChevronRight, Phone, Mail } from 'lucide-react'
+import { Eye, EyeOff, Building2, Shield, ChevronRight, Phone, Mail, Check, X, Loader2 } from 'lucide-react'
 import { InteractiveGridPattern } from '@/components/ui/interactive-grid-pattern'
 import Image from 'next/image'
 
@@ -44,6 +44,32 @@ export default function UnifiedLoginPage() {
   const [affiliations, setAffiliations] = useState<UserAffiliation[]>([])
   const [userName, setUserName] = useState('')
   const [selectingId, setSelectingId] = useState<string | null>(null)
+
+  // Mode state (login or register)
+  const [mode, setMode] = useState<'login' | 'register'>('login')
+
+  // Registration state
+  const [registerForm, setRegisterForm] = useState({
+    businessName: '',
+    slug: '',
+    userName: '',
+    email: '',
+    password: '',
+    phone: '',
+  })
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
+  const [slugMessage, setSlugMessage] = useState('')
+  const [registerLoading, setRegisterLoading] = useState(false)
+  const [registerError, setRegisterError] = useState('')
+  const [registerSuccess, setRegisterSuccess] = useState(false)
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false)
+
+  // Field validation helpers
+  const isValidBusinessName = registerForm.businessName.trim().length >= 2
+  const isValidUserName = registerForm.userName.trim().length >= 2
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)
+  const isValidPassword = registerForm.password.length >= 6
+  const isValidPhone = registerForm.phone.trim().length >= 10
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -191,6 +217,142 @@ export default function UnifiedLoginPage() {
     setError('')
   }
 
+  // Generate slug from business name
+  const generateSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim()
+  }
+
+  // Check slug availability with debounce
+  const checkSlugAvailability = useCallback(async (slug: string) => {
+    if (!slug || slug.length < 2) {
+      setSlugStatus('idle')
+      setSlugMessage('')
+      return
+    }
+
+    setSlugStatus('checking')
+
+    try {
+      const response = await fetch(`/api/auth/check-slug?slug=${encodeURIComponent(slug)}`)
+      const data = await response.json()
+
+      setSlugStatus(data.available ? 'available' : 'taken')
+      setSlugMessage(data.message)
+    } catch {
+      setSlugStatus('idle')
+      setSlugMessage('')
+    }
+  }, [])
+
+  // Debounced slug check
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (registerForm.slug) {
+        checkSlugAvailability(registerForm.slug)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [registerForm.slug, checkSlugAvailability])
+
+  // Handle business name change and auto-generate slug
+  const handleBusinessNameChange = (name: string) => {
+    setRegisterForm(prev => ({
+      ...prev,
+      businessName: name,
+      slug: generateSlug(name),
+    }))
+  }
+
+  // Handle registration
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setRegisterError('')
+    setRegisterLoading(true)
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registerForm),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed')
+      }
+
+      setRegisterSuccess(true)
+
+      // Auto-login after registration and redirect to subscription setup
+      setTimeout(async () => {
+        // Login with the new credentials
+        const loginResponse = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: registerForm.email,
+            password: registerForm.password,
+          }),
+        })
+
+        const loginData = await loginResponse.json()
+
+        if (loginResponse.ok && loginData.affiliations?.length > 0) {
+          // Select the business affiliation
+          const businessAffiliation = loginData.affiliations.find((a: UserAffiliation) => a.type === 'business')
+          if (businessAffiliation) {
+            // Create session
+            const selectResponse = await fetch('/api/auth/select', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                affiliationType: businessAffiliation.type,
+                businessId: businessAffiliation.businessId,
+              }),
+            })
+
+            if (selectResponse.ok) {
+              // Redirect to events page to see the unlock dashboard box
+              router.push(`/${businessAffiliation.businessSlug}/dashboard/events`)
+              router.refresh()
+            }
+          }
+        }
+      }, 1500)
+    } catch (err) {
+      setRegisterError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setRegisterLoading(false)
+    }
+  }
+
+  // Switch to login mode
+  const switchToLogin = () => {
+    setMode('login')
+    setRegisterError('')
+    setRegisterSuccess(false)
+    setSlugStatus('idle')
+  }
+
+  // Switch to register mode
+  const switchToRegister = () => {
+    setMode('register')
+    setError('')
+  }
+
   // Render selection screen
   if (showSelection) {
     const adminAffiliation = affiliations.find(a => a.type === 'admin')
@@ -333,81 +495,306 @@ export default function UnifiedLoginPage() {
       </div>
       <Card className="w-full max-w-md relative z-10">
         <CardHeader>
-          <CardTitle>Sign in</CardTitle>
+          <CardTitle>{mode === 'login' ? 'Sign in' : 'Register your business'}</CardTitle>
           <CardDescription>
-            Choose how you'd like to sign in
+            {mode === 'login'
+              ? 'Choose how you\'d like to sign in'
+              : 'Create your account and start your free trial'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Login method tabs */}
-          <div className="flex rounded-lg bg-muted p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setLoginMethod('email')
-                setError('')
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 rounded-md py-2 text-sm font-medium transition-colors ${
-                loginMethod === 'email'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Mail className="h-4 w-4" />
-              Email
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setLoginMethod('phone')
-                setError('')
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 rounded-md py-2 text-sm font-medium transition-colors ${
-                loginMethod === 'phone'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Phone className="h-4 w-4" />
-              Phone
-            </button>
-          </div>
+          {/* Login Form */}
+          {mode === 'login' && (
+            <>
+              {/* Login method tabs */}
+              <div className="flex rounded-lg bg-muted p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMethod('email')
+                    setError('')
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-md py-2 text-sm font-medium transition-colors ${
+                    loginMethod === 'email'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Mail className="h-4 w-4" />
+                  Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMethod('phone')
+                    setError('')
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-md py-2 text-sm font-medium transition-colors ${
+                    loginMethod === 'phone'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Phone className="h-4 w-4" />
+                  Phone
+                </button>
+              </div>
 
-          {/* Email login form */}
-          {loginMethod === 'email' && (
-            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Email login form */}
+              {loginMethod === 'email' && (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        disabled={loading}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        disabled={loading}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  {error && (
+                    <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
+                      {error}
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? 'Signing in...' : 'Sign in'}
+                  </Button>
+                </form>
+              )}
+
+              {/* Phone login form */}
+              {loginMethod === 'phone' && !codeSent && (
+                <form onSubmit={handleSendCode} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+1 (555) 123-4567"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      required
+                      disabled={sendingCode}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      We'll send you a verification code via SMS
+                    </p>
+                  </div>
+                  {error && (
+                    <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
+                      {error}
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full" disabled={sendingCode}>
+                    {sendingCode ? 'Sending code...' : 'Send verification code'}
+                  </Button>
+                </form>
+              )}
+
+              {/* OTP verification form */}
+              {loginMethod === 'phone' && codeSent && (
+                <form onSubmit={handleVerifyCode} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="otp">Verification Code</Label>
+                    <Input
+                      id="otp"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      placeholder="123456"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      required
+                      disabled={loading}
+                      className="text-center text-2xl tracking-widest"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter the 6-digit code sent to {normalizedPhone}
+                    </p>
+                  </div>
+                  {error && (
+                    <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
+                      {error}
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full" disabled={loading || otpCode.length !== 6}>
+                    {loading ? 'Verifying...' : 'Verify code'}
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={handleChangePhone}
+                      disabled={loading}
+                    >
+                      Change number
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={handleSendCode}
+                      disabled={sendingCode}
+                    >
+                      {sendingCode ? 'Sending...' : 'Resend code'}
+                    </Button>
+                  </div>
+                </form>
+              )}
+
+              {/* Register link */}
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">New to VenueStack?</span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={switchToRegister}
+              >
+                <Building2 className="mr-2 h-4 w-4" />
+                Register your business
+              </Button>
+            </>
+          )}
+
+          {/* Registration Form */}
+          {mode === 'register' && !registerSuccess && (
+            <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="businessName">Business Name *</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="businessName"
+                  type="text"
+                  placeholder="My Awesome Venue"
+                  value={registerForm.businessName}
+                  onChange={(e) => handleBusinessNameChange(e.target.value)}
                   required
-                  disabled={loading}
+                  disabled={registerLoading}
+                  className={isValidBusinessName ? 'border-green-500 focus-visible:ring-green-500' : ''}
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="slug">Your URL *</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">venuestack.io/</span>
+                  <div className="relative flex-1">
+                    <Input
+                      id="slug"
+                      type="text"
+                      placeholder="my-venue"
+                      value={registerForm.slug}
+                      onChange={(e) => setRegisterForm(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                      required
+                      disabled={registerLoading}
+                      className={`pr-8 ${
+                        slugStatus === 'available' ? 'border-green-500 focus-visible:ring-green-500' :
+                        slugStatus === 'taken' ? 'border-red-500 focus-visible:ring-red-500' : ''
+                      }`}
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      {slugStatus === 'checking' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                      {slugStatus === 'available' && <Check className="h-4 w-4 text-green-500" />}
+                      {slugStatus === 'taken' && <X className="h-4 w-4 text-red-500" />}
+                    </div>
+                  </div>
+                </div>
+                {slugMessage && (
+                  <p className={`text-xs ${slugStatus === 'available' ? 'text-green-500' : 'text-red-500'}`}>
+                    {slugMessage}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="registerUserName">Your Name *</Label>
+                <Input
+                  id="registerUserName"
+                  type="text"
+                  placeholder="John Doe"
+                  value={registerForm.userName}
+                  onChange={(e) => setRegisterForm(prev => ({ ...prev, userName: e.target.value }))}
+                  required
+                  disabled={registerLoading}
+                  className={isValidUserName ? 'border-green-500 focus-visible:ring-green-500' : ''}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="registerEmail">Email *</Label>
+                <Input
+                  id="registerEmail"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={registerForm.email}
+                  onChange={(e) => setRegisterForm(prev => ({ ...prev, email: e.target.value }))}
+                  required
+                  disabled={registerLoading}
+                  className={isValidEmail ? 'border-green-500 focus-visible:ring-green-500' : ''}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="registerPassword">Password *</Label>
                 <div className="relative">
                   <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    id="registerPassword"
+                    type={showRegisterPassword ? 'text' : 'password'}
+                    placeholder="Minimum 6 characters"
+                    value={registerForm.password}
+                    onChange={(e) => setRegisterForm(prev => ({ ...prev, password: e.target.value }))}
                     required
-                    disabled={loading}
-                    className="pr-10"
+                    minLength={6}
+                    disabled={registerLoading}
+                    className={`pr-10 ${isValidPassword ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowRegisterPassword(!showRegisterPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    disabled={loading}
+                    disabled={registerLoading}
                   >
-                    {showPassword ? (
+                    {showRegisterPassword ? (
                       <EyeOff className="h-4 w-4" />
                     ) : (
                       <Eye className="h-4 w-4" />
@@ -415,97 +802,82 @@ export default function UnifiedLoginPage() {
                   </button>
                 </div>
               </div>
-              {error && (
-                <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
-                  {error}
-                </div>
-              )}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign in'}
-              </Button>
-            </form>
-          )}
 
-          {/* Phone login form */}
-          {loginMethod === 'phone' && !codeSent && (
-            <form onSubmit={handleSendCode} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="registerPhone">Phone Number *</Label>
                 <Input
-                  id="phone"
+                  id="registerPhone"
                   type="tel"
                   placeholder="+1 (555) 123-4567"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  value={registerForm.phone}
+                  onChange={(e) => setRegisterForm(prev => ({ ...prev, phone: e.target.value }))}
                   required
-                  disabled={sendingCode}
+                  disabled={registerLoading}
+                  className={isValidPhone ? 'border-green-500 focus-visible:ring-green-500' : ''}
                 />
-                <p className="text-xs text-muted-foreground">
-                  We'll send you a verification code via SMS
-                </p>
               </div>
-              {error && (
+
+              {registerError && (
                 <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
-                  {error}
+                  {registerError}
                 </div>
               )}
-              <Button type="submit" className="w-full" disabled={sendingCode}>
-                {sendingCode ? 'Sending code...' : 'Send verification code'}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={registerLoading || slugStatus === 'taken' || slugStatus === 'checking'}
+              >
+                {registerLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating your account...
+                  </>
+                ) : (
+                  'Get Started'
+                )}
+              </Button>
+
+              <p className="text-xs text-center text-muted-foreground">
+                By registering, you agree to our terms of service and privacy policy
+              </p>
+
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Already have an account?</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={switchToLogin}
+              >
+                Sign in instead
               </Button>
             </form>
           )}
 
-          {/* OTP verification form */}
-          {loginMethod === 'phone' && codeSent && (
-            <form onSubmit={handleVerifyCode} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="otp">Verification Code</Label>
-                <Input
-                  id="otp"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  required
-                  disabled={loading}
-                  className="text-center text-2xl tracking-widest"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Enter the 6-digit code sent to {normalizedPhone}
+          {/* Registration Success */}
+          {mode === 'register' && registerSuccess && (
+            <div className="text-center space-y-4 py-4">
+              <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
+                <Check className="h-8 w-8 text-green-500" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Welcome to VenueStack!</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Your account has been created. Redirecting you to start your free trial...
                 </p>
               </div>
-              {error && (
-                <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
-                  {error}
-                </div>
-              )}
-              <Button type="submit" className="w-full" disabled={loading || otpCode.length !== 6}>
-                {loading ? 'Verifying...' : 'Verify code'}
-              </Button>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={handleChangePhone}
-                  disabled={loading}
-                >
-                  Change number
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={handleSendCode}
-                  disabled={sendingCode}
-                >
-                  {sendingCode ? 'Sending...' : 'Resend code'}
-                </Button>
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            </form>
+            </div>
           )}
         </CardContent>
       </Card>
