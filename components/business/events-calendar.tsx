@@ -419,7 +419,7 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                               <>
                                 <div className={cn(
                                   "space-y-1.5 h-full",
-                                  dayEvents.length >= 4 ? "pb-14 overflow-y-auto" : "pb-1"
+                                  dayEvents.length >= 4 ? "pb-14 overflow-hidden" : "pb-1"
                                 )}>
                                   {dayEvents.map(event => (
                                     <EventCard
