@@ -398,7 +398,7 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                   key={index}
                   className={cn(
                     "p-2 border-b border-r",
-                    isCompactRow ? "h-[60px]" : "h-[240px]",
+                    isCompactRow ? "h-[100px]" : "h-[240px]",
                     "[&:nth-child(7n)]:border-r-0",
                     day === null && "bg-muted/30",
                     pastDay && day !== null && "bg-muted/20"
