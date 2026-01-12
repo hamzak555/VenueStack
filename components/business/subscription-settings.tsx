@@ -262,7 +262,7 @@ export function SubscriptionSettings({ businessId, businessSlug }: SubscriptionS
                   {data.cancelAtPeriodEnd ? 'Access Until' : 'Next Billing Date'}
                 </p>
                 <p className="font-medium">
-                  {formatDate(data.status === 'trialing' ? data.access.trialEndsAt : data.currentPeriodEnd)}
+                  {formatDate(data.status === 'trialing' ? (data.access.trialEndsAt ?? null) : data.currentPeriodEnd)}
                 </p>
               </div>
             )}
