@@ -72,18 +72,38 @@ export async function POST(request: NextRequest) {
     const business = await createBusiness({
       name: businessName,
       slug: slug.toLowerCase(),
-      is_active: true,
+      description: null,
+      logo_url: null,
       contact_email: email.toLowerCase(),
       contact_phone: phone,
+      website: null,
+      address: null,
+      address_latitude: null,
+      address_longitude: null,
+      google_place_id: null,
+      instagram: null,
+      tiktok: null,
+      theme_color: '#6366f1', // Default indigo color
+      user_id: null,
+      is_active: true,
+      stripe_account_id: null,
       stripe_onboarding_complete: false,
       stripe_fee_payer: 'customer',
       platform_fee_payer: 'customer',
       tax_percentage: 0,
       use_custom_fee_settings: false,
-      subscription_cancel_at_period_end: false,
+      platform_fee_type: null,
+      flat_fee_amount: null,
+      percentage_fee: null,
+      venue_layout_url: null,
+      table_service_config: null,
+      stripe_customer_id: null,
       subscription_status: null, // No subscription until they add payment method
+      subscription_id: null,
+      subscription_current_period_end: null,
+      subscription_cancel_at_period_end: false,
       trial_end_date: null,
-      theme_color: '#6366f1', // Default indigo color
+      subscription_created_at: null,
     })
 
     // Create the admin user for this business
