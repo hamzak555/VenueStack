@@ -153,14 +153,16 @@ export function NotificationCenter({ businessId, businessSlug }: NotificationCen
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+        <button className="relative group">
+          <div className="h-7 w-7 rounded-md bg-[rgb(var(--theme-color))]/10 group-hover:bg-[rgb(var(--theme-color))]/20 flex items-center justify-center transition-colors">
+            <Bell className="h-3.5 w-3.5" style={{ color: 'var(--theme-color-hex)' }} />
+          </div>
           {notifications.length > 0 && (
             <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-medium">
               {notifications.length > 9 ? '9+' : notifications.length}
             </span>
           )}
-        </Button>
+        </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="start" sideOffset={8}>
         <div className="flex items-center justify-between p-4 border-b">
