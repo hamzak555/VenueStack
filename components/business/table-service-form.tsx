@@ -21,8 +21,55 @@ import {
 import { Upload, X, FileImage, FilePlus, Trash2, Plus, GripVertical, Check } from 'lucide-react'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { TableSection, TableServiceConfig, DrawnVenueLayout } from '@/lib/types'
+import { TableSection, TableServiceConfig, DrawnVenueLayout, VenueLayout } from '@/lib/types'
 import { VenueLayoutEditor } from './venue-layout-editor'
+
+// Migration helper: convert legacy single layout to multi-layout format
+function migrateToMultiLayout(
+  venueLayoutUrl: string | null,
+  config: TableServiceConfig | null
+): { layouts: VenueLayout[]; sections: TableSection[]; activeLayoutId: string | null } {
+  // Already has layouts - return as-is
+  if (config?.layouts && config.layouts.length > 0) {
+    return {
+      layouts: config.layouts,
+      sections: config.sections || [],
+      activeLayoutId: config.activeLayoutId || config.layouts[0]?.id || null,
+    }
+  }
+
+  // No config or no layout - return empty
+  if (!config && !venueLayoutUrl) {
+    return { layouts: [], sections: [], activeLayoutId: null }
+  }
+
+  // Migrate from legacy format
+  const defaultLayoutId = crypto.randomUUID()
+  const defaultLayout: VenueLayout = {
+    id: defaultLayoutId,
+    label: 'Main Floor',
+    imageUrl: venueLayoutUrl,
+    drawnLayout: config?.drawnLayout,
+    order: 0,
+    isDefault: true,
+  }
+
+  // Assign all placed tables to the default layout
+  const migratedSections = (config?.sections || []).map(section => ({
+    ...section,
+    tableNames: section.tableNames || Array.from({ length: section.tableCount }, (_, i) => `${i + 1}`),
+    tablePositions: section.tablePositions?.map(pos => ({
+      ...pos,
+      layoutId: pos.placed ? defaultLayoutId : undefined,
+    })),
+  }))
+
+  return {
+    layouts: venueLayoutUrl || config?.drawnLayout ? [defaultLayout] : [],
+    sections: migratedSections,
+    activeLayoutId: venueLayoutUrl || config?.drawnLayout ? defaultLayoutId : null,
+  }
+}
 
 interface TableServiceFormProps {
   businessId: string
@@ -39,54 +86,52 @@ export function TableServiceForm({
 }: TableServiceFormProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const layoutFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  // Migrate legacy data to multi-layout format
+  const migratedData = useMemo(
+    () => migrateToMultiLayout(venueLayoutUrl, tableServiceConfig),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [] // Only run on initial mount
+  )
 
   const [uploading, setUploading] = useState(false)
+  const [uploadingLayoutId, setUploadingLayoutId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [layoutUrl, setLayoutUrl] = useState<string | null>(venueLayoutUrl)
-  const [layoutType, setLayoutType] = useState<'image' | 'pdf' | null>(
-    venueLayoutUrl ? (venueLayoutUrl.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image') : null
-  )
-  const [sections, setSections] = useState<TableSection[]>(() => {
-    // Initialize sections with tableNames if not present
-    const existingSections = tableServiceConfig?.sections || []
-    return existingSections.map(section => ({
-      ...section,
-      tableNames: section.tableNames || Array.from({ length: section.tableCount }, (_, i) => `${i + 1}`)
-    }))
-  })
+  const [layouts, setLayouts] = useState<VenueLayout[]>(migratedData.layouts)
+  const [selectedLayoutId, setSelectedLayoutId] = useState<string | null>(migratedData.activeLayoutId)
+  const [sections, setSections] = useState<TableSection[]>(migratedData.sections)
   const [fontSize, setFontSize] = useState(tableServiceConfig?.fontSize ?? 12)
-  const [drawnLayout, setDrawnLayout] = useState<DrawnVenueLayout | null>(
-    tableServiceConfig?.drawnLayout || null
-  )
+
+  // Get current layout info for backward compatibility
+  const selectedLayout = layouts.find(l => l.id === selectedLayoutId) || layouts[0] || null
+  const layoutUrl = selectedLayout?.imageUrl || null
+  const layoutType: 'image' | 'pdf' | null = layoutUrl
+    ? (layoutUrl.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image')
+    : null
+  const drawnLayout = selectedLayout?.drawnLayout || null
 
   // Track selected tables for multi-select deletion: { sectionId: Set<tableIndex> }
   const [selectedTables, setSelectedTables] = useState<Record<string, Set<number>>>({})
   const lastClickedTableRef = useRef<{ sectionId: string; index: number } | null>(null)
 
   // Store initial values to track changes
-  const initialLayoutUrlRef = useRef<string | null>(venueLayoutUrl)
-  const initialSectionsRef = useRef<string>(JSON.stringify(
-    (tableServiceConfig?.sections || []).map(section => ({
-      ...section,
-      tableNames: section.tableNames || Array.from({ length: section.tableCount }, (_, i) => `${i + 1}`)
-    }))
-  ))
+  const initialLayoutsRef = useRef<string>(JSON.stringify(migratedData.layouts))
+  const initialSectionsRef = useRef<string>(JSON.stringify(migratedData.sections))
   const initialFontSizeRef = useRef<number>(tableServiceConfig?.fontSize ?? 12)
-  const initialDrawnLayoutRef = useRef<string>(JSON.stringify(tableServiceConfig?.drawnLayout || null))
   // Counter to force hasChanges recalculation after save
   const [savedVersion, setSavedVersion] = useState(0)
 
   // Check if there are unsaved changes
   const hasChanges = useMemo(() => {
-    const layoutChanged = layoutUrl !== initialLayoutUrlRef.current
+    const layoutsChanged = JSON.stringify(layouts) !== initialLayoutsRef.current
     const sectionsChanged = JSON.stringify(sections) !== initialSectionsRef.current
     const fontSizeChanged = fontSize !== initialFontSizeRef.current
-    const drawnLayoutChanged = JSON.stringify(drawnLayout) !== initialDrawnLayoutRef.current
-    return layoutChanged || sectionsChanged || fontSizeChanged || drawnLayoutChanged
+    return layoutsChanged || sectionsChanged || fontSizeChanged
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutUrl, sections, fontSize, drawnLayout, savedVersion])
+  }, [layouts, sections, fontSize, savedVersion])
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLayoutFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, layoutId: string) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -103,12 +148,13 @@ export function TableServiceForm({
       return
     }
 
-    setUploading(true)
+    setUploadingLayoutId(layoutId)
 
     try {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('businessId', businessId)
+      formData.append('layoutId', layoutId)
 
       const response = await fetch('/api/upload/venue-layout', {
         method: 'POST',
@@ -121,23 +167,64 @@ export function TableServiceForm({
       }
 
       const data = await response.json()
-      setLayoutUrl(data.url)
-      setLayoutType(file.type === 'application/pdf' ? 'pdf' : 'image')
-      toast.success('Venue layout uploaded successfully!')
+      updateLayout(layoutId, { imageUrl: data.url })
+      toast.success('Layout image uploaded successfully!')
     } catch (error) {
       console.error('Upload error:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to upload venue layout')
     } finally {
-      setUploading(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
+      setUploadingLayoutId(null)
+      const inputRef = layoutFileInputRefs.current[layoutId]
+      if (inputRef) {
+        inputRef.value = ''
       }
     }
   }
 
-  const handleRemoveLayout = () => {
-    setLayoutUrl(null)
-    setLayoutType(null)
+  // Layout management functions
+  const addLayout = () => {
+    const newLayout: VenueLayout = {
+      id: crypto.randomUUID(),
+      label: `Layout ${layouts.length + 1}`,
+      imageUrl: null,
+      order: layouts.length,
+      isDefault: layouts.length === 0,
+    }
+    setLayouts([...layouts, newLayout])
+    setSelectedLayoutId(newLayout.id)
+  }
+
+  const updateLayout = (id: string, updates: Partial<VenueLayout>) => {
+    setLayouts(layouts.map(l => l.id === id ? { ...l, ...updates } : l))
+  }
+
+  const removeLayout = (id: string) => {
+    // Remove layout
+    const updatedLayouts = layouts.filter(l => l.id !== id)
+    setLayouts(updatedLayouts)
+
+    // Unassign tables from this layout
+    setSections(prev => prev.map(section => ({
+      ...section,
+      tablePositions: section.tablePositions?.map(pos =>
+        pos.layoutId === id ? { ...pos, layoutId: undefined, placed: false } : pos
+      ),
+    })))
+
+    // Update selected layout if needed
+    if (selectedLayoutId === id) {
+      setSelectedLayoutId(updatedLayouts[0]?.id || null)
+    }
+  }
+
+  const removeLayoutImage = (layoutId: string) => {
+    updateLayout(layoutId, { imageUrl: null })
+  }
+
+  const setDrawnLayout = (newDrawnLayout: DrawnVenueLayout | null) => {
+    if (selectedLayoutId) {
+      updateLayout(selectedLayoutId, { drawnLayout: newDrawnLayout || undefined })
+    }
   }
 
   const generateDefaultTableNames = (count: number, sectionName?: string): string[] => {
@@ -156,7 +243,7 @@ export function TableServiceForm({
   }
 
   const updateSection = (id: string, updates: Partial<TableSection>) => {
-    setSections(sections.map(section => {
+    setSections(prev => prev.map(section => {
       if (section.id !== id) return section
 
       const updatedSection = { ...section, ...updates }
@@ -184,7 +271,7 @@ export function TableServiceForm({
   }
 
   const updateTableName = (sectionId: string, tableIndex: number, newName: string) => {
-    setSections(sections.map(section => {
+    setSections(prev => prev.map(section => {
       if (section.id !== sectionId) return section
 
       const currentNames = section.tableNames || generateDefaultTableNames(section.tableCount)
@@ -196,7 +283,7 @@ export function TableServiceForm({
   }
 
   const addTableToSection = (sectionId: string) => {
-    setSections(sections.map(section => {
+    setSections(prev => prev.map(section => {
       if (section.id !== sectionId) return section
 
       const currentNames = section.tableNames || generateDefaultTableNames(section.tableCount)
@@ -211,7 +298,7 @@ export function TableServiceForm({
   }
 
   const deleteTableFromSection = (sectionId: string, tableIndex: number) => {
-    setSections(sections.map(section => {
+    setSections(prev => prev.map(section => {
       if (section.id !== sectionId) return section
       if (section.tableCount <= 1) return section // Keep at least 1 table
 
@@ -254,7 +341,7 @@ export function TableServiceForm({
     const selected = selectedTables[sectionId]
     if (!selected || selected.size === 0) return
 
-    setSections(sections.map(section => {
+    setSections(prev => prev.map(section => {
       if (section.id !== sectionId) return section
 
       const currentNames = section.tableNames || generateDefaultTableNames(section.tableCount)
@@ -347,7 +434,7 @@ export function TableServiceForm({
   }
 
   const removeSection = (id: string) => {
-    setSections(sections.filter(section => section.id !== id))
+    setSections(prev => prev.filter(section => section.id !== id))
     // Clear any selections for this section
     setSelectedTables(prev => {
       const newSelected = { ...prev }
@@ -369,17 +456,33 @@ export function TableServiceForm({
       }
     }
 
+    // Validate layouts
+    for (const layout of layouts) {
+      if (!layout.label.trim()) {
+        toast.error('All layouts must have a label')
+        return
+      }
+    }
+
     setSaving(true)
 
     try {
+      // Build config with layouts
+      const config: TableServiceConfig | null = (sections.length > 0 || layouts.length > 0) ? {
+        sections,
+        fontSize,
+        layouts,
+        activeLayoutId: selectedLayoutId || undefined,
+      } : null
+
       const response = await fetch(`/api/businesses/${businessId}/table-service`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          venue_layout_url: layoutUrl,
-          table_service_config: sections.length > 0 ? { sections, fontSize, drawnLayout } : null,
+          venue_layout_url: layouts[0]?.imageUrl || null, // Keep legacy field for backward compatibility
+          table_service_config: config,
         }),
       })
 
@@ -389,10 +492,9 @@ export function TableServiceForm({
       }
 
       // Update initial values to reflect saved state
-      initialLayoutUrlRef.current = layoutUrl
+      initialLayoutsRef.current = JSON.stringify(layouts)
       initialSectionsRef.current = JSON.stringify(sections)
       initialFontSizeRef.current = fontSize
-      initialDrawnLayoutRef.current = JSON.stringify(drawnLayout)
       setSavedVersion(v => v + 1) // Force hasChanges recalculation
 
       toast.success('Table service settings saved!')
@@ -411,78 +513,164 @@ export function TableServiceForm({
 
   return (
     <div className="space-y-8">
-      {/* Venue Layout Upload */}
+      {/* Venue Layouts */}
       <div className="space-y-4">
-        <div className="flex items-start gap-4">
-          {/* Preview */}
-          <div className="flex-shrink-0">
-            {layoutUrl ? (
-              <div className="relative w-48 h-48 rounded-lg border bg-muted overflow-hidden group">
-                {layoutType === 'pdf' ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-muted p-4">
-                    <FileImage className="h-12 w-12 text-muted-foreground mb-2" />
-                    <span className="text-xs text-muted-foreground text-center">PDF Document</span>
-                    <a
-                      href={layoutUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline mt-1"
-                    >
-                      View PDF
-                    </a>
-                  </div>
-                ) : (
-                  <Image
-                    src={layoutUrl}
-                    alt="Venue layout"
-                    fill
-                    className="object-contain p-2"
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={handleRemoveLayout}
-                  disabled={uploading}
-                  className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="w-48 h-48 rounded-lg border-2 border-dashed bg-muted flex flex-col items-center justify-center">
-                <FileImage className="h-8 w-8 text-muted-foreground mb-2" />
-                <span className="text-xs text-muted-foreground">No layout uploaded</span>
-              </div>
-            )}
-          </div>
-
-          {/* Upload Controls */}
-          <div className="flex-1 space-y-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              onChange={handleFileSelect}
-              disabled={uploading}
-              className="hidden"
-            />
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              {uploading ? 'Uploading...' : layoutUrl ? 'Change Layout' : 'Upload Layout'}
-            </Button>
-
-            <p className="text-xs text-muted-foreground">
-              Accepted formats: JPEG, PNG, WebP, PDF. Max size: 10MB.
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-base">Venue Layouts</Label>
+            <p className="text-sm text-muted-foreground">
+              Add floor plans for different areas of your venue (e.g., Main Room, VIP Lounge, Rooftop)
             </p>
           </div>
+          <Button type="button" variant="outline" size="sm" onClick={addLayout}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Layout
+          </Button>
         </div>
+
+        {layouts.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-8">
+              <FileImage className="h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground mb-4">No layouts added yet</p>
+              <Button type="button" variant="outline" size="sm" onClick={addLayout}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Your First Layout
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {layouts.map((layout, index) => {
+              const isUploading = uploadingLayoutId === layout.id
+              const isPdf = layout.imageUrl?.toLowerCase().endsWith('.pdf')
+              return (
+                <Card
+                  key={layout.id}
+                  className={`relative ${selectedLayoutId === layout.id ? 'ring-2 ring-primary' : ''}`}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    {/* Hidden file input */}
+                    <input
+                      ref={(el) => { layoutFileInputRefs.current[layout.id] = el }}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      onChange={(e) => handleLayoutFileSelect(e, layout.id)}
+                      disabled={isUploading}
+                      className="hidden"
+                    />
+
+                    {/* Layout Image Preview - clickable to upload */}
+                    <div
+                      className={`relative w-full h-32 rounded-lg border-2 border-dashed bg-muted overflow-hidden group cursor-pointer transition-colors hover:border-primary hover:bg-muted/80 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+                      onClick={() => layoutFileInputRefs.current[layout.id]?.click()}
+                    >
+                      {layout.imageUrl ? (
+                        isPdf ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-muted p-4">
+                            <FileImage className="h-8 w-8 text-muted-foreground mb-1" />
+                            <span className="text-xs text-muted-foreground">PDF</span>
+                            <span className="text-xs text-primary mt-1">Click to change</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Image
+                              src={layout.imageUrl}
+                              alt={layout.label}
+                              fill
+                              className="object-contain p-2"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                              <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                Click to change
+                              </span>
+                            </div>
+                          </>
+                        )
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center">
+                          <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                          <span className="text-xs text-muted-foreground">
+                            {isUploading ? 'Uploading...' : 'Click to upload'}
+                          </span>
+                        </div>
+                      )}
+                      {layout.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeLayoutImage(layout.id)
+                          }}
+                          disabled={isUploading}
+                          className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Layout Label and Delete */}
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={layout.label}
+                        onChange={(e) => updateLayout(layout.id, { label: e.target.value })}
+                        placeholder="Layout name"
+                        className="text-sm flex-1"
+                      />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Layout</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete &quot;{layout.label}&quot;?
+                              Tables placed on this layout will become unassigned.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => removeLayout(layout.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+
+        {layouts.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Accepted formats: JPEG, PNG, WebP, PDF. Max size: 10MB per image.
+          </p>
+        )}
+
+        {/* Save Button for Venue Layouts */}
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || !hasChanges}
+          className="w-full sm:w-auto"
+        >
+          {saving ? 'Saving...' : 'Save Settings'}
+        </Button>
       </div>
 
       <Separator />
@@ -705,7 +893,7 @@ export function TableServiceForm({
         )}
 
         {/* Save Button for Table Sections */}
-        {sections.length > 0 && (
+        {(sections.length > 0 || layouts.length > 0) && (
           <div className="flex justify-end pt-2">
             <Button onClick={handleSave} disabled={saving || !hasChanges}>
               {saving ? 'Saving...' : 'Save Settings'}
@@ -714,8 +902,8 @@ export function TableServiceForm({
         )}
       </div>
 
-      {/* Venue Layout Editor - show when sections exist (with image or draw mode) */}
-      {sections.length > 0 && getTotalTables() > 0 && layoutType !== 'pdf' && (
+      {/* Venue Layout Editor - show when sections and layouts exist */}
+      {sections.length > 0 && getTotalTables() > 0 && layouts.length > 0 && layoutType !== 'pdf' && (
         <>
           <Separator />
           <VenueLayoutEditor
@@ -729,6 +917,9 @@ export function TableServiceForm({
             onFontSizeChange={setFontSize}
             drawnLayout={drawnLayout}
             onUpdateDrawnLayout={setDrawnLayout}
+            layouts={layouts}
+            selectedLayoutId={selectedLayoutId}
+            onLayoutChange={setSelectedLayoutId}
           />
         </>
       )}

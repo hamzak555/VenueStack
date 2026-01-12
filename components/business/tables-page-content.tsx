@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Plus, Pencil } from 'lucide-react'
 import { TablesLayoutView } from './tables-layout-view'
 import { NewReservationModal } from './new-reservation-modal'
-import { TableServiceConfig } from '@/lib/types'
+import { TableServiceConfig, VenueLayout } from '@/lib/types'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { parseLocalDate } from '@/lib/utils'
 
 interface TableBooking {
@@ -69,6 +70,15 @@ export function TablesPageContent({
   const [showNewReservationModal, setShowNewReservationModal] = useState(false)
   const [preSelectedSection, setPreSelectedSection] = useState<string | undefined>()
   const [preSelectedTable, setPreSelectedTable] = useState<string | undefined>()
+
+  // Multi-layout support
+  const layouts = tableServiceConfig?.layouts || []
+  const [selectedLayoutId, setSelectedLayoutId] = useState<string | null>(() => {
+    if (layouts.length > 0) {
+      return tableServiceConfig?.activeLayoutId || layouts.find(l => l.isDefault)?.id || layouts[0]?.id || null
+    }
+    return null
+  })
 
   const formattedDate = eventDate ? parseLocalDate(eventDate).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -139,10 +149,26 @@ export function TablesPageContent({
             )}
           </div>
         </div>
-        <Button onClick={handleNewReservationClick}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Reservation
-        </Button>
+        <div className="flex items-center gap-3">
+          {layouts.length > 1 && (
+            <Select value={selectedLayoutId || ''} onValueChange={setSelectedLayoutId}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select room" />
+              </SelectTrigger>
+              <SelectContent>
+                {layouts.map((layout) => (
+                  <SelectItem key={layout.id} value={layout.id}>
+                    {layout.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button onClick={handleNewReservationClick}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Reservation
+          </Button>
+        </div>
       </div>
 
       {/* Layout View */}
@@ -158,6 +184,7 @@ export function TablesPageContent({
         linkedTablePairs={linkedTablePairs}
         onEmptyTableClick={handleEmptyTableClick}
         initialBookingId={initialBookingId}
+        selectedLayoutId={selectedLayoutId}
       />
 
       {/* New Reservation Modal */}

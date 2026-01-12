@@ -2,9 +2,16 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Image from 'next/image'
-import { TableSection, TablePosition, DrawnVenueLayout, VenueBoundary, VenueLine } from '@/lib/types'
+import { TableSection, TablePosition, DrawnVenueLayout, VenueBoundary, VenueLine, VenueLayout } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +36,10 @@ interface VenueLayoutEditorProps {
   onFontSizeChange: (size: number) => void
   drawnLayout: DrawnVenueLayout | null
   onUpdateDrawnLayout: (layout: DrawnVenueLayout) => void
+  // Multi-layout support
+  layouts?: VenueLayout[]
+  selectedLayoutId?: string | null
+  onLayoutChange?: (layoutId: string) => void
 }
 
 const SECTION_COLORS = [
@@ -68,6 +79,9 @@ export function VenueLayoutEditor({
   onFontSizeChange,
   drawnLayout,
   onUpdateDrawnLayout,
+  layouts = [],
+  selectedLayoutId,
+  onLayoutChange,
 }: VenueLayoutEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const outerContainerRef = useRef<HTMLDivElement>(null)
@@ -167,9 +181,26 @@ export function VenueLayoutEditor({
     return sections[sectionIndex]?.color || SECTION_COLORS[sectionIndex % SECTION_COLORS.length]
   }
 
-  // Check if a table has been placed on the canvas
+  // Check if a table has been placed on the canvas (any layout)
   const isTablePlaced = (section: TableSection, tableIndex: number): boolean => {
     return section.tablePositions?.[tableIndex]?.placed === true
+  }
+
+  // Check if a table is placed on the CURRENT layout
+  const isTableOnCurrentLayout = (section: TableSection, tableIndex: number): boolean => {
+    const pos = section.tablePositions?.[tableIndex]
+    if (!pos?.placed) return false
+    // If no multi-layout support or no selectedLayoutId, show all placed tables
+    if (!selectedLayoutId || layouts.length === 0) return true
+    // Check if table's layoutId matches the selected layout
+    return pos.layoutId === selectedLayoutId
+  }
+
+  // Check if a table can be shown in the palette (not placed on any layout)
+  const isTableInPalette = (section: TableSection, tableIndex: number): boolean => {
+    const pos = section.tablePositions?.[tableIndex]
+    // Only show in palette if not placed on any layout
+    return !pos?.placed
   }
 
   // Get table position (only for placed tables)
@@ -809,6 +840,7 @@ export function VenueLayoutEditor({
             height: 48, // Pixel size matching palette
             shape: 'square',
             placed: true,
+            layoutId: selectedLayoutId || undefined, // Assign to current layout
           })
         } else if (dragState.isMultiDrag && multiDragPositionsRef.current.length > 0) {
           // Multi-drag: update all selected tables with snap delta applied
@@ -1673,7 +1705,26 @@ export function VenueLayoutEditor({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label className="text-base">Layout Editor</Label>
+        <div className="flex items-center gap-4">
+          <Label className="text-base">Layout Editor</Label>
+          {layouts.length > 1 && onLayoutChange && (
+            <Select value={selectedLayoutId || ''} onValueChange={onLayoutChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select layout" />
+              </SelectTrigger>
+              <SelectContent>
+                {layouts.map((layout) => (
+                  <SelectItem key={layout.id} value={layout.id}>
+                    {layout.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {layouts.length === 1 && (
+            <span className="text-sm text-muted-foreground">({layouts[0].label})</span>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           {/* Font Size Controls */}
           <div className="flex items-center gap-1">
@@ -1705,11 +1756,13 @@ export function VenueLayoutEditor({
           <div className="flex-1 border rounded-lg p-3 bg-muted/50 overflow-y-auto">
             <p className="text-xs font-medium text-muted-foreground mb-3">Drag tables onto layout</p>
           {sections.map((section, sectionIndex) => {
-            const unplacedTables = Array.from({ length: section.tableCount })
+            const paletteTables = Array.from({ length: section.tableCount })
               .map((_, i) => i)
-              .filter(i => !isTablePlaced(section, i))
+              .filter(i => isTableInPalette(section, i))
+            const totalPlacedTables = Array.from({ length: section.tableCount })
+              .filter((_, i) => isTablePlaced(section, i)).length
 
-            if (unplacedTables.length === 0) return null
+            if (paletteTables.length === 0) return null
 
             return (
               <div key={section.id} className="mb-4">
@@ -1722,11 +1775,11 @@ export function VenueLayoutEditor({
                     {section.name || `Section ${sectionIndex + 1}`}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {Array.from({ length: section.tableCount }).filter((_, i) => isTablePlaced(section, i)).length}/{section.tableCount}
+                    {totalPlacedTables}/{section.tableCount}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  {unplacedTables.map((tableIndex) => {
+                  {paletteTables.map((tableIndex) => {
                     const tableName = section.tableNames?.[tableIndex] || `${tableIndex + 1}`
                     return (
                       <div
@@ -2248,6 +2301,9 @@ export function VenueLayoutEditor({
                 if (!pos && !isDragging) return null
                 if (!pos && isDragging && !dragPosition) return null
 
+                // Filter by layout - only show tables on current layout (or dragging tables)
+                if (pos && !isDragging && !isTableOnCurrentLayout(section, tableIndex)) return null
+
                 // Use drag position if dragging, otherwise use stored position
                 let displayX = pos?.x ?? 0
                 let displayY = pos?.y ?? 0
@@ -2279,7 +2335,7 @@ export function VenueLayoutEditor({
                   <div
                     key={`${section.id}-${tableIndex}`}
                     data-table="true"
-                    className={`absolute cursor-move flex items-center justify-center text-gray-700 font-bold select-none ${
+                    className={`absolute flex items-center justify-center text-gray-700 font-bold select-none ${
                       isSelected ? 'z-20' : ''
                     }`}
                     style={{
@@ -2292,6 +2348,7 @@ export function VenueLayoutEditor({
                       border: isSelected ? '1.5px solid #3b82f6' : '2px solid #d1d5db',
                       borderRadius: displayShape === 'circle' ? '50%' : '4px',
                       boxShadow: isSelected ? '0 0 0 3px rgba(59, 130, 246, 0.3), 0 2px 4px rgba(0,0,0,0.2)' : '0 2px 4px rgba(0,0,0,0.2)',
+                      cursor: copyStyleMode ? 'crosshair' : 'move',
                     }}
                     onMouseDown={(e) => handleCanvasMouseDown(e, section.id, tableIndex)}
                   >

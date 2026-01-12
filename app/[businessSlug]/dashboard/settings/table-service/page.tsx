@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getBusinessBySlug } from '@/lib/db/businesses'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { TableServiceForm } from '@/components/business/table-service-form'
 import { Business } from '@/lib/types'
 
@@ -32,12 +32,6 @@ export default async function TableServicePage({ params }: TableServicePageProps
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Venue Layout</CardTitle>
-          <CardDescription>
-            Upload a floor plan or layout image of your venue to help staff identify table locations
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <TableServiceForm
             businessId={business.id}

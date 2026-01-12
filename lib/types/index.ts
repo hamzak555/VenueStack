@@ -14,6 +14,7 @@ export interface TablePosition {
   height: number // percentage height (default ~5)
   shape: 'circle' | 'square'
   placed?: boolean // whether the table has been placed on the layout
+  layoutId?: string // which layout this table is placed on (for multi-room support)
 }
 
 export interface TableSection {
@@ -49,10 +50,21 @@ export interface DrawnVenueLayout {
   lines: VenueLine[]
 }
 
+export interface VenueLayout {
+  id: string
+  label: string // e.g., "Main Room", "VIP Lounge", "Rooftop"
+  imageUrl: string | null
+  drawnLayout?: DrawnVenueLayout // For drawn (non-image) layouts
+  order: number // For sorting/display order
+  isDefault?: boolean // The primary/default layout
+}
+
 export interface TableServiceConfig {
   sections: TableSection[]
   fontSize?: number // Font size in pixels for table labels (default 12)
-  drawnLayout?: DrawnVenueLayout // For venues without uploaded image
+  drawnLayout?: DrawnVenueLayout // For venues without uploaded image (legacy, kept for backward compatibility)
+  layouts?: VenueLayout[] // Multiple venue layouts/rooms
+  activeLayoutId?: string // Currently selected layout in editor
 }
 
 export interface EventTableSection {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBusinessById, updateBusiness } from '@/lib/db/businesses'
-import { Business, TableSection } from '@/lib/types'
+import { Business, TableSection, VenueLayout } from '@/lib/types'
 import { createClient } from '@/lib/supabase/server'
 
 interface RouteContext {
@@ -78,6 +78,24 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             { error: 'Invalid section: tableCount must be a positive number' },
             { status: 400 }
           )
+        }
+      }
+
+      // Validate layouts array if provided
+      if (config.layouts && Array.isArray(config.layouts)) {
+        for (const layout of config.layouts as VenueLayout[]) {
+          if (!layout.id || typeof layout.id !== 'string') {
+            return NextResponse.json(
+              { error: 'Invalid layout: missing or invalid id' },
+              { status: 400 }
+            )
+          }
+          if (!layout.label || typeof layout.label !== 'string') {
+            return NextResponse.json(
+              { error: 'Invalid layout: missing or invalid label' },
+              { status: 400 }
+            )
+          }
         }
       }
     }

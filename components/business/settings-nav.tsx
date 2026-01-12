@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Settings, CreditCard, Megaphone, LayoutGrid, Users, ChevronDown, Receipt } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -57,44 +56,45 @@ export function SettingsNav({ businessSlug, isAdmin }: SettingsNavProps) {
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
-        <Button
-          variant="ghost"
+        <button
           className={cn(
-            'w-full justify-between',
-            isSettingsPath && 'bg-accent'
+            'flex items-center justify-between w-full px-3 py-2.5 rounded-lg hover:bg-[rgb(var(--theme-color))]/10 transition-colors group',
+            isSettingsPath && 'bg-[rgb(var(--theme-color))]/10'
           )}
         >
-          <span className="flex items-center">
-            <Settings className="h-4 w-4" />
-            <span className="ml-2">Settings</span>
+          <span className="flex items-center gap-3">
+            <div className={cn(
+              'h-8 w-8 rounded-lg bg-[rgb(var(--theme-color))]/10 flex items-center justify-center group-hover:bg-[rgb(var(--theme-color))]/20 transition-colors',
+              isSettingsPath && 'bg-[rgb(var(--theme-color))]/20'
+            )}>
+              <Settings className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
+            </div>
+            <span className="font-medium text-sm">Settings</span>
           </span>
           <ChevronDown
             className={cn(
-              'h-4 w-4 transition-transform duration-200',
+              'h-4 w-4 text-muted-foreground transition-transform duration-200',
               isOpen && 'rotate-180'
             )}
           />
-        </Button>
+        </button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="pl-4 space-y-1 mt-1">
+      <CollapsibleContent className="pl-11 space-y-1 mt-1">
         {settingsItems.map((item) => {
           const isActive = pathname === item.href
           return (
-            <Button
+            <Link
               key={item.href}
-              variant="ghost"
-              asChild
+              href={item.href}
               className={cn(
-                'w-full justify-start',
-                isActive && 'bg-accent'
+                'flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-[rgb(var(--theme-color))]/10 transition-colors',
+                isActive && 'bg-[rgb(var(--theme-color))]/10'
               )}
-              size="sm"
+              style={isActive ? { color: 'var(--theme-color-hex)' } : undefined}
             >
-              <Link href={item.href}>
-                <item.icon className="h-4 w-4" />
-                <span className="ml-2">{item.label}</span>
-              </Link>
-            </Button>
+              <item.icon className="h-4 w-4" style={{ color: isActive ? 'var(--theme-color-hex)' : undefined }} />
+              <span>{item.label}</span>
+            </Link>
           )
         })}
       </CollapsibleContent>

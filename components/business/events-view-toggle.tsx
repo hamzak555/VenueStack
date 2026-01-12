@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Ticket, Armchair, CheckCircle, FileEdit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -245,30 +244,17 @@ export function EventsViewToggle({ events, businessSlug, businessId, defaultLoca
         </div>
       </CardHeader>
       <CardContent>
-        {events.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">
-              No events created yet
-            </p>
-            <Button asChild>
-              <Link href={`/${businessSlug}/dashboard/events/new`}>
-                Create Your First Event
-              </Link>
-            </Button>
-          </div>
-        ) : (
-          <EventsCalendar
-            events={events}
-            businessSlug={businessSlug}
-            businessId={businessId}
-            currentDate={currentDate}
-            defaultLocation={defaultLocation}
-            defaultTimezone={defaultTimezone}
-            onPreviousMonth={goToPreviousMonth}
-            onNextMonth={goToNextMonth}
-            onToday={goToToday}
-          />
-        )}
+        <EventsCalendar
+          events={events}
+          businessSlug={businessSlug}
+          businessId={businessId}
+          currentDate={currentDate}
+          defaultLocation={defaultLocation}
+          defaultTimezone={defaultTimezone}
+          onPreviousMonth={goToPreviousMonth}
+          onNextMonth={goToNextMonth}
+          onToday={goToToday}
+        />
       </CardContent>
     </Card>
   )

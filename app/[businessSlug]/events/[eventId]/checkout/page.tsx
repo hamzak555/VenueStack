@@ -25,6 +25,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 // Helper function to format time to 12-hour format
 function formatTimeTo12Hour(time: string): string {
@@ -228,6 +235,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
   const [venueLayoutUrl, setVenueLayoutUrl] = useState<string | null>(null)
   const [tableServiceConfig, setTableServiceConfig] = useState<TableServiceConfig | null>(null)
   const [tableMapModalOpen, setTableMapModalOpen] = useState(false)
+  const [selectedMapLayoutId, setSelectedMapLayoutId] = useState<string | null>(null)
   const [bookedTables, setBookedTables] = useState<{ section_id: string; table_number: string }[]>([])
 
   // For legacy single-price tickets
@@ -1651,14 +1659,34 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
       <Dialog open={tableMapModalOpen} onOpenChange={setTableMapModalOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle>Table Layout</DialogTitle>
+            <div className="flex items-center gap-4 pr-8">
+              <DialogTitle>Table Layout</DialogTitle>
+              {tableServiceConfig?.layouts && tableServiceConfig.layouts.length > 1 && (
+                <Select
+                  value={selectedMapLayoutId || tableServiceConfig.layouts[0]?.id || ''}
+                  onValueChange={setSelectedMapLayoutId}
+                >
+                  <SelectTrigger className="w-[160px] h-8 text-sm">
+                    <SelectValue placeholder="Select room" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tableServiceConfig.layouts.map((layout) => (
+                      <SelectItem key={layout.id} value={layout.id}>
+                        {layout.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </DialogHeader>
-          {(venueLayoutUrl || tableServiceConfig?.drawnLayout?.boundary) && tableServiceConfig ? (
+          {(venueLayoutUrl || tableServiceConfig?.drawnLayout?.boundary || tableServiceConfig?.layouts?.length) && tableServiceConfig ? (
             <InteractiveTableMap
               venueLayoutUrl={venueLayoutUrl}
               tableServiceConfig={tableServiceConfig}
               tableSections={tableSections}
               bookedTables={bookedTables}
+              selectedLayoutId={selectedMapLayoutId}
             />
           ) : venueLayoutUrl ? (
             <div className="relative w-full">

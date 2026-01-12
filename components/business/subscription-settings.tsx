@@ -270,7 +270,11 @@ export function SubscriptionSettings({ businessId, businessSlug }: SubscriptionS
 
           <div className="flex flex-wrap gap-3">
             {showStartButton && (
-              <Button onClick={handleStartSubscription} disabled={isActionLoading}>
+              <Button
+                onClick={handleStartSubscription}
+                disabled={isActionLoading}
+                className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50"
+              >
                 {isActionLoading ? (
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
                 ) : (

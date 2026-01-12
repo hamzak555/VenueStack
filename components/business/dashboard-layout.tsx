@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { getBusinessBySlug } from '@/lib/db/businesses'
@@ -10,9 +11,10 @@ import { LogoutButton } from '@/components/business/logout-button'
 import { AccountSwitcher } from '@/components/account-switcher'
 import { SettingsNav } from '@/components/business/settings-nav'
 import { SubscriptionGate } from '@/components/business/subscription-gate'
-import { Calendar, Receipt, BarChart3, UserCircle, Ticket, Armchair } from 'lucide-react'
 import { NotificationCenter } from '@/components/business/notification-center'
 import { MobileNav } from '@/components/business/mobile-nav'
+import { DashboardNav } from '@/components/business/dashboard-nav'
+import { getThemeColorStyle } from '@/lib/utils/color'
 
 interface DashboardLayoutProps {
   businessSlug: string
@@ -47,8 +49,11 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
     }
   }
 
+  // Get theme color CSS variables
+  const themeStyle = getThemeColorStyle(business.theme_color || '#8b5cf6')
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={themeStyle as React.CSSProperties}>
       {/* Mobile Navigation */}
       <MobileNav
         businessSlug={businessSlug}
@@ -62,58 +67,33 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
       <div className="flex">
         {/* Desktop Sidebar - hidden on mobile */}
         <aside className="hidden lg:flex w-64 border-r bg-card flex-col h-screen sticky top-0">
-        <div className="p-6 flex-shrink-0">
-          <div className="flex items-center justify-between gap-2">
-            <Link href={`/${businessSlug}/dashboard/events`} className="text-xl font-bold hover:text-primary truncate flex-1 min-w-0">
+        {/* Header with gradient */}
+        <div className="relative p-6 flex-shrink-0 overflow-hidden" style={{ background: `linear-gradient(to bottom right, rgb(var(--theme-color), 0.05), rgb(var(--theme-color), 0.02), transparent)` }}>
+          <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full" style={{ background: `linear-gradient(to bottom left, rgb(var(--theme-color), 0.1), transparent)` }} />
+          <div className="relative flex items-center justify-between gap-2">
+            <Link href={`/${businessSlug}/dashboard/events`} className="text-xl font-bold truncate flex-1 min-w-0">
               {business.name}
             </Link>
             <NotificationCenter businessId={business.id} businessSlug={businessSlug} />
           </div>
-          <p className="text-xs text-muted-foreground mt-1">Business Dashboard</p>
           {session.adminBypass && (
-            <Button variant="outline" size="sm" asChild className="mt-2 h-6 text-xs">
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="mt-2 h-6 text-xs"
+              style={{
+                borderColor: 'rgb(var(--theme-color), 0.3)',
+                color: 'var(--theme-color-hex)'
+              }}
+            >
               <Link href="/admin">Admin Dashboard</Link>
             </Button>
           )}
         </div>
         <Separator className="flex-shrink-0" />
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/events`}>
-              <Calendar className="h-4 w-4" />
-              <span className="ml-2">Events</span>
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/tables`}>
-              <Armchair className="h-4 w-4" />
-              <span className="ml-2">Table Service</span>
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/all-tickets`}>
-              <Ticket className="h-4 w-4" />
-              <span className="ml-2">Tickets</span>
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/tickets`}>
-              <Receipt className="h-4 w-4" />
-              <span className="ml-2">Ticket Sales</span>
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/reports`}>
-              <BarChart3 className="h-4 w-4" />
-              <span className="ml-2">Reports</span>
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild className="w-full justify-start">
-            <Link href={`/${businessSlug}/dashboard/customers`}>
-              <UserCircle className="h-4 w-4" />
-              <span className="ml-2">Customers</span>
-            </Link>
-          </Button>
+          <DashboardNav businessSlug={businessSlug} />
           <SettingsNav businessSlug={businessSlug} isAdmin={isAdmin} />
         </nav>
         <Separator className="flex-shrink-0" />
@@ -125,6 +105,16 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
           </Button>
           <AccountSwitcher />
           {!session.adminBypass && <LogoutButton />}
+          <div className="flex items-center justify-center gap-1 pt-2 text-[10px] text-muted-foreground/60">
+            <span>Powered by</span>
+            <Image
+              src="/venuestack-logo.svg"
+              alt="VenueStack"
+              width={60}
+              height={12}
+              className="h-2.5 w-auto brightness-0 invert opacity-50"
+            />
+          </div>
         </div>
       </aside>
 

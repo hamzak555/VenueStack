@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
-import { TableServiceConfig, TableSection, DrawnVenueLayout } from '@/lib/types'
+import { TableServiceConfig, TableSection, DrawnVenueLayout, VenueLayout } from '@/lib/types'
 
 export interface TableSectionInfo {
   id: string
@@ -27,6 +27,7 @@ interface InteractiveTableMapProps {
   hoveredSectionId?: string | null
   onHoverChange?: (sectionId: string | null) => void
   showLegend?: boolean
+  selectedLayoutId?: string | null
 }
 
 export function InteractiveTableMap({
@@ -37,6 +38,7 @@ export function InteractiveTableMap({
   hoveredSectionId: externalHoveredSectionId,
   onHoverChange,
   showLegend = false,
+  selectedLayoutId: selectedLayoutIdProp,
 }: InteractiveTableMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [imageAspectRatio, setImageAspectRatio] = useState<number | null>(null)
@@ -53,6 +55,23 @@ export function InteractiveTableMap({
   }
 
   const sections = tableServiceConfig?.sections || []
+  const layouts = tableServiceConfig?.layouts || []
+
+  // Multi-layout support: determine selected layout
+  const selectedLayoutId = selectedLayoutIdProp || layouts[0]?.id || null
+  const selectedLayout = layouts.find(l => l.id === selectedLayoutId) || layouts[0] || null
+  const currentLayoutUrl = selectedLayout?.imageUrl || venueLayoutUrl
+  const currentDrawnLayout = selectedLayout?.drawnLayout || tableServiceConfig?.drawnLayout
+
+  // Check if a table is on the current layout
+  const isTableOnCurrentLayout = (section: TableSection, tableIndex: number): boolean => {
+    const pos = section.tablePositions?.[tableIndex]
+    if (!pos?.placed) return false
+    // If no multi-layout support, show all placed tables
+    if (!selectedLayoutId || layouts.length === 0) return true
+    // Check if table's layoutId matches the selected layout
+    return pos.layoutId === selectedLayoutId
+  }
 
   // Create a map of section_id -> section info for quick lookup
   const sectionInfoMap: Record<string, TableSectionInfo> = {}
@@ -111,19 +130,17 @@ export function InteractiveTableMap({
 
   // Load image to get its natural aspect ratio, or use default for drawn layout
   useEffect(() => {
-    if (venueLayoutUrl) {
+    if (currentLayoutUrl) {
       const img = new window.Image()
       img.onload = () => {
         setImageAspectRatio(img.naturalWidth / img.naturalHeight)
       }
-      img.src = venueLayoutUrl
+      img.src = currentLayoutUrl
     } else {
       // Default 4:3 aspect ratio for drawn layout mode
       setImageAspectRatio(4 / 3)
     }
-  }, [venueLayoutUrl])
-
-  const drawnLayout = tableServiceConfig?.drawnLayout
+  }, [currentLayoutUrl])
 
   // Get table position from the business config
   const getTablePosition = (section: TableSection, tableIndex: number) => {
@@ -153,9 +170,9 @@ export function InteractiveTableMap({
           }}
         >
           {/* Venue Image */}
-          {venueLayoutUrl && (
+          {currentLayoutUrl && (
             <Image
-              src={venueLayoutUrl}
+              src={currentLayoutUrl}
               alt="Venue table layout"
               fill
               className="object-fill"
@@ -164,20 +181,20 @@ export function InteractiveTableMap({
           )}
 
           {/* Drawn Boundary */}
-          {drawnLayout?.boundary && (
+          {currentDrawnLayout?.boundary && (
             <div
               className="absolute border-2 border-white/60 bg-transparent pointer-events-none"
               style={{
-                left: `${drawnLayout.boundary.x}%`,
-                top: `${drawnLayout.boundary.y}%`,
-                width: `${drawnLayout.boundary.width}%`,
-                height: `${drawnLayout.boundary.height}%`,
+                left: `${currentDrawnLayout.boundary.x}%`,
+                top: `${currentDrawnLayout.boundary.y}%`,
+                width: `${currentDrawnLayout.boundary.width}%`,
+                height: `${currentDrawnLayout.boundary.height}%`,
               }}
             />
           )}
 
           {/* Drawn Lines */}
-          {drawnLayout?.lines.map((line) => {
+          {currentDrawnLayout?.lines.map((line) => {
             const length = Math.sqrt(Math.pow(line.x2 - line.x1, 2) + Math.pow(line.y2 - line.y1, 2))
             const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1) * (180 / Math.PI)
             return (
@@ -200,6 +217,9 @@ export function InteractiveTableMap({
             Array.from({ length: section.tableCount }).map((_, tableIndex) => {
               const pos = getTablePosition(section, tableIndex)
               if (!pos) return null
+
+              // Filter by layout - only show tables on current layout
+              if (!isTableOnCurrentLayout(section, tableIndex)) return null
 
               const tableName = section.tableNames?.[tableIndex] || `${tableIndex + 1}`
               const isHovered = hoveredSectionId === section.id
