@@ -229,6 +229,24 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
     return checkDate < today
   }
 
+  // Determine which rows have events
+  const rowHasEvents = useMemo(() => {
+    const rowsWithEvents = new Set<number>()
+
+    calendarDays.forEach((day, index) => {
+      if (day !== null) {
+        const rowIndex = Math.floor(index / 7)
+        const dayEvents = eventsByDate.get(day.toString()) || []
+
+        if (dayEvents.length > 0) {
+          rowsWithEvents.add(rowIndex)
+        }
+      }
+    })
+
+    return rowsWithEvents
+  }, [calendarDays, eventsByDate])
+
   const formatDateKey = (date: Date) => {
     const y = date.getFullYear()
     const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -372,12 +390,15 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
               const dayEvents = day ? eventsByDate.get(day.toString()) || [] : []
               const hasEvents = dayEvents.length > 0
               const pastDay = day ? isPast(day) : false
+              const rowIndex = Math.floor(index / 7)
+              const isCompactRow = !rowHasEvents.has(rowIndex)
 
               return (
                 <div
                   key={index}
                   className={cn(
-                    "h-[240px] p-2 border-b border-r",
+                    "p-2 border-b border-r",
+                    isCompactRow ? "h-[60px]" : "h-[240px]",
                     "[&:nth-child(7n)]:border-r-0",
                     day === null && "bg-muted/30",
                     pastDay && day !== null && "bg-muted/20"
