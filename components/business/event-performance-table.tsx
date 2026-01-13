@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatCurrency } from '@/lib/utils/currency'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Image from 'next/image'
 
@@ -45,10 +45,14 @@ interface EventPerformanceTableProps {
 const ITEMS_PER_PAGE = 10
 
 type TimeFilter = 'all' | 'upcoming' | 'past'
+type SortField = 'event' | 'status' | 'date' | 'tickets' | 'ticket_revenue' | 'ticket_tax' | 'tables' | 'table_revenue' | 'table_tax' | 'gross' | 'net'
+type SortDirection = 'asc' | 'desc'
 
 export function EventPerformanceTable({ events, eventAnalytics }: EventPerformanceTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('upcoming')
+  const [sortField, setSortField] = useState<SortField>('date')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
   // Filter events by time
   const filteredEvents = useMemo(() => {
@@ -68,20 +72,105 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
     })
   }, [events, timeFilter])
 
-  // Sort events by date (earliest first)
+  // Helper to get analytics for an event
+  const getEventAnalytics = (eventId: string) => {
+    const analytics = eventAnalytics.find(a => a.event_id === eventId)
+    const ticketsSold = analytics?.total_tickets_sold || 0
+    const ticketGross = analytics?.ticket_gross_revenue || 0
+    const ticketTax = analytics?.ticket_tax || 0
+    const ticketNet = analytics?.ticket_net_revenue || 0
+    const tablesBooked = analytics?.total_table_bookings || 0
+    const tableRevenue = analytics?.table_revenue || 0
+    const tableTax = analytics?.table_tax || 0
+    const totalGross = ticketGross + tableRevenue + tableTax
+    const totalNet = ticketNet + tableRevenue
+    return { ticketsSold, ticketGross, ticketTax, ticketNet, tablesBooked, tableRevenue, tableTax, totalGross, totalNet }
+  }
+
+  // Sort events
   const sortedEvents = useMemo(() => {
     return [...filteredEvents].sort((a, b) => {
-      const dateA = new Date(a.event_date).getTime()
-      const dateB = new Date(b.event_date).getTime()
-      return dateA - dateB
+      let comparison = 0
+      const analyticsA = getEventAnalytics(a.id)
+      const analyticsB = getEventAnalytics(b.id)
+
+      switch (sortField) {
+        case 'event':
+          comparison = a.title.localeCompare(b.title)
+          break
+        case 'status':
+          comparison = a.status.localeCompare(b.status)
+          break
+        case 'date':
+          comparison = new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+          break
+        case 'tickets':
+          comparison = analyticsA.ticketsSold - analyticsB.ticketsSold
+          break
+        case 'ticket_revenue':
+          comparison = analyticsA.ticketGross - analyticsB.ticketGross
+          break
+        case 'ticket_tax':
+          comparison = analyticsA.ticketTax - analyticsB.ticketTax
+          break
+        case 'tables':
+          comparison = analyticsA.tablesBooked - analyticsB.tablesBooked
+          break
+        case 'table_revenue':
+          comparison = analyticsA.tableRevenue - analyticsB.tableRevenue
+          break
+        case 'table_tax':
+          comparison = analyticsA.tableTax - analyticsB.tableTax
+          break
+        case 'gross':
+          comparison = analyticsA.totalGross - analyticsB.totalGross
+          break
+        case 'net':
+          comparison = analyticsA.totalNet - analyticsB.totalNet
+          break
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison
     })
-  }, [filteredEvents])
+  }, [filteredEvents, sortField, sortDirection, eventAnalytics])
 
   // Reset to page 1 when filter changes
   const handleFilterChange = (value: string) => {
     setTimeFilter(value as TimeFilter)
     setCurrentPage(1)
   }
+
+  // Handle sort
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('desc')
+    }
+    setCurrentPage(1)
+  }
+
+  // Sortable header component
+  const SortableHeader = ({ field, children, className }: { field: SortField; children: React.ReactNode; className?: string }) => (
+    <TableHead className={className}>
+      <button
+        onClick={() => handleSort(field)}
+        className="flex items-center gap-1 hover:text-foreground transition-colors"
+      >
+        {children}
+        {sortField === field ? (
+          sortDirection === 'asc' ? (
+            <ArrowUp className="h-3 w-3" />
+          ) : (
+            <ArrowDown className="h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
+        )}
+      </button>
+    </TableHead>
+  )
 
   // Calculate pagination
   const totalPages = Math.ceil(sortedEvents.length / ITEMS_PER_PAGE)
@@ -121,17 +210,17 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Tickets</TableHead>
-                    <TableHead className="text-right">Ticket Revenue</TableHead>
-                    <TableHead className="text-right">Ticket Tax</TableHead>
-                    <TableHead className="text-right">Tables</TableHead>
-                    <TableHead className="text-right">Table Revenue</TableHead>
-                    <TableHead className="text-right">Table Tax</TableHead>
-                    <TableHead className="text-right">Gross Revenue</TableHead>
-                    <TableHead className="text-right">Net Revenue</TableHead>
+                    <SortableHeader field="event">Event</SortableHeader>
+                    <SortableHeader field="status">Status</SortableHeader>
+                    <SortableHeader field="date">Date</SortableHeader>
+                    <SortableHeader field="tickets" className="text-right">Tickets</SortableHeader>
+                    <SortableHeader field="ticket_revenue" className="text-right">Ticket Revenue</SortableHeader>
+                    <SortableHeader field="ticket_tax" className="text-right">Ticket Tax</SortableHeader>
+                    <SortableHeader field="tables" className="text-right">Tables</SortableHeader>
+                    <SortableHeader field="table_revenue" className="text-right">Table Revenue</SortableHeader>
+                    <SortableHeader field="table_tax" className="text-right">Table Tax</SortableHeader>
+                    <SortableHeader field="gross" className="text-right">Gross Revenue</SortableHeader>
+                    <SortableHeader field="net" className="text-right">Net Revenue</SortableHeader>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
