@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminInvitationByToken, acceptAdminInvitation } from '@/lib/db/admin-invitations'
-import { createUser, getUserByEmailOrPhone, setPlatformAdmin } from '@/lib/db/users'
+import { createUser, getUserByEmail, getUserByPhone } from '@/lib/db/users'
 import { normalizePhoneNumber } from '@/lib/twilio'
 
 interface RouteContext {
@@ -107,30 +107,39 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const finalEmail = email || invitation.email
     const finalPhone = phone ? normalizePhoneNumber(phone) : invitation.phone
 
-    if (!finalEmail && !finalPhone) {
+    if (!finalEmail || !finalPhone) {
       return NextResponse.json(
-        { error: 'Email or phone is required' },
+        { error: 'Both email and phone are required' },
         { status: 400 }
       )
     }
 
-    // Check if user already exists
-    const existingUser = await getUserByEmailOrPhone(finalEmail || undefined, finalPhone || undefined)
-
-    let user
-    if (existingUser) {
-      // User exists - just promote to admin
-      user = await setPlatformAdmin(existingUser.id, true)
-    } else {
-      // Create new user as platform admin
-      user = await createUser({
-        email: finalEmail || '',
-        phone: finalPhone,
-        password,
-        name,
-        is_platform_admin: true,
-      })
+    // Check if email is already in use
+    const existingUserByEmail = await getUserByEmail(finalEmail)
+    if (existingUserByEmail) {
+      return NextResponse.json(
+        { error: 'This email is already in use' },
+        { status: 409 }
+      )
     }
+
+    // Check if phone is already in use
+    const existingUserByPhone = await getUserByPhone(finalPhone)
+    if (existingUserByPhone) {
+      return NextResponse.json(
+        { error: 'This phone number is already in use' },
+        { status: 409 }
+      )
+    }
+
+    // Create new user as platform admin
+    const user = await createUser({
+      email: finalEmail,
+      phone: finalPhone,
+      password,
+      name,
+      is_platform_admin: true,
+    })
 
     // Mark invitation as accepted
     await acceptAdminInvitation(token)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { updateAdminUser, deleteAdminUser, getAdminUserById } from '@/lib/db/admin-users'
+import { getUserById, setPlatformAdmin } from '@/lib/db/users'
 import { verifyAdminAccess } from '@/lib/auth/admin-session'
 
 interface RouteContext {
@@ -88,27 +89,33 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     const { userId } = await context.params
 
-    // Validate that the user exists
-    const existingUser = await getAdminUserById(userId)
-    if (!existingUser) {
-      return NextResponse.json(
-        { error: 'Admin user not found' },
-        { status: 404 }
-      )
-    }
-
     // Prevent deleting yourself
     if (userId === session.userId) {
       return NextResponse.json(
-        { error: 'You cannot delete your own account' },
+        { error: 'You cannot remove your own admin access' },
         { status: 400 }
       )
     }
 
-    // Delete the user
-    await deleteAdminUser(userId)
+    // First check if user is in global users table
+    const globalUser = await getUserById(userId)
+    if (globalUser && globalUser.is_platform_admin) {
+      // Remove admin status instead of deleting the user
+      await setPlatformAdmin(userId, false)
+      return NextResponse.json({ success: true })
+    }
 
-    return NextResponse.json({ success: true })
+    // Check legacy admin_users table
+    const legacyUser = await getAdminUserById(userId)
+    if (legacyUser) {
+      await deleteAdminUser(userId)
+      return NextResponse.json({ success: true })
+    }
+
+    return NextResponse.json(
+      { error: 'Admin user not found' },
+      { status: 404 }
+    )
   } catch (error) {
     console.error('Error deleting admin user:', error)
     return NextResponse.json(

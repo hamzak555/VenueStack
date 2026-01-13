@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Eye, EyeOff, Shield, Check, Loader2, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, Check, Loader2, AlertCircle } from 'lucide-react'
 import { InteractiveGridPattern } from '@/components/ui/interactive-grid-pattern'
 import { PhoneInput } from '@/components/ui/phone-input'
 import Image from 'next/image'
@@ -173,11 +173,6 @@ export default function AcceptAdminInvitePage({ params }: { params: Promise<{ to
 
       <Card className="w-full max-w-md relative">
         <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-              <Shield className="h-8 w-8 text-violet-500" />
-            </div>
-          </div>
           <div>
             <Badge variant="secondary" className="mb-2">
               Admin Invitation
@@ -203,27 +198,26 @@ export default function AcceptAdminInvitePage({ params }: { params: Promise<{ to
               />
             </div>
 
-            <div className="flex items-end gap-3">
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="john@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  disabled={submitting || !!invitation?.email}
-                />
-              </div>
-              <span className="text-xs text-muted-foreground pb-2.5">and/or</span>
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <PhoneInput
-                  value={formData.phone}
-                  onChange={(value) => setFormData({ ...formData, phone: value || '' })}
-                  disabled={submitting || !!invitation?.phone}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="john@example.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+                disabled={submitting || !!invitation?.email}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <PhoneInput
+                value={formData.phone}
+                onChange={(value) => setFormData({ ...formData, phone: value || '' })}
+                disabled={submitting || !!invitation?.phone}
+              />
             </div>
 
             <div className="space-y-2">
@@ -276,8 +270,9 @@ export default function AcceptAdminInvitePage({ params }: { params: Promise<{ to
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
-              disabled={submitting || !formData.name || !formData.password || !formData.confirmPassword || (!formData.email && !formData.phone)}
+              variant="outline"
+              className="w-full bg-white text-black hover:bg-gray-100"
+              disabled={submitting || !formData.name || !formData.password || !formData.confirmPassword || !formData.email || !formData.phone}
             >
               {submitting ? (
                 <>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminUsers, createAdminUser } from '@/lib/db/admin-users'
+import { getPlatformAdmins } from '@/lib/db/users'
 import { verifyAdminAccess } from '@/lib/auth/admin-session'
 
 export async function GET(request: NextRequest) {
@@ -13,12 +14,49 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const users = await getAdminUsers()
+    // Fetch from both legacy admin_users table and new users table
+    const [legacyUsers, platformAdmins] = await Promise.all([
+      getAdminUsers(),
+      getPlatformAdmins()
+    ])
 
-    // Remove password_hash from response
-    const sanitizedUsers = users.map(({ password_hash, ...user }) => user)
+    // Remove password_hash from legacy users
+    const sanitizedLegacyUsers = legacyUsers.map(({ password_hash, ...user }) => ({
+      ...user,
+      source: 'legacy'
+    }))
 
-    return NextResponse.json(sanitizedUsers)
+    // Format platform admins to match the expected structure and remove password_hash
+    const sanitizedPlatformAdmins = platformAdmins.map(({ password_hash, ...user }) => ({
+      ...user,
+      is_active: true, // Platform admins are always active
+      source: 'global'
+    }))
+
+    // Combine both lists, avoiding duplicates by email
+    const seenEmails = new Set<string>()
+    const allUsers = []
+
+    // Add platform admins first (newer system takes priority)
+    for (const user of sanitizedPlatformAdmins) {
+      if (user.email && !seenEmails.has(user.email.toLowerCase())) {
+        seenEmails.add(user.email.toLowerCase())
+        allUsers.push(user)
+      }
+    }
+
+    // Add legacy users that aren't already in the list
+    for (const user of sanitizedLegacyUsers) {
+      if (user.email && !seenEmails.has(user.email.toLowerCase())) {
+        seenEmails.add(user.email.toLowerCase())
+        allUsers.push(user)
+      }
+    }
+
+    // Sort by created_at descending
+    allUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    return NextResponse.json(allUsers)
   } catch (error) {
     console.error('Error fetching admin users:', error)
     return NextResponse.json(

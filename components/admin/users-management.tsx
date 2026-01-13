@@ -27,7 +27,9 @@ import { UserPlus, Pencil, Trash2, Clock, Send, Copy, Check, Mail, Phone } from 
 import { AdminUser } from '@/lib/types'
 import { PhoneInput } from '@/components/ui/phone-input'
 
-type AdminUserWithoutPassword = Omit<AdminUser, 'password_hash'>
+type AdminUserWithoutPassword = Omit<AdminUser, 'password_hash'> & {
+  source?: 'legacy' | 'global'
+}
 
 interface AdminInvitation {
   id: string
@@ -449,19 +451,21 @@ export function AdminUsersManagement() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(user)}
-                        >
-                          Edit
-                        </Button>
+                        {user.source === 'legacy' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(user)}
+                          >
+                            Edit
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => openDeleteDialog(user)}
                         >
-                          Delete
+                          {user.source === 'global' ? 'Remove' : 'Delete'}
                         </Button>
                       </div>
                     </TableCell>
