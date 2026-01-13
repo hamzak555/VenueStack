@@ -305,7 +305,7 @@ export function BusinessesTable({ businesses, businessOwners, globalSettings }: 
                       )}
                     </TableCell>
                     <TableCell className="text-sm">
-                      <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
                         <span>
                           {feeConfig.type === 'higher_of_both' ? 'Higher of Both' :
                            feeConfig.type === 'flat' ? 'Flat' :
@@ -313,7 +313,7 @@ export function BusinessesTable({ businesses, businessOwners, globalSettings }: 
                            feeConfig.type || 'N/A'}
                         </span>
                         {feeConfig.isCustom && (
-                          <Badge variant="outline" className="w-fit text-xs">
+                          <Badge variant="outline" className="text-xs">
                             Custom
                           </Badge>
                         )}
