@@ -422,3 +422,82 @@ body {
 ::-webkit-scrollbar-corner {
   background: transparent !important;
 }
+
+/* Phone Input Styling */
+.PhoneInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+}
+
+.PhoneInputCountryIcon {
+  width: 24px;
+  height: 18px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.PhoneInputCountryIcon--border {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.PhoneInputCountryIconImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.PhoneInputCountrySelect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.PhoneInputCountrySelectArrow {
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border-style: solid;
+  border-color: var(--muted-foreground);
+  border-top-width: 0;
+  border-bottom-width: 1px;
+  border-left-width: 0;
+  border-right-width: 1px;
+  transform: rotate(45deg);
+}
+
+.PhoneInputInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.875rem;
+  padding: 6px 12px 6px 0;
+  color: var(--foreground);
+}
+
+.PhoneInputInput::placeholder {
+  color: var(--muted-foreground);
+}
+
+.phone-input-container {
+  position: relative;
+}
+
+.phone-input-container:focus-within {
+  border-color: var(--ring);
+}

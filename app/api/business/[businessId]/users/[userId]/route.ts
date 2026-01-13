@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBusinessUserById, updateBusinessUser, deleteBusinessUser } from '@/lib/db/business-users'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
+import { normalizePhoneNumber } from '@/lib/twilio'
 
 export async function PATCH(
   request: NextRequest,
@@ -18,21 +19,22 @@ export async function PATCH(
       )
     }
 
-    const body = await request.json()
-    const { email, password, name, role, is_active } = body
-
     // Verify the user belongs to this business
     const existingUser = await getBusinessUserById(userId)
-    if (existingUser.business_id !== businessId) {
+    if (!existingUser || existingUser.business_id !== businessId) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
     }
 
+    const body = await request.json()
+    const { email, password, name, phone, role, is_active } = body
+
+    // Build update object
     const updates: any = {}
+
     if (email !== undefined) updates.email = email
-    if (password !== undefined) updates.password = password
     if (name !== undefined) updates.name = name
     if (role !== undefined) {
       if (role !== 'admin' && role !== 'regular') {
@@ -44,11 +46,17 @@ export async function PATCH(
       updates.role = role
     }
     if (is_active !== undefined) updates.is_active = is_active
+    if (password) updates.password = password
 
-    const user = await updateBusinessUser(userId, updates)
+    // Normalize phone number if provided
+    if (phone !== undefined) {
+      updates.phone = phone ? normalizePhoneNumber(phone) : null
+    }
+
+    const updatedUser = await updateBusinessUser(userId, updates)
 
     // Remove password hash from response
-    const { password_hash, ...safeUser } = user
+    const { password_hash, ...safeUser } = updatedUser
 
     return NextResponse.json(safeUser)
   } catch (error) {
@@ -57,7 +65,7 @@ export async function PATCH(
     // Check if it's a unique constraint violation
     if (error instanceof Error && error.message.includes('duplicate')) {
       return NextResponse.json(
-        { error: 'A user with this email already exists for this business' },
+        { error: 'A user with this email already exists' },
         { status: 409 }
       )
     }
@@ -87,10 +95,18 @@ export async function DELETE(
 
     // Verify the user belongs to this business
     const existingUser = await getBusinessUserById(userId)
-    if (existingUser.business_id !== businessId) {
+    if (!existingUser || existingUser.business_id !== businessId) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
+      )
+    }
+
+    // Don't allow deleting yourself
+    if (session.userId === userId) {
+      return NextResponse.json(
+        { error: 'You cannot delete your own account' },
+        { status: 400 }
       )
     }
 

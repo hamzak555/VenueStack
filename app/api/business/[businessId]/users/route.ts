@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBusinessUsers, createBusinessUser } from '@/lib/db/business-users'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
   request: NextRequest,
@@ -18,10 +19,43 @@ export async function GET(
       )
     }
 
-    const users = await getBusinessUsers(businessId)
+    // Fetch business users with joined user data for those linked to global users
+    const supabase = await createClient()
+    const { data: users, error } = await supabase
+      .from('business_users')
+      .select(`
+        id,
+        user_id,
+        business_id,
+        email,
+        name,
+        phone,
+        role,
+        is_active,
+        created_at,
+        user:users(id, email, phone, name)
+      `)
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false })
 
-    // Remove password hashes from response
-    const safeUsers = users.map(({ password_hash, ...user }) => user)
+    if (error) throw error
+
+    // Map users to use global user data when available
+    const safeUsers = users.map((bu: any) => {
+      const globalUser = bu.user
+      return {
+        id: bu.id,
+        user_id: bu.user_id,
+        business_id: bu.business_id,
+        // Use global user data if available, fall back to business_users data
+        email: globalUser?.email || bu.email,
+        name: globalUser?.name || bu.name,
+        phone: globalUser?.phone || bu.phone,
+        role: bu.role,
+        is_active: bu.is_active,
+        created_at: bu.created_at,
+      }
+    })
 
     return NextResponse.json(safeUsers)
   } catch (error) {
@@ -50,7 +84,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { email, password, name, role } = body
+    const { email, password, name, phone, role } = body
 
     if (!email || !password || !name || !role) {
       return NextResponse.json(
@@ -67,10 +101,12 @@ export async function POST(
     }
 
     const user = await createBusinessUser({
+      user_id: null, // Legacy: will be replaced by invitation flow
       business_id: businessId,
       email,
       password,
       name,
+      phone: phone || null,
       role,
       is_active: true,
     })

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createBusiness, isSlugAvailable } from '@/lib/db/businesses'
-import { createBusinessUser } from '@/lib/db/business-users'
-import { createClient } from '@/lib/supabase/server'
+import { createBusinessUserLink } from '@/lib/db/business-users'
+import { createUser, getUserByEmail } from '@/lib/db/users'
+import { normalizePhoneNumber } from '@/lib/twilio'
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,14 +52,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if email is already used for any business
-    const supabase = await createClient()
-    const { data: existingUser } = await supabase
-      .from('business_users')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .limit(1)
-      .maybeSingle()
+    // Check if email is already used
+    const existingUser = await getUserByEmail(email)
 
     if (existingUser) {
       return NextResponse.json(
@@ -106,14 +101,19 @@ export async function POST(request: NextRequest) {
       subscription_created_at: null,
     })
 
-    // Create the admin user for this business
-    const businessUser = await createBusinessUser({
-      business_id: business.id,
+    // Create the user in the global users table
+    const user = await createUser({
       email: email.toLowerCase(),
+      phone: normalizePhoneNumber(phone),
       password,
       name: userName,
+    })
+
+    // Link the user to the business as admin
+    const businessUser = await createBusinessUserLink({
+      user_id: user.id,
+      business_id: business.id,
       role: 'admin',
-      is_active: true,
     })
 
     return NextResponse.json({
@@ -125,9 +125,9 @@ export async function POST(request: NextRequest) {
         slug: business.slug,
       },
       user: {
-        id: businessUser.id,
-        email: businessUser.email,
-        name: businessUser.name,
+        id: user.id,
+        email: user.email,
+        name: user.name,
       },
       requiresPaymentSetup: true,
     })

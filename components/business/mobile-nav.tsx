@@ -14,6 +14,7 @@ import {
 import { SettingsNav } from '@/components/business/settings-nav'
 import { LogoutButton } from '@/components/business/logout-button'
 import { AccountSwitcher } from '@/components/account-switcher'
+import { MyAccountButton } from '@/components/business/my-account-button'
 import { NotificationCenter } from '@/components/business/notification-center'
 import { Menu, Calendar, Receipt, BarChart3, UserCircle, Ticket, Armchair, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -146,6 +147,7 @@ export function MobileNav({ businessSlug, businessName, businessId, isAdmin, sho
                 View Public Page
               </Link>
             </Button>
+            {!hideLogout && <MyAccountButton />}
             <AccountSwitcher />
             {!hideLogout && <LogoutButton />}
           </div>

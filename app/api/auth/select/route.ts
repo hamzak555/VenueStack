@@ -4,7 +4,7 @@ import { jwtVerify, SignJWT } from 'jose'
 import { createAdminSession, getAdminSession, deleteAdminSession } from '@/lib/auth/admin-session'
 import { createBusinessSession, getBusinessSession, deleteBusinessSession } from '@/lib/auth/business-session'
 import { getAdminUserByEmail } from '@/lib/db/admin-users'
-import { getBusinessUserByEmail, getBusinessUsersByEmail } from '@/lib/db/business-users'
+import { getBusinessUserByEmail, getBusinessUsersByEmail, getBusinessUserByUserId } from '@/lib/db/business-users'
 import { createClient } from '@/lib/supabase/server'
 import { createLoginLog } from '@/lib/db/login-logs'
 
@@ -16,6 +16,7 @@ interface UserAffiliation {
   type: 'admin' | 'business'
   id: string
   name: string
+  userId?: string
   businessId?: string
   businessSlug?: string
   businessName?: string
@@ -26,6 +27,7 @@ interface UserAffiliation {
 interface UnifiedLoginSession {
   email: string
   name: string
+  userId?: string
   affiliations: UserAffiliation[]
 }
 
@@ -51,6 +53,7 @@ export async function POST(request: NextRequest) {
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
 
     let email: string | null = null
+    let globalUserId: string | null = null
 
     // First, try Authorization header (mobile app flow)
     if (bearerToken) {
@@ -58,6 +61,7 @@ export async function POST(request: NextRequest) {
         const { payload } = await jwtVerify(bearerToken, SECRET_KEY)
         const session = payload as unknown as UnifiedLoginSession
         email = session.email
+        globalUserId = session.userId || null
       } catch {
         // Invalid bearer token, continue to check other methods
       }
@@ -69,6 +73,7 @@ export async function POST(request: NextRequest) {
         const { payload } = await jwtVerify(pendingToken, SECRET_KEY)
         const session = payload as unknown as UnifiedLoginSession
         email = session.email
+        globalUserId = session.userId || null
         // Clear the pending login cookie
         cookieStore.delete('pending_login')
       } catch {
@@ -82,6 +87,10 @@ export async function POST(request: NextRequest) {
       const businessSession = await getBusinessSession()
 
       email = adminSession?.email || businessSession?.email || null
+      // Get globalUserId from business session for account switching
+      if (!globalUserId && businessSession?.globalUserId) {
+        globalUserId = businessSession.globalUserId
+      }
 
       if (!email) {
         return NextResponse.json(
@@ -126,8 +135,14 @@ export async function POST(request: NextRequest) {
         user_agent: userAgent,
       }).catch(err => console.error('Failed to log admin login:', err))
     } else if (affiliationType === 'business' && businessId) {
-      // Get business user and verify access
-      const businessUser = await getBusinessUserByEmail(businessId, email)
+      // Get business user and verify access - try user_id first, then fall back to email
+      let businessUser = null
+      if (globalUserId) {
+        businessUser = await getBusinessUserByUserId(businessId, globalUserId)
+      }
+      if (!businessUser) {
+        businessUser = await getBusinessUserByEmail(businessId, email)
+      }
       if (!businessUser) {
         return NextResponse.json(
           { error: 'Business user not found' },

@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       email,
       password,
       name,
+      phone: null,
       is_active: true,
     })
 

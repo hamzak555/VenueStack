@@ -10,6 +10,7 @@ const SECRET_KEY = new TextEncoder().encode(
 
 export interface BusinessSession {
   userId: string
+  globalUserId?: string // The global user ID from users table
   businessId: string
   email: string
   role: 'admin' | 'regular'
@@ -49,6 +50,7 @@ async function verifySessionToken(token: string): Promise<BusinessSession | null
 export async function createBusinessSession(user: BusinessUser, adminBypass = false) {
   const session: BusinessSession = {
     userId: user.id,
+    globalUserId: user.user_id || undefined, // Global user ID from users table
     businessId: user.business_id,
     email: user.email,
     role: user.role,

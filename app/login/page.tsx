@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Eye, EyeOff, Building2, Shield, ChevronRight, Phone, Mail, Check, X, Loader2 } from 'lucide-react'
 import { InteractiveGridPattern } from '@/components/ui/interactive-grid-pattern'
+import { PhoneInput } from '@/components/ui/phone-input'
 import Image from 'next/image'
 
 interface UserAffiliation {
@@ -599,14 +600,12 @@ export default function UnifiedLoginPage() {
                 <form onSubmit={handleSendCode} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+1 (555) 123-4567"
+                    <PhoneInput
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(value) => setPhone(value || '')}
                       required
                       disabled={sendingCode}
+                      placeholder="Phone number"
                     />
                     <p className="text-xs text-muted-foreground">
                       We'll send you a verification code via SMS
@@ -805,15 +804,12 @@ export default function UnifiedLoginPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="registerPhone">Phone Number *</Label>
-                <Input
-                  id="registerPhone"
-                  type="tel"
-                  placeholder="+1 (555) 123-4567"
+                <PhoneInput
                   value={registerForm.phone}
-                  onChange={(e) => setRegisterForm(prev => ({ ...prev, phone: e.target.value }))}
+                  onChange={(value) => setRegisterForm(prev => ({ ...prev, phone: value || '' }))}
                   required
                   disabled={registerLoading}
-                  className={isValidPhone ? 'border-green-500 focus-visible:ring-green-500' : ''}
+                  placeholder="Phone number"
                 />
               </div>
 

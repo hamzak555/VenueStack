@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { LogoutButton } from '@/components/business/logout-button'
 import { AccountSwitcher } from '@/components/account-switcher'
+import { MyAccountButton } from '@/components/business/my-account-button'
 import { SettingsNav } from '@/components/business/settings-nav'
 import { SubscriptionGate } from '@/components/business/subscription-gate'
 import { NotificationCenter } from '@/components/business/notification-center'
@@ -110,6 +111,7 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
               View Public Page
             </Link>
           </Button>
+          {!session.adminBypass && <MyAccountButton />}
           <AccountSwitcher />
           {!session.adminBypass && <LogoutButton />}
           <div className="flex items-center justify-center gap-1 pt-2 text-[10px] text-muted-foreground/60">

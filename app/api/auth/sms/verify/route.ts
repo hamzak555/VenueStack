@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminUserPassword } from '@/lib/db/admin-users'
-import { verifyUserPassword } from '@/lib/db/users'
+import { createClient } from '@/lib/supabase/server'
+import { getUserByPhone } from '@/lib/db/users'
 import { getBusinessUsersByUserId } from '@/lib/db/business-users'
+import { getAdminUserByPhone } from '@/lib/db/admin-users'
 import { cookies } from 'next/headers'
 import { SignJWT } from 'jose'
 
@@ -23,6 +24,7 @@ interface UserAffiliation {
 
 interface UnifiedLoginSession {
   email: string
+  phone: string
   name: string
   userId?: string
   affiliations: UserAffiliation[]
@@ -31,23 +33,67 @@ interface UnifiedLoginSession {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const { phone, code } = await request.json()
 
-    if (!email || !password) {
+    if (!phone || !code) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Phone and code are required' },
         { status: 400 }
       )
     }
 
+    // Verify the code from Supabase
+    const supabase = await createClient()
+
+    const { data: verificationRecord, error: fetchError } = await supabase
+      .from('phone_verification_codes')
+      .select('*')
+      .eq('phone', phone)
+      .eq('code', code)
+      .single()
+
+    if (fetchError || !verificationRecord) {
+      return NextResponse.json(
+        { error: 'Invalid verification code' },
+        { status: 401 }
+      )
+    }
+
+    // Check if code has expired
+    if (new Date(verificationRecord.expires_at) < new Date()) {
+      // Delete expired code
+      await supabase
+        .from('phone_verification_codes')
+        .delete()
+        .eq('phone', phone)
+
+      return NextResponse.json(
+        { error: 'Verification code has expired' },
+        { status: 401 }
+      )
+    }
+
+    // Delete the used code
+    await supabase
+      .from('phone_verification_codes')
+      .delete()
+      .eq('phone', phone)
+
+    // Get user affiliations
+    const [globalUser, adminUser] = await Promise.all([
+      getUserByPhone(phone),
+      getAdminUserByPhone(phone),
+    ])
+
     const affiliations: UserAffiliation[] = []
     let userName = ''
+    let userEmail = ''
     let globalUserId = ''
 
-    // Check admin credentials
-    const adminUser = await verifyAdminUserPassword(email, password)
+    // Add admin affiliation
     if (adminUser) {
       userName = adminUser.name
+      userEmail = adminUser.email
       affiliations.push({
         type: 'admin',
         id: adminUser.id,
@@ -55,12 +101,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Check global user credentials
-    const globalUser = await verifyUserPassword(email, password)
+    // Add business affiliations via global user
     if (globalUser) {
       globalUserId = globalUser.id
       if (!userName) {
         userName = globalUser.name
+      }
+      if (!userEmail) {
+        userEmail = globalUser.email
       }
 
       // Get all business affiliations for this user
@@ -83,17 +131,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // No valid credentials found
     if (affiliations.length === 0) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
+        { error: 'No account found with this phone number' },
+        { status: 404 }
       )
     }
 
     // Create a temporary session token for the selection page
     const session: UnifiedLoginSession = {
-      email,
+      email: userEmail,
+      phone,
       name: userName,
       userId: globalUserId || undefined,
       affiliations,
@@ -117,14 +165,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       name: userName,
-      affiliations: affiliations,
+      affiliations,
       requiresSelection: affiliations.length > 1,
-      token: token, // Include token for mobile apps
+      token, // Include token for mobile apps
     })
   } catch (error) {
-    console.error('Error during unified login:', error)
+    console.error('Error verifying code:', error)
     return NextResponse.json(
-      { error: 'An error occurred during login' },
+      { error: 'An error occurred during verification' },
       { status: 500 }
     )
   }

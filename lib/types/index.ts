@@ -277,16 +277,55 @@ export interface PlatformSettings {
 
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete' | 'unpaid' | null
 
+// Global user identity
+export interface User {
+  id: string
+  email: string
+  phone: string | null
+  password_hash: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+// Business-user link (transitioning to user_id FK)
 export interface BusinessUser {
   id: string
+  user_id: string | null  // FK to users table (null during migration)
   business_id: string
+  // Legacy fields (will be removed after full migration)
   email: string
   password_hash: string
   name: string
+  phone: string | null
+  // Core fields
   role: 'admin' | 'regular'
   is_active: boolean
   created_at: string
   updated_at: string
+  // Joined user data (optional)
+  user?: User
+}
+
+// Invitation for users to join a business
+export interface Invitation {
+  id: string
+  business_id: string
+  email: string | null
+  phone: string | null
+  role: 'admin' | 'regular'
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled'
+  token: string
+  invited_by: string
+  created_at: string
+  expires_at: string
+  // Joined business data (optional)
+  business?: {
+    id: string
+    name: string
+    slug: string
+    logo_url: string | null
+  }
 }
 
 export interface AdminUser {
@@ -294,6 +333,7 @@ export interface AdminUser {
   email: string
   password_hash: string
   name: string
+  phone: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -382,10 +422,20 @@ export interface Database {
         Insert: Omit<PlatformSettings, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<PlatformSettings, 'id' | 'created_at' | 'updated_at'>>
       }
+      users: {
+        Row: User
+        Insert: Omit<User, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>
+      }
       business_users: {
         Row: BusinessUser
         Insert: Omit<BusinessUser, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<BusinessUser, 'id' | 'created_at' | 'updated_at'>>
+      }
+      invitations: {
+        Row: Invitation
+        Insert: Omit<Invitation, 'id' | 'created_at'>
+        Update: Partial<Omit<Invitation, 'id' | 'created_at'>>
       }
       admin_users: {
         Row: AdminUser

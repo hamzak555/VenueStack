@@ -194,3 +194,159 @@ export async function getBusinessUsersByPhone(phone: string) {
   if (error) throw error
   return data
 }
+
+// ============================================
+// New functions for user_id based operations
+// ============================================
+
+/**
+ * Get all business affiliations for a user by user_id
+ */
+export async function getBusinessUsersByUserId(userId: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('business_users')
+    .select(`
+      *,
+      business:businesses(id, name, slug, logo_url, theme_color)
+    `)
+    .eq('user_id', userId)
+    .eq('is_active', true)
+
+  if (error) throw error
+  return data
+}
+
+/**
+ * Get all users for a business with joined user data
+ */
+export async function getBusinessUsersWithUserData(businessId: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('business_users')
+    .select(`
+      id,
+      user_id,
+      business_id,
+      role,
+      is_active,
+      created_at,
+      user:users(id, email, phone, name)
+    `)
+    .eq('business_id', businessId)
+    .not('user_id', 'is', null)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data
+}
+
+/**
+ * Get a specific business user by user_id and business_id
+ */
+export async function getBusinessUserByUserId(businessId: string, userId: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('business_users')
+    .select(`
+      *,
+      business:businesses(id, name, slug, logo_url)
+    `)
+    .eq('business_id', businessId)
+    .eq('user_id', userId)
+    .single()
+
+  if (error && error.code !== 'PGRST116') throw error
+  return data as BusinessUser | null
+}
+
+/**
+ * Create a business user link (no credentials - uses user_id)
+ */
+export async function createBusinessUserLink({
+  user_id,
+  business_id,
+  role,
+}: {
+  user_id: string
+  business_id: string
+  role: 'admin' | 'regular'
+}) {
+  const supabase = await createServerClient()
+
+  // Get user data to populate legacy fields (for backwards compatibility)
+  const { data: user } = await supabase
+    .from('users')
+    .select('email, name, phone, password_hash')
+    .eq('id', user_id)
+    .single()
+
+  if (!user) throw new Error('User not found')
+
+  const { data, error } = await supabase
+    .from('business_users')
+    .insert({
+      user_id,
+      business_id,
+      role,
+      is_active: true,
+      // Legacy fields (populated for backwards compatibility)
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      password_hash: user.password_hash,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+/**
+ * Check if a user is already linked to a business
+ */
+export async function checkBusinessUserExists(userId: string, businessId: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('business_users')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('business_id', businessId)
+    .single()
+
+  if (error && error.code !== 'PGRST116') throw error
+  return data !== null
+}
+
+/**
+ * Check if a user is already linked to a business by email
+ */
+export async function checkBusinessUserExistsByEmail(email: string, businessId: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('business_users')
+    .select('id')
+    .eq('email', email.toLowerCase())
+    .eq('business_id', businessId)
+    .single()
+
+  if (error && error.code !== 'PGRST116') throw error
+  return data !== null
+}
+
+/**
+ * Check if a user is already linked to a business by phone
+ */
+export async function checkBusinessUserExistsByPhone(phone: string, businessId: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('business_users')
+    .select('id')
+    .eq('phone', phone)
+    .eq('business_id', businessId)
+    .single()
+
+  if (error && error.code !== 'PGRST116') throw error
+  return data !== null
+}

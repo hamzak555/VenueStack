@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2, Minus, Plus, Ticket, Armchair, Map } from 'lucide-react'
+import { PhoneInput } from '@/components/ui/phone-input'
 import Image from 'next/image'
 import Link from 'next/link'
 import { AnimatedImageGlow } from '@/components/business/animated-image-glow'
@@ -1132,15 +1133,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
+                  <PhoneInput
                     value={customerInfo.phone}
-                    onChange={(e) => {
-                      setCustomerInfo({ ...customerInfo, phone: e.target.value })
+                    onChange={(value) => {
+                      setCustomerInfo({ ...customerInfo, phone: value || '' })
                       setFieldErrors({ ...fieldErrors, phone: false })
                     }}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="Phone number"
                     required
                     disabled={!!clientSecret}
                     className={fieldErrors.phone ? 'border-red-500 focus-visible:ring-red-500' : ''}
