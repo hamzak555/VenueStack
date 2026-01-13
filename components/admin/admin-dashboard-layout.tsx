@@ -2,10 +2,10 @@ import { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { verifyAdminAccess } from '@/lib/auth/admin-session'
 import { AdminLogoutButton } from './admin-logout-button'
+import { AdminMyAccountButton } from './admin-my-account-button'
 import { AccountSwitcher } from '@/components/account-switcher'
 import { AdminNav } from './admin-nav'
 
@@ -46,6 +46,7 @@ export async function AdminDashboardLayout({ children }: AdminDashboardLayoutPro
           <div className="text-xs text-muted-foreground">
             Logged in as: {session.name}
           </div>
+          <AdminMyAccountButton />
           <AccountSwitcher />
           <AdminLogoutButton />
         </div>

@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Eye, EyeOff, Building2, Shield, ChevronRight, Phone, Mail, Check, X, Loader2 } from 'lucide-react'
 import { InteractiveGridPattern } from '@/components/ui/interactive-grid-pattern'
 import { PhoneInput } from '@/components/ui/phone-input'
+import { OtpInput } from '@/components/ui/otp-input'
+import { toast } from 'sonner'
 import Image from 'next/image'
 
 interface UserAffiliation {
@@ -148,8 +150,8 @@ export default function UnifiedLoginPage() {
     setError('')
   }
 
-  const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSendCode = async (e?: React.FormEvent, isResend = false) => {
+    e?.preventDefault()
     setError('')
     setSendingCode(true)
 
@@ -159,7 +161,7 @@ export default function UnifiedLoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone: isResend ? normalizedPhone : phone }),
       })
 
       const data = await response.json()
@@ -170,6 +172,12 @@ export default function UnifiedLoginPage() {
 
       setNormalizedPhone(data.phone)
       setCodeSent(true)
+
+      if (isResend) {
+        toast.success('New code sent', {
+          description: `A new verification code has been sent to ${data.phone}`,
+        })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -625,22 +633,15 @@ export default function UnifiedLoginPage() {
               {/* OTP verification form */}
               {loginMethod === 'phone' && codeSent && (
                 <form onSubmit={handleVerifyCode} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="otp">Verification Code</Label>
-                    <Input
-                      id="otp"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={6}
-                      placeholder="123456"
+                  <div className="space-y-4">
+                    <Label className="text-center block">Verification Code</Label>
+                    <OtpInput
                       value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      required
+                      onChange={setOtpCode}
                       disabled={loading}
-                      className="text-center text-2xl tracking-widest"
+                      autoFocus
                     />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground text-center">
                       Enter the 6-digit code sent to {normalizedPhone}
                     </p>
                   </div>
@@ -666,7 +667,7 @@ export default function UnifiedLoginPage() {
                       type="button"
                       variant="outline"
                       className="flex-1"
-                      onClick={handleSendCode}
+                      onClick={() => handleSendCode(undefined, true)}
                       disabled={sendingCode}
                     >
                       {sendingCode ? 'Sending...' : 'Resend code'}

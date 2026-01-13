@@ -4,6 +4,7 @@ import { jwtVerify, SignJWT } from 'jose'
 import { createAdminSession, getAdminSession, deleteAdminSession } from '@/lib/auth/admin-session'
 import { createBusinessSession, getBusinessSession, deleteBusinessSession } from '@/lib/auth/business-session'
 import { getAdminUserByEmail } from '@/lib/db/admin-users'
+import { getPlatformAdminByEmail, getUserById } from '@/lib/db/users'
 import { getBusinessUserByEmail, getBusinessUsersByEmail, getBusinessUserByUserId } from '@/lib/db/business-users'
 import { createClient } from '@/lib/supabase/server'
 import { createLoginLog } from '@/lib/db/login-logs'
@@ -109,14 +110,37 @@ export async function POST(request: NextRequest) {
     const userAgent = headersList.get('user-agent') || null
 
     if (affiliationType === 'admin') {
-      // Create admin session
-      const adminUser = await getAdminUserByEmail(email)
+      // Try to find platform admin from global users first
+      let adminUser = null
+
+      // If we have a globalUserId, check if that user is a platform admin
+      if (globalUserId) {
+        const user = await getUserById(globalUserId)
+        if (user?.is_platform_admin) {
+          adminUser = user
+        }
+      }
+
+      // If not found by ID, try by email
+      if (!adminUser) {
+        adminUser = await getPlatformAdminByEmail(email)
+      }
+
+      // Fallback to legacy admin_users table
+      if (!adminUser) {
+        const legacyAdmin = await getAdminUserByEmail(email)
+        if (legacyAdmin) {
+          adminUser = legacyAdmin
+        }
+      }
+
       if (!adminUser) {
         return NextResponse.json(
           { error: 'Admin user not found' },
           { status: 404 }
         )
       }
+
       // Clear business session when switching to admin
       await deleteBusinessSession()
       await createAdminSession(adminUser)

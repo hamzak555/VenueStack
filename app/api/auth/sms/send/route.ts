@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendSMS, normalizePhoneNumber, generateVerificationCode } from '@/lib/twilio'
 import { getUserByPhone } from '@/lib/db/users'
-import { getAdminUserByPhone } from '@/lib/db/admin-users'
+import { getAdminUserByPhone, getAdminUserByEmail } from '@/lib/db/admin-users'
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
         getUserByPhone(normalizedPhone),
         getAdminUserByPhone(normalizedPhone),
       ])
+
+      // If no admin found by phone, check if global user's email matches an admin
+      if (!adminUser && globalUser?.email) {
+        adminUser = await getAdminUserByEmail(globalUser.email)
+      }
     } catch (dbError) {
       console.error('Database error checking phone:', dbError)
       return NextResponse.json(

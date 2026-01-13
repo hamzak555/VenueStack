@@ -3,7 +3,7 @@ import { User } from '@/lib/types'
 import bcrypt from 'bcryptjs'
 
 export type { User }
-export type UserInsert = Omit<User, 'id' | 'created_at' | 'updated_at' | 'password_hash'> & { password: string }
+export type UserInsert = Omit<User, 'id' | 'created_at' | 'updated_at' | 'password_hash' | 'is_platform_admin'> & { password: string; is_platform_admin?: boolean }
 export type UserUpdate = Partial<Omit<User, 'id' | 'created_at' | 'updated_at' | 'password_hash'> & { password?: string }>
 
 /**
@@ -102,6 +102,7 @@ export async function createUser(user: UserInsert) {
       phone: user.phone || null,
       password_hash,
       name: user.name,
+      is_platform_admin: user.is_platform_admin || false,
     })
     .select()
     .single()
@@ -121,6 +122,7 @@ export async function updateUser(id: string, updates: UserUpdate) {
   if (updates.email !== undefined) updateData.email = updates.email.toLowerCase()
   if (updates.phone !== undefined) updateData.phone = updates.phone || null
   if (updates.name !== undefined) updateData.name = updates.name
+  if (updates.is_platform_admin !== undefined) updateData.is_platform_admin = updates.is_platform_admin
   if (updates.password) {
     updateData.password_hash = await bcrypt.hash(updates.password, 10)
   }
@@ -174,4 +176,99 @@ export async function verifyUserPasswordByPhone(phone: string, password: string)
   }
 
   return user
+}
+
+// ============================================
+// Platform Admin Functions
+// ============================================
+
+/**
+ * Get all platform admin users
+ */
+export async function getPlatformAdmins() {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('is_platform_admin', true)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data as User[]
+}
+
+/**
+ * Set a user's platform admin status
+ */
+export async function setPlatformAdmin(userId: string, isAdmin: boolean) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      is_platform_admin: isAdmin,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as User
+}
+
+/**
+ * Verify platform admin credentials
+ */
+export async function verifyPlatformAdminPassword(email: string, password: string) {
+  const supabase = await createServerClient()
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email.toLowerCase())
+    .eq('is_platform_admin', true)
+    .single()
+
+  if (error || !user) {
+    return null
+  }
+
+  const isValid = await bcrypt.compare(password, user.password_hash)
+
+  if (!isValid) {
+    return null
+  }
+
+  return user as User
+}
+
+/**
+ * Get platform admin by phone
+ */
+export async function getPlatformAdminByPhone(phone: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('phone', phone)
+    .eq('is_platform_admin', true)
+    .single()
+
+  if (error && error.code !== 'PGRST116') throw error
+  return data as User | null
+}
+
+/**
+ * Get platform admin by email
+ */
+export async function getPlatformAdminByEmail(email: string) {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email.toLowerCase())
+    .eq('is_platform_admin', true)
+    .single()
+
+  if (error && error.code !== 'PGRST116') throw error
+  return data as User | null
 }

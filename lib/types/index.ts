@@ -284,6 +284,7 @@ export interface User {
   phone: string | null
   password_hash: string
   name: string
+  is_platform_admin: boolean
   created_at: string
   updated_at: string
 }
@@ -326,6 +327,18 @@ export interface Invitation {
     slug: string
     logo_url: string | null
   }
+}
+
+// Invitation for users to become platform admins
+export interface AdminInvitation {
+  id: string
+  email: string | null
+  phone: string | null
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled'
+  token: string
+  invited_by: string
+  created_at: string
+  expires_at: string
 }
 
 export interface AdminUser {

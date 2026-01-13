@@ -23,25 +23,37 @@ import {
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { UserPlus, Pencil, Trash2, Eye, EyeOff, Copy, Check } from 'lucide-react'
+import { UserPlus, Pencil, Trash2, Clock, Send, Copy, Check, Mail, Phone } from 'lucide-react'
 import { AdminUser } from '@/lib/types'
+import { PhoneInput } from '@/components/ui/phone-input'
 
 type AdminUserWithoutPassword = Omit<AdminUser, 'password_hash'>
 
+interface AdminInvitation {
+  id: string
+  email: string | null
+  phone: string | null
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled'
+  created_at: string
+  expires_at: string
+  token: string
+}
+
 export function AdminUsersManagement() {
   const [users, setUsers] = useState<AdminUserWithoutPassword[]>([])
+  const [invitations, setInvitations] = useState<AdminInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Create user state
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [createForm, setCreateForm] = useState({
+  // Invite user state
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
+  const [inviteForm, setInviteForm] = useState({
     email: '',
-    password: '',
-    name: '',
+    phone: '',
   })
-  const [createLoading, setCreateLoading] = useState(false)
-  const [createError, setCreateError] = useState('')
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteError, setInviteError] = useState('')
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Edit user state
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -50,6 +62,7 @@ export function AdminUsersManagement() {
     email: '',
     password: '',
     name: '',
+    phone: '',
     is_active: true,
   })
   const [editLoading, setEditLoading] = useState(false)
@@ -61,44 +74,21 @@ export function AdminUsersManagement() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
-  // Password visibility and copy state
-  const [showPassword, setShowPassword] = useState(false)
-  const [copiedField, setCopiedField] = useState<'email' | 'password' | 'all' | null>(null)
+  // Cancel invitation state
+  const [cancelInviteDialogOpen, setCancelInviteDialogOpen] = useState(false)
+  const [selectedInvitation, setSelectedInvitation] = useState<AdminInvitation | null>(null)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelError, setCancelError] = useState('')
 
-  // Generate a random password
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%'
-    let password = ''
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return password
-  }
-
-  // Copy to clipboard helper
-  const copyToClipboard = async (text: string, field: 'email' | 'password' | 'all') => {
-    await navigator.clipboard.writeText(text)
-    setCopiedField(field)
-    setTimeout(() => setCopiedField(null), 2000)
-  }
-
-  // Open create dialog with auto-generated password
-  const openCreateDialog = () => {
-    setCreateForm({ email: '', password: generatePassword(), name: '' })
-    setCreateError('')
-    setShowPassword(true)
-    setCopiedField(null)
-    setCreateDialogOpen(true)
-  }
+  // Copy link state
+  const [copiedLink, setCopiedLink] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchUsers()
+    fetchAll()
   }, [])
 
   const fetchUsers = async () => {
     try {
-      setLoading(true)
-      setError('')
       const response = await fetch('/api/admin/users')
 
       if (!response.ok) {
@@ -109,38 +99,81 @@ export function AdminUsersManagement() {
       setUsers(data)
     } catch (err: any) {
       setError(err.message || 'Failed to load users')
-    } finally {
-      setLoading(false)
     }
   }
 
-  const handleCreateUser = async (e: React.FormEvent) => {
+  const fetchInvitations = async () => {
+    try {
+      const response = await fetch('/api/admin/invitations')
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch invitations')
+      }
+
+      const data = await response.json()
+      setInvitations(data)
+    } catch (err) {
+      console.error('Failed to fetch invitations:', err)
+    }
+  }
+
+  const fetchAll = async () => {
+    setLoading(true)
+    setError('')
+    await Promise.all([fetchUsers(), fetchInvitations()])
+    setLoading(false)
+  }
+
+  const openInviteDialog = () => {
+    setInviteForm({ email: '', phone: '' })
+    setInviteError('')
+    setSuccessMessage(null)
+    setInviteDialogOpen(true)
+  }
+
+  const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault()
-    setCreateLoading(true)
-    setCreateError('')
+    setInviteLoading(true)
+    setInviteError('')
+    setSuccessMessage(null)
 
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetch('/api/admin/invitations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(createForm),
+        body: JSON.stringify({
+          email: inviteForm.email || undefined,
+          phone: inviteForm.phone || undefined,
+        }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create user')
+        throw new Error(data.error || 'Failed to send invitation')
       }
 
-      setUsers([...users, data])
-      setCreateDialogOpen(false)
-      setCreateForm({ email: '', password: '', name: '' })
+      if (data.autoPromoted) {
+        // User was auto-promoted (already exists in system)
+        setSuccessMessage(`${data.user.name} has been promoted to platform admin!`)
+        fetchUsers()
+      } else {
+        // Invitation was sent
+        setSuccessMessage('Invitation sent successfully!')
+        fetchInvitations()
+      }
+
+      setInviteForm({ email: '', phone: '' })
+      setTimeout(() => {
+        setInviteDialogOpen(false)
+        setSuccessMessage(null)
+      }, 2000)
     } catch (err: any) {
-      setCreateError(err.message || 'Failed to create user')
+      setInviteError(err.message || 'Failed to send invitation')
     } finally {
-      setCreateLoading(false)
+      setInviteLoading(false)
     }
   }
 
@@ -155,6 +188,7 @@ export function AdminUsersManagement() {
       const updateData: any = {
         email: editForm.email,
         name: editForm.name,
+        phone: editForm.phone || null,
         is_active: editForm.is_active,
       }
 
@@ -180,7 +214,7 @@ export function AdminUsersManagement() {
       setUsers(users.map((u) => (u.id === editingUser.id ? data : u)))
       setEditDialogOpen(false)
       setEditingUser(null)
-      setEditForm({ email: '', password: '', name: '', is_active: true })
+      setEditForm({ email: '', password: '', name: '', phone: '', is_active: true })
     } catch (err: any) {
       setEditError(err.message || 'Failed to update user')
     } finally {
@@ -215,12 +249,47 @@ export function AdminUsersManagement() {
     }
   }
 
+  const handleCancelInvitation = async () => {
+    if (!selectedInvitation) return
+
+    setCancelLoading(true)
+    setCancelError('')
+
+    try {
+      const response = await fetch(`/api/admin/invitations/${selectedInvitation.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to cancel invitation')
+      }
+
+      setCancelInviteDialogOpen(false)
+      setSelectedInvitation(null)
+      fetchInvitations()
+    } catch (err: any) {
+      setCancelError(err.message || 'Failed to cancel invitation')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
+  const copyInviteLink = async (invitation: AdminInvitation) => {
+    const link = `${window.location.origin}/admin-invite/${invitation.token}`
+    await navigator.clipboard.writeText(link)
+    setCopiedLink(invitation.id)
+    setTimeout(() => setCopiedLink(null), 2000)
+  }
+
   const openEditDialog = (user: AdminUserWithoutPassword) => {
     setEditingUser(user)
     setEditForm({
       email: user.email,
       password: '',
       name: user.name,
+      phone: user.phone || '',
       is_active: user.is_active,
     })
     setEditError('')
@@ -233,6 +302,14 @@ export function AdminUsersManagement() {
     setDeleteDialogOpen(true)
   }
 
+  const openCancelInviteDialog = (invitation: AdminInvitation) => {
+    setSelectedInvitation(invitation)
+    setCancelError('')
+    setCancelInviteDialogOpen(true)
+  }
+
+  const pendingInvitations = invitations.filter(i => i.status === 'pending')
+
   if (loading) {
     return <div className="text-center py-8">Loading users...</div>
   }
@@ -241,7 +318,7 @@ export function AdminUsersManagement() {
     return (
       <div className="text-center py-8">
         <p className="text-red-500 mb-4">{error}</p>
-        <Button onClick={fetchUsers}>Retry</Button>
+        <Button onClick={fetchAll}>Retry</Button>
       </div>
     )
   }
@@ -252,145 +329,70 @@ export function AdminUsersManagement() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Users</h1>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreateDialog}>
+            <Button onClick={openInviteDialog}>
               <UserPlus className="mr-2 h-4 w-4" />
-              Add User
+              Invite User
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <form onSubmit={handleCreateUser}>
+            <form onSubmit={handleInviteUser}>
               <DialogHeader>
-                <DialogTitle>Create Admin User</DialogTitle>
+                <DialogTitle>Invite Admin User</DialogTitle>
                 <DialogDescription>
-                  Add a new admin user to the platform
+                  Send an invitation to become a platform administrator.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="create-name">Name</Label>
-                  <Input
-                    id="create-name"
-                    placeholder="John Doe"
-                    value={createForm.name}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-email">Email</Label>
-                  <div className="flex gap-2">
+                <div className="flex items-end gap-3">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="invite-email">Email</Label>
                     <Input
-                      id="create-email"
+                      id="invite-email"
                       type="email"
-                      placeholder="john@example.com"
-                      value={createForm.email}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, email: e.target.value })
-                      }
-                      required
-                      className="flex-1"
+                      placeholder="admin@example.com"
+                      value={inviteForm.email}
+                      onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                      disabled={inviteLoading}
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(createForm.email, 'email')}
-                      disabled={!createForm.email}
-                      title="Copy email"
-                    >
-                      {copiedField === 'email' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                    </Button>
+                  </div>
+                  <span className="text-xs text-muted-foreground pb-2.5">and/or</span>
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="invite-phone">Phone</Label>
+                    <PhoneInput
+                      value={inviteForm.phone}
+                      onChange={(value) => setInviteForm({ ...inviteForm, phone: value || '' })}
+                      disabled={inviteLoading}
+                    />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="create-password">Password</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCreateForm({ ...createForm, password: generatePassword() })}
-                      disabled={createLoading}
-                      className="h-auto py-1 px-2 text-xs"
-                    >
-                      Regenerate
-                    </Button>
+                <p className="text-sm text-muted-foreground">
+                  If the user already exists in the system, they will be automatically promoted to admin.
+                  Otherwise, they will receive an invitation to create their account.
+                </p>
+                {inviteError && (
+                  <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
+                    {inviteError}
                   </div>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        id="create-password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Minimum 6 characters"
-                        value={createForm.password}
-                        onChange={(e) =>
-                          setCreateForm({ ...createForm, password: e.target.value })
-                        }
-                        required
-                        className="pr-10 font-mono"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        title={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                      </Button>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(createForm.password, 'password')}
-                      disabled={!createForm.password}
-                      title="Copy password"
-                    >
-                      {copiedField === 'password' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-                {createForm.email && createForm.password && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => copyToClipboard(`Email: ${createForm.email}\nPassword: ${createForm.password}`, 'all')}
-                    className="w-full"
-                  >
-                    {copiedField === 'all' ? (
-                      <>
-                        <Check className="mr-2 h-4 w-4 text-green-500" />
-                        Credentials Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy Login Credentials
-                      </>
-                    )}
-                  </Button>
                 )}
-                {createError && (
-                  <p className="text-sm text-red-500">{createError}</p>
+                {successMessage && (
+                  <div className="text-sm text-green-500 bg-green-500/20 border border-green-500 rounded p-3">
+                    {successMessage}
+                  </div>
                 )}
               </div>
               <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setCreateDialogOpen(false)}
-                  disabled={createLoading}
+                  onClick={() => setInviteDialogOpen(false)}
+                  disabled={inviteLoading}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createLoading}>
-                  {createLoading ? 'Creating...' : 'Create User'}
+                <Button type="submit" disabled={inviteLoading || (!inviteForm.email && !inviteForm.phone)}>
+                  {inviteLoading ? 'Sending...' : 'Send Invitation'}
                 </Button>
               </DialogFooter>
             </form>
@@ -398,9 +400,10 @@ export function AdminUsersManagement() {
         </Dialog>
       </div>
 
+      {/* Admin Users Card */}
       <Card>
         <CardHeader>
-          <CardTitle>All Admin Users</CardTitle>
+          <CardTitle>Platform Administrators</CardTitle>
           <CardDescription>
             {users.length} admin user{users.length !== 1 ? 's' : ''} registered
           </CardDescription>
@@ -411,9 +414,9 @@ export function AdminUsersManagement() {
               <p className="text-muted-foreground mb-4">
                 No admin users found
               </p>
-              <Button onClick={openCreateDialog}>
+              <Button onClick={openInviteDialog}>
                 <UserPlus className="mr-2 h-4 w-4" />
-                Create Your First Admin User
+                Invite Your First Admin User
               </Button>
             </div>
           ) : (
@@ -422,6 +425,7 @@ export function AdminUsersManagement() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -432,6 +436,9 @@ export function AdminUsersManagement() {
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell className="text-sm">{user.email}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {user.phone || '—'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={user.is_active ? 'success' : 'secondary'}>
                         {user.is_active ? 'Active' : 'Inactive'}
@@ -465,6 +472,85 @@ export function AdminUsersManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pending Invitations */}
+      {pendingInvitations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Pending Invitations
+            </CardTitle>
+            <CardDescription>
+              {pendingInvitations.length} pending invitation{pendingInvitations.length !== 1 ? 's' : ''}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Sent</TableHead>
+                  <TableHead>Expires</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingInvitations.map((invitation) => (
+                  <TableRow key={invitation.id}>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {invitation.email && (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Mail className="h-3 w-3 text-muted-foreground" />
+                            {invitation.email}
+                          </div>
+                        )}
+                        {invitation.phone && (
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            {invitation.phone}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(invitation.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(invitation.expires_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyInviteLink(invitation)}
+                          title="Copy invite link"
+                        >
+                          {copiedLink === invitation.id ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openCancelInviteDialog(invitation)}
+                          title="Cancel invitation"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -500,6 +586,18 @@ export function AdminUsersManagement() {
                     setEditForm({ ...editForm, email: e.target.value })
                   }
                   required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  type="tel"
+                  placeholder="+1 (555) 123-4567"
+                  value={editForm.phone}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, phone: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -575,6 +673,49 @@ export function AdminUsersManagement() {
               disabled={deleteLoading}
             >
               {deleteLoading ? 'Deleting...' : 'Delete User'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Invitation Dialog */}
+      <Dialog open={cancelInviteDialogOpen} onOpenChange={setCancelInviteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Invitation</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this invitation? The invite link will no longer work.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedInvitation && (
+            <div className="py-4">
+              <p className="text-sm">
+                <span className="font-medium">Email:</span> {selectedInvitation.email || '—'}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Phone:</span> {selectedInvitation.phone || '—'}
+              </p>
+            </div>
+          )}
+          {cancelError && (
+            <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
+              {cancelError}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCancelInviteDialogOpen(false)}
+              disabled={cancelLoading}
+            >
+              Keep Invitation
+            </Button>
+            <Button
+              className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30"
+              onClick={handleCancelInvitation}
+              disabled={cancelLoading}
+            >
+              {cancelLoading ? 'Cancelling...' : 'Cancel Invitation'}
             </Button>
           </DialogFooter>
         </DialogContent>
