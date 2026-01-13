@@ -10,7 +10,7 @@ export default async function BusinessesListPage() {
   let businesses: Awaited<ReturnType<typeof getBusinesses>> = []
   let error: string | null = null
   let globalSettings: any = null
-  let adminUsers: Record<string, { name: string; email: string; phone: string | null }> = {}
+  let businessOwners: Record<string, { name: string; email: string; phone: string | null }[]> = {}
 
   try {
     businesses = await getBusinesses()
@@ -23,19 +23,23 @@ export default async function BusinessesListPage() {
       .single()
     globalSettings = settings
 
-    // Fetch admin users for each business
-    const { data: admins } = await supabase
+    // Fetch owners for each business
+    const { data: owners } = await supabase
       .from('business_users')
       .select('business_id, name, email, phone')
-      .eq('role', 'admin')
+      .eq('role', 'owner')
       .eq('is_active', true)
 
-    if (admins) {
-      admins.forEach((admin) => {
-        // Only store the first admin found for each business
-        if (!adminUsers[admin.business_id]) {
-          adminUsers[admin.business_id] = { name: admin.name, email: admin.email, phone: admin.phone }
+    if (owners) {
+      owners.forEach((owner) => {
+        if (!businessOwners[owner.business_id]) {
+          businessOwners[owner.business_id] = []
         }
+        businessOwners[owner.business_id].push({
+          name: owner.name,
+          email: owner.email,
+          phone: owner.phone
+        })
       })
     }
   } catch (e) {
@@ -82,7 +86,7 @@ export default async function BusinessesListPage() {
           ) : (
             <BusinessesTable
               businesses={businesses}
-              adminUsers={adminUsers}
+              businessOwners={businessOwners}
               globalSettings={globalSettings}
             />
           )}

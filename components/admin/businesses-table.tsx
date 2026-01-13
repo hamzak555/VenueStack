@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { BusinessDashboardLink } from '@/components/admin/business-dashboard-link'
 import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Pencil } from 'lucide-react'
 
@@ -37,7 +38,7 @@ interface Business {
   percentage_fee: number | null
 }
 
-interface AdminUser {
+interface Owner {
   name: string
   email: string
   phone: string | null
@@ -51,7 +52,7 @@ interface GlobalSettings {
 
 interface BusinessesTableProps {
   businesses: Business[]
-  adminUsers: Record<string, AdminUser>
+  businessOwners: Record<string, Owner[]>
   globalSettings: GlobalSettings | null
 }
 
@@ -67,7 +68,7 @@ const STATUS_OPTIONS = [
 type SortField = 'name' | 'slug' | 'status' | 'created_at'
 type SortDirection = 'asc' | 'desc'
 
-export function BusinessesTable({ businesses, adminUsers, globalSettings }: BusinessesTableProps) {
+export function BusinessesTable({ businesses, businessOwners, globalSettings }: BusinessesTableProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -110,13 +111,15 @@ export function BusinessesTable({ businesses, adminUsers, globalSettings }: Busi
     const filtered = businesses.filter((business) => {
       // Search filter
       const searchLower = search.toLowerCase()
-      const admin = adminUsers[business.id]
+      const owners = businessOwners[business.id] || []
       const matchesSearch = search === '' ||
         business.name.toLowerCase().includes(searchLower) ||
         business.slug.toLowerCase().includes(searchLower) ||
-        admin?.name?.toLowerCase().includes(searchLower) ||
-        admin?.email?.toLowerCase().includes(searchLower) ||
-        admin?.phone?.toLowerCase().includes(searchLower)
+        owners.some(owner =>
+          owner.name?.toLowerCase().includes(searchLower) ||
+          owner.email?.toLowerCase().includes(searchLower) ||
+          owner.phone?.toLowerCase().includes(searchLower)
+        )
 
       // Status filter
       const matchesStatus = statusFilter === 'all' ||
@@ -147,7 +150,7 @@ export function BusinessesTable({ businesses, adminUsers, globalSettings }: Busi
       }
       return sortDirection === 'asc' ? comparison : -comparison
     })
-  }, [businesses, adminUsers, search, statusFilter, sortField, sortDirection])
+  }, [businesses, businessOwners, search, statusFilter, sortField, sortDirection])
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedBusinesses.length / ITEMS_PER_PAGE)
@@ -238,7 +241,7 @@ export function BusinessesTable({ businesses, adminUsers, globalSettings }: Busi
               <TableRow>
                 <SortableHeader field="name">Name</SortableHeader>
                 <SortableHeader field="slug">Slug (URL)</SortableHeader>
-                <TableHead>Contact</TableHead>
+                <TableHead>Owners</TableHead>
                 <TableHead>Fee Type</TableHead>
                 <TableHead>Fee Amount</TableHead>
                 <SortableHeader field="status">Status</SortableHeader>
@@ -249,7 +252,7 @@ export function BusinessesTable({ businesses, adminUsers, globalSettings }: Busi
             <TableBody>
               {paginatedBusinesses.map((business) => {
                 const feeConfig = getFeeConfig(business)
-                const admin = adminUsers[business.id]
+                const owners = businessOwners[business.id] || []
                 return (
                   <TableRow key={business.id}>
                     <TableCell className="font-medium">{business.name}</TableCell>
@@ -263,11 +266,30 @@ export function BusinessesTable({ businesses, adminUsers, globalSettings }: Busi
                       </Link>
                     </TableCell>
                     <TableCell className="text-sm">
-                      <div className="flex flex-col">
-                        <span className="font-medium">{admin?.name || '-'}</span>
-                        <span className="text-muted-foreground">{admin?.email || '-'}</span>
-                        <span className="text-muted-foreground">{admin?.phone || '-'}</span>
-                      </div>
+                      {owners.length === 0 ? (
+                        <span className="text-muted-foreground">-</span>
+                      ) : (
+                        <TooltipProvider>
+                          <div className="flex flex-wrap gap-1">
+                            {owners.map((owner, index) => (
+                              <Tooltip key={index}>
+                                <TooltipTrigger asChild>
+                                  <span className="font-medium cursor-default hover:text-primary transition-colors">
+                                    {owner.name}{index < owners.length - 1 ? ',' : ''}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <div className="space-y-1">
+                                    <p className="font-medium">{owner.name}</p>
+                                    <p className="text-xs">{owner.email}</p>
+                                    {owner.phone && <p className="text-xs">{owner.phone}</p>}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            ))}
+                          </div>
+                        </TooltipProvider>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">
                       <div className="flex flex-col gap-1">
