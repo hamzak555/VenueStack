@@ -152,6 +152,22 @@ export async function updateUser(id: string, updates: UserUpdate) {
       .eq('user_id', id)
   }
 
+  // Sync password to legacy admin_users table if user exists there (for backwards compatibility)
+  if (updates.password && data.email) {
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('email', data.email)
+      .single()
+
+    if (adminUser) {
+      await supabase
+        .from('admin_users')
+        .update({ password_hash: updateData.password_hash })
+        .eq('id', adminUser.id)
+    }
+  }
+
   return data as User
 }
 
