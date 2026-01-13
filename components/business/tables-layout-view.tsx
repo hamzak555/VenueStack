@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { UserCheck, Eye, Phone, Mail, Search, User, ZoomIn, ZoomOut, Plus, Lock, Unlock, Link2, Unlink, StickyNote, CheckCircle, ArrowUpDown, Info, UserCog } from 'lucide-react'
+import { UserCheck, Eye, Phone, Mail, Search, User, ZoomIn, ZoomOut, Plus, Lock, Unlock, Link2, Unlink, StickyNote, CheckCircle, ArrowUpDown, Info, ChevronDown } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils/currency'
@@ -128,6 +129,9 @@ export function TablesLayoutView({
   const [detailsModalBooking, setDetailsModalBooking] = useState<TableBooking | null>(null)
   const [serverAssignmentModal, setServerAssignmentModal] = useState<{ sectionId: string; tableName: string } | null>(null)
   const [serverUsers, setServerUsers] = useState<{ id: string; name: string }[]>([])
+  const [unseatedOpen, setUnseatedOpen] = useState(true)
+  const [seatedOpen, setSeatedOpen] = useState(true)
+  const [completedOpen, setCompletedOpen] = useState(false)
 
   // Check if user can manage servers (owner/manager only)
   const canManageServers = userRole ? canAccessSection(userRole, 'users') : false
@@ -362,6 +366,26 @@ export function TablesLayoutView({
       }
     })
   }, [bookings, searchQuery, sortOption, isServer, serverAssignedTables, eventToBusinessSectionMap])
+
+  // Group bookings into Unseated, Seated, and Completed categories
+  const groupedBookings = useMemo(() => {
+    const unseated: TableBooking[] = []
+    const seated: TableBooking[] = []
+    const completed: TableBooking[] = []
+
+    for (const booking of filteredBookings) {
+      if (booking.status === 'completed') {
+        completed.push(booking)
+      } else if (booking.status === 'seated' || booking.status === 'arrived') {
+        seated.push(booking)
+      } else {
+        // reserved, confirmed
+        unseated.push(booking)
+      }
+    }
+
+    return { unseated, seated, completed }
+  }, [filteredBookings])
 
   // Get table position from the business config
   const getTablePosition = (section: TableSection, tableIndex: number) => {
@@ -815,75 +839,228 @@ export function TablesLayoutView({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {filteredBookings.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <User className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p>{searchQuery ? 'No matching reservations' : 'No reservations yet'}</p>
             </div>
           ) : (
-            filteredBookings.map(booking => (
-              <Card
-                key={booking.id}
-                draggable={!isServer && booking.status !== 'completed'}
-                onDragStart={(e) => !isServer && booking.status !== 'completed' && handleDragStart(e, booking)}
-                onDragEnd={handleDragEnd}
-                className={`cursor-pointer transition-all hover:shadow-md hover:border-primary/30 ${
-                  selectedBookingId === booking.id ? 'ring-2 ring-primary border-primary shadow-md' : ''
-                } ${draggingBooking?.id === booking.id ? 'opacity-50 scale-[0.98]' : ''} ${
-                  booking.status === 'completed' ? 'opacity-60 bg-muted/30' : ''
-                }`}
-                onClick={() => handleBookingCardClick(booking)}
-              >
-                <CardContent className="px-3 py-1.5">
-                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-1">
-                    <span>
-                      {booking.status === 'completed' ? 'Was Table' : booking.table_number ? 'Table' : booking.requested_table_number ? 'Requested' : 'Table'}{' '}
-                      <span className={`font-medium ${booking.requested_table_number && !booking.table_number ? 'text-amber-500' : 'text-foreground'}`}>
-                        {booking.table_number || booking.completed_table_number || booking.requested_table_number || '—'}
-                      </span>
-                    </span>
-                    {(() => {
-                      const businessSectionId = eventToBusinessSectionMap[booking.event_table_section_id]
-                      const minimumSpend = businessSectionId ? sectionMinimumSpendMap[businessSectionId] : 0
-                      return (
-                        <div className="flex items-center gap-2">
+            <>
+              {/* Unseated Section */}
+              <Collapsible open={unseatedOpen} onOpenChange={setUnseatedOpen}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1.5 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className={`h-4 w-4 transition-transform ${unseatedOpen ? '' : '-rotate-90'}`} />
+                    <span className="font-medium text-sm">Unseated</span>
+                    <Badge variant="warning" className="text-xs h-5 px-1.5">{groupedBookings.unseated.length}</Badge>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 mt-2">
+                  {groupedBookings.unseated.map(booking => (
+                    <Card
+                      key={booking.id}
+                      draggable={!isServer}
+                      onDragStart={(e) => !isServer && handleDragStart(e, booking)}
+                      onDragEnd={handleDragEnd}
+                      className={`cursor-pointer transition-all hover:shadow-md hover:border-primary/30 ${
+                        selectedBookingId === booking.id ? 'ring-2 ring-primary border-primary shadow-md' : ''
+                      } ${draggingBooking?.id === booking.id ? 'opacity-50 scale-[0.98]' : ''}`}
+                      onClick={() => handleBookingCardClick(booking)}
+                    >
+                      <CardContent className="px-3 py-1.5">
+                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-1">
+                          <span>
+                            {booking.table_number ? 'Table' : booking.requested_table_number ? 'Requested' : 'Table'}{' '}
+                            <span className={`font-medium ${booking.requested_table_number && !booking.table_number ? 'text-amber-500' : 'text-foreground'}`}>
+                              {booking.table_number || booking.requested_table_number || '—'}
+                            </span>
+                          </span>
+                          {(() => {
+                            const businessSectionId = eventToBusinessSectionMap[booking.event_table_section_id]
+                            const minimumSpend = businessSectionId ? sectionMinimumSpendMap[businessSectionId] : 0
+                            return (
+                              <div className="flex items-center gap-2">
+                                {booking.amount != null && booking.amount > 0 && (
+                                  <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount, false)}</span>
+                                )}
+                                {minimumSpend > 0 && (
+                                  <span className="text-amber-500 whitespace-nowrap">Min ${Math.round(minimumSpend)}</span>
+                                )}
+                              </div>
+                            )
+                          })()}
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{booking.customer_name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{booking.section_name}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant={getStatusColor(booking.status)} className="text-xs">
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDetailsModalBooking(booking)
+                              }}
+                              title="View details"
+                            >
+                              <Info className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {groupedBookings.unseated.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">No unseated reservations</p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Seated Section */}
+              <Collapsible open={seatedOpen} onOpenChange={setSeatedOpen}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1.5 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className={`h-4 w-4 transition-transform ${seatedOpen ? '' : '-rotate-90'}`} />
+                    <span className="font-medium text-sm">Seated</span>
+                    <Badge variant="teal" className="text-xs h-5 px-1.5">{groupedBookings.seated.length}</Badge>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 mt-2">
+                  {groupedBookings.seated.map(booking => (
+                    <Card
+                      key={booking.id}
+                      draggable={!isServer}
+                      onDragStart={(e) => !isServer && handleDragStart(e, booking)}
+                      onDragEnd={handleDragEnd}
+                      className={`cursor-pointer transition-all hover:shadow-md hover:border-primary/30 ${
+                        selectedBookingId === booking.id ? 'ring-2 ring-primary border-primary shadow-md' : ''
+                      } ${draggingBooking?.id === booking.id ? 'opacity-50 scale-[0.98]' : ''}`}
+                      onClick={() => handleBookingCardClick(booking)}
+                    >
+                      <CardContent className="px-3 py-1.5">
+                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-1">
+                          <span>
+                            Table{' '}
+                            <span className="font-medium text-foreground">
+                              {booking.table_number || '—'}
+                            </span>
+                          </span>
+                          {(() => {
+                            const businessSectionId = eventToBusinessSectionMap[booking.event_table_section_id]
+                            const minimumSpend = businessSectionId ? sectionMinimumSpendMap[businessSectionId] : 0
+                            return (
+                              <div className="flex items-center gap-2">
+                                {booking.amount != null && booking.amount > 0 && (
+                                  <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount, false)}</span>
+                                )}
+                                {minimumSpend > 0 && (
+                                  <span className="text-amber-500 whitespace-nowrap">Min ${Math.round(minimumSpend)}</span>
+                                )}
+                              </div>
+                            )
+                          })()}
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{booking.customer_name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{booking.section_name}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant={getStatusColor(booking.status)} className="text-xs">
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDetailsModalBooking(booking)
+                              }}
+                              title="View details"
+                            >
+                              <Info className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {groupedBookings.seated.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">No seated reservations</p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Completed Section */}
+              <Collapsible open={completedOpen} onOpenChange={setCompletedOpen}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1.5 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className={`h-4 w-4 transition-transform ${completedOpen ? '' : '-rotate-90'}`} />
+                    <span className="font-medium text-sm">Completed</span>
+                    <Badge variant="purple" className="text-xs h-5 px-1.5">{groupedBookings.completed.length}</Badge>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 mt-2">
+                  {groupedBookings.completed.map(booking => (
+                    <Card
+                      key={booking.id}
+                      className={`cursor-pointer transition-all hover:shadow-md hover:border-primary/30 opacity-60 bg-muted/30 ${
+                        selectedBookingId === booking.id ? 'ring-2 ring-primary border-primary shadow-md' : ''
+                      }`}
+                      onClick={() => handleBookingCardClick(booking)}
+                    >
+                      <CardContent className="px-3 py-1.5">
+                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-1">
+                          <span>
+                            Was Table{' '}
+                            <span className="font-medium text-foreground">
+                              {booking.completed_table_number || booking.table_number || '—'}
+                            </span>
+                          </span>
                           {booking.amount != null && booking.amount > 0 && (
                             <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount, false)}</span>
                           )}
-                          {minimumSpend > 0 && (
-                            <span className="text-amber-500 whitespace-nowrap">Min ${Math.round(minimumSpend)}</span>
-                          )}
                         </div>
-                      )
-                    })()}
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{booking.customer_name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{booking.section_name}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant={getStatusColor(booking.status)} className="text-xs">
-                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setDetailsModalBooking(booking)
-                        }}
-                        title="View details"
-                      >
-                        <Info className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{booking.customer_name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{booking.section_name}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant="purple" className="text-xs">
+                              Completed
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDetailsModalBooking(booking)
+                              }}
+                              title="View details"
+                            >
+                              <Info className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {groupedBookings.completed.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">No completed reservations</p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </>
           )}
         </div>
       </div>
@@ -1134,7 +1311,7 @@ export function TablesLayoutView({
                                 if (serverNames.length > 0) {
                                   return (
                                     <div className="flex items-center gap-2">
-                                      <UserCog className="h-3.5 w-3.5" />
+                                      <User className="h-3.5 w-3.5" />
                                       <span className="font-normal">{serverNames.join(', ')}</span>
                                     </div>
                                   )
@@ -1270,7 +1447,7 @@ export function TablesLayoutView({
                                   }}
                                   title="Assign server"
                                 >
-                                  <UserCog className="h-3.5 w-3.5" />
+                                  <User className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                             </div>
@@ -1303,7 +1480,7 @@ export function TablesLayoutView({
                                 if (serverNames.length > 0) {
                                   return (
                                     <div className="flex items-center gap-1.5 text-sm text-white/70">
-                                      <UserCog className="h-3.5 w-3.5" />
+                                      <User className="h-3.5 w-3.5" />
                                       <span>{serverNames.join(', ')}</span>
                                     </div>
                                   )
@@ -1386,7 +1563,7 @@ export function TablesLayoutView({
                                       }}
                                       title="Assign server"
                                     >
-                                      <UserCog className="h-4 w-4 text-white" />
+                                      <User className="h-4 w-4 text-white" />
                                     </Button>
                                   )}
                                 </div>

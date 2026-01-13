@@ -49,33 +49,12 @@ export async function POST(
       )
     }
 
-    // Check if the original table is still available
-    if (booking.completed_table_number) {
-      const { data: existingBooking } = await supabase
-        .from('table_bookings')
-        .select('id')
-        .eq('event_table_section_id', booking.event_table_section_id)
-        .eq('table_number', booking.completed_table_number)
-        .neq('id', bookingId)
-        .neq('status', 'cancelled')
-        .neq('status', 'completed')
-        .single()
-
-      if (existingBooking) {
-        return NextResponse.json(
-          { error: 'The original table is now occupied by another reservation' },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Restore the booking to arrived status with the original table
+    // Reopen the booking to confirmed status without assigning a table
     const { error: updateError } = await supabase
       .from('table_bookings')
       .update({
-        status: 'arrived',
-        table_number: booking.completed_table_number,
-        completed_table_number: null,
+        status: 'confirmed',
+        table_number: null,
         updated_at: new Date().toISOString()
       })
       .eq('id', bookingId)

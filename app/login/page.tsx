@@ -67,6 +67,46 @@ export default function UnifiedLoginPage() {
   const [registerSuccess, setRegisterSuccess] = useState(false)
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
 
+  // Forgot password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotSuccess, setForgotSuccess] = useState(false)
+  const [forgotError, setForgotError] = useState('')
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotError('')
+    setForgotLoading(true)
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send reset email')
+      }
+
+      setForgotSuccess(true)
+    } catch (err) {
+      setForgotError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
+  const handleBackToEmailLogin = () => {
+    setShowForgotPassword(false)
+    setForgotEmail('')
+    setForgotSuccess(false)
+    setForgotError('')
+  }
+
   // Field validation helpers
   const isValidBusinessName = registerForm.businessName.trim().length >= 2
   const isValidUserName = registerForm.userName.trim().length >= 2
@@ -551,7 +591,7 @@ export default function UnifiedLoginPage() {
               </div>
 
               {/* Email login form */}
-              {loginMethod === 'email' && (
+              {loginMethod === 'email' && !showForgotPassword && (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
@@ -566,7 +606,19 @@ export default function UnifiedLoginPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowForgotPassword(true)
+                          setForgotEmail(email)
+                        }}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
                     <div className="relative">
                       <Input
                         id="password"
@@ -601,6 +653,67 @@ export default function UnifiedLoginPage() {
                     {loading ? 'Signing in...' : 'Sign in'}
                   </Button>
                 </form>
+              )}
+
+              {/* Forgot password form */}
+              {loginMethod === 'email' && showForgotPassword && !forgotSuccess && (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgotEmail">Email</Label>
+                    <Input
+                      id="forgotEmail"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      required
+                      disabled={forgotLoading}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      We'll send you a link to reset your password
+                    </p>
+                  </div>
+                  {forgotError && (
+                    <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3">
+                      {forgotError}
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full" disabled={forgotLoading}>
+                    {forgotLoading ? 'Sending...' : 'Send reset link'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={handleBackToEmailLogin}
+                    disabled={forgotLoading}
+                  >
+                    Back to sign in
+                  </Button>
+                </form>
+              )}
+
+              {/* Forgot password success */}
+              {loginMethod === 'email' && showForgotPassword && forgotSuccess && (
+                <div className="text-center space-y-4 py-4">
+                  <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
+                    <Mail className="h-8 w-8 text-green-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Check your email</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      We've sent a password reset link to <strong>{forgotEmail}</strong>
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleBackToEmailLogin}
+                  >
+                    Back to sign in
+                  </Button>
+                </div>
               )}
 
               {/* Phone login form */}
