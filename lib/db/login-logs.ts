@@ -6,6 +6,7 @@ interface CreateLoginLogParams {
   user_id: string
   user_email: string
   user_name: string
+  user_role?: string | null
   business_id?: string | null
   business_name?: string | null
   business_slug?: string | null
@@ -81,6 +82,7 @@ export async function createLoginLog(params: CreateLoginLogParams): Promise<Logi
       user_id: params.user_id,
       user_email: params.user_email,
       user_name: params.user_name,
+      user_role: params.user_role || null,
       business_id: params.business_id || null,
       business_name: params.business_name || null,
       business_slug: params.business_slug || null,

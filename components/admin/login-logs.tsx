@@ -225,7 +225,7 @@ export function LoginLogs() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Role</TableHead>
                     <TableHead>Business</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Device</TableHead>
@@ -243,8 +243,8 @@ export function LoginLogs() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={log.user_type === 'admin' ? 'default' : 'secondary'}>
-                          {log.user_type === 'admin' ? 'Admin' : 'Business'}
+                        <Badge variant={log.user_type === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                          {log.user_role || (log.user_type === 'admin' ? 'Admin' : 'Business')}
                         </Badge>
                       </TableCell>
                       <TableCell>

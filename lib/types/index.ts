@@ -358,6 +358,7 @@ export interface LoginLog {
   user_id: string
   user_email: string
   user_name: string
+  user_role: string | null
   business_id: string | null
   business_name: string | null
   business_slug: string | null
