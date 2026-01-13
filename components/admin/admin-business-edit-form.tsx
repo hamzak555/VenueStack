@@ -261,7 +261,12 @@ export function AdminBusinessEditForm({ businessId, business }: AdminBusinessEdi
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Fee Type:</span>
-                  <span className="capitalize">{globalSettings.platform_fee_type.replace('_', ' ')}</span>
+                  <span>
+                    {globalSettings.platform_fee_type === 'higher_of_both' ? 'Higher of Both' :
+                     globalSettings.platform_fee_type === 'flat' ? 'Flat' :
+                     globalSettings.platform_fee_type === 'percentage' ? 'Percentage' :
+                     globalSettings.platform_fee_type}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Flat Fee:</span>
