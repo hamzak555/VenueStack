@@ -270,7 +270,7 @@ export async function createBusinessUserLink({
 }: {
   user_id: string
   business_id: string
-  role: 'admin' | 'regular'
+  role: 'owner' | 'manager' | 'host' | 'accounting' | 'server'
 }) {
   const supabase = await createServerClient()
 

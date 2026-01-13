@@ -1,5 +1,6 @@
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { getCustomersByBusinessId, Customer } from '@/lib/db/customers'
+import { requireSectionAccess } from '@/lib/auth/role-guard'
 import { Card, CardContent } from '@/components/ui/card'
 import { CustomersTable } from '@/components/business/customers-table'
 
@@ -15,6 +16,10 @@ interface CustomersPageProps {
 export default async function CustomersPage({ params }: CustomersPageProps) {
   const { businessSlug } = await params
   const business = await getBusinessBySlug(businessSlug)
+
+  // Protect page - only owner and manager can access customers
+  await requireSectionAccess(business.id, businessSlug, 'customers')
+
   let customers: Customer[] = []
   let errorMessage = ''
 

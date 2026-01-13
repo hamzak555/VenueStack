@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { verifyBusinessAccess } from '@/lib/auth/business-session'
+import { canManageTables, type BusinessRole } from '@/lib/auth/roles'
 
 export async function PATCH(
   request: NextRequest,
@@ -24,6 +26,29 @@ export async function PATCH(
         { error: 'Booking not found' },
         { status: 404 }
       )
+    }
+
+    // Get the event to verify access
+    const { data: section } = await supabase
+      .from('event_table_sections')
+      .select('events(business_id)')
+      .eq('id', booking.event_table_section_id)
+      .single()
+
+    if (section?.events) {
+      const businessId = (section.events as any).business_id
+      const session = await verifyBusinessAccess(businessId)
+      if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      // Only owner, manager, host, accounting can move reservations
+      if (!canManageTables(session.role as BusinessRole)) {
+        return NextResponse.json(
+          { error: 'You do not have permission to move reservations between tables' },
+          { status: 403 }
+        )
+      }
     }
 
     const targetSectionId = newSectionId || booking.event_table_section_id

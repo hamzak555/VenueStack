@@ -182,6 +182,15 @@ export async function POST(request: NextRequest) {
         .eq('id', businessId)
         .single()
 
+      // If user has a linked user_id, get the name from users table (source of truth)
+      // This ensures updated profile names are reflected in the session
+      if (businessUser.user_id) {
+        const globalUser = await getUserById(businessUser.user_id)
+        if (globalUser?.name) {
+          businessUser = { ...businessUser, name: globalUser.name }
+        }
+      }
+
       // Clear admin session when switching to business
       await deleteAdminSession()
       await createBusinessSession(businessUser)

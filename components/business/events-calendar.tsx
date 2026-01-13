@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { QuickEventModal } from './quick-event-modal'
+import { isServerRole, type BusinessRole } from '@/lib/auth/roles'
 
 interface SalesData {
   totalSold: number
@@ -59,12 +60,14 @@ interface EventsCalendarProps {
   onPreviousMonth?: () => void
   onNextMonth?: () => void
   onToday?: () => void
+  userRole?: BusinessRole
 }
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DAYS_OF_WEEK_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-export function EventsCalendar({ events, businessSlug, businessId, currentDate, defaultLocation, defaultTimezone, onPreviousMonth, onNextMonth, onToday }: EventsCalendarProps) {
+export function EventsCalendar({ events, businessSlug, businessId, currentDate, defaultLocation, defaultTimezone, onPreviousMonth, onNextMonth, onToday, userRole }: EventsCalendarProps) {
+  const isServer = userRole ? isServerRole(userRole) : false
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
 
@@ -337,6 +340,7 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                         event={event}
                         businessSlug={businessSlug}
                         compact={true}
+                        isServer={isServer}
                       />
                     ))}
                   </div>
@@ -435,6 +439,7 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                                 event={dayEvents[0]}
                                 businessSlug={businessSlug}
                                 compact={false}
+                                isServer={isServer}
                               />
                             ) : (
                               <>
@@ -448,6 +453,7 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                                       event={event}
                                       businessSlug={businessSlug}
                                       compact={true}
+                                      isServer={isServer}
                                     />
                                   ))}
                                 </div>
@@ -544,7 +550,7 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
   )
 }
 
-function EventCard({ event, businessSlug, compact }: { event: EventWithSales; businessSlug: string; compact: boolean }) {
+function EventCard({ event, businessSlug, compact, isServer = false }: { event: EventWithSales; businessSlug: string; compact: boolean; isServer?: boolean }) {
   const hasTickets = event.salesData && (event.salesData.totalSold > 0 || event.salesData.availableTickets > 0)
   const hasTables = event.table_service_enabled
 
@@ -620,6 +626,32 @@ function EventCard({ event, businessSlug, compact }: { event: EventWithSales; bu
       )}
     </div>
   )
+
+  // For servers: link directly to checkout page if published, or show message if not
+  if (isServer) {
+    if (event.status === 'published') {
+      return (
+        <Link href={`/${businessSlug}/events/${event.id}/checkout?mode=tables`} className="block w-full group">
+          {cardContent}
+        </Link>
+      )
+    }
+    // Not published - show popover with message
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button className="block text-left w-full group opacity-60">
+            {cardContent}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-44 p-2" align="start">
+          <p className="text-sm text-muted-foreground">
+            This event is not published yet.
+          </p>
+        </PopoverContent>
+      </Popover>
+    )
+  }
 
   return (
     <Popover>

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getBusinessBySlug } from '@/lib/db/businesses'
+import { requireSectionAccess } from '@/lib/auth/role-guard'
 import { MarketingSettingsForm } from '@/components/business/marketing-settings-form'
 import { TrackingLinksForm } from '@/components/business/tracking-links-form'
 
@@ -21,6 +22,9 @@ export default async function MarketingSettingsPage({ params }: MarketingSetting
   } catch {
     notFound()
   }
+
+  // Protect page - only owner and manager can access marketing
+  await requireSectionAccess(business.id, businessSlug, 'marketing')
 
   return (
     <div className="space-y-6">

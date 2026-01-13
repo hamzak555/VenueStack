@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getBusinessBySlug } from '@/lib/db/businesses'
+import { requireSectionAccess } from '@/lib/auth/role-guard'
 import { getTicketsByBusinessId, getEventsWithTicketStats } from '@/lib/db/tickets'
 import { getEventById } from '@/lib/db/events'
 import { getTicketTypes } from '@/lib/db/ticket-types'
@@ -27,6 +28,9 @@ export default async function AllTicketsPage({ params, searchParams }: AllTicket
   const { businessSlug } = await params
   const { eventId } = await searchParams
   const business = await getBusinessBySlug(businessSlug)
+
+  // Protect page - only owner, manager, host, accounting can access tickets
+  await requireSectionAccess(business.id, businessSlug, 'tickets')
 
   // If no eventId, show event selection
   if (!eventId) {

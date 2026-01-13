@@ -6,6 +6,7 @@ import { createBusinessUserLink, checkBusinessUserExistsByEmail, checkBusinessUs
 import { normalizePhoneNumber, sendSMS } from '@/lib/twilio'
 import { getBusinessById } from '@/lib/db/businesses'
 import { sendInvitationEmail, sendAddedToBusinessEmail } from '@/lib/sendgrid'
+import { canAccessSection, canInviteRole, VALID_ROLES, type BusinessRole } from '@/lib/auth/roles'
 
 export async function GET(
   request: NextRequest,
@@ -14,9 +15,9 @@ export async function GET(
   try {
     const { businessId } = await params
 
-    // Verify access
+    // Verify access - only owner and manager can access users
     const session = await verifyBusinessAccess(businessId)
-    if (!session || session.role !== 'admin') {
+    if (!session || !canAccessSection(session.role as BusinessRole, 'users')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -42,9 +43,9 @@ export async function POST(
   try {
     const { businessId } = await params
 
-    // Verify access
+    // Verify access - only owner and manager can access users
     const session = await verifyBusinessAccess(businessId)
-    if (!session || session.role !== 'admin') {
+    if (!session || !canAccessSection(session.role as BusinessRole, 'users')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -62,10 +63,18 @@ export async function POST(
       )
     }
 
-    if (role !== 'admin' && role !== 'regular') {
+    if (!VALID_ROLES.includes(role as BusinessRole)) {
       return NextResponse.json(
-        { error: 'Role must be either "admin" or "regular"' },
+        { error: 'Invalid role' },
         { status: 400 }
+      )
+    }
+
+    // Check if user can invite this role (manager cannot invite owner)
+    if (!canInviteRole(session.role as BusinessRole, role as BusinessRole)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to invite users with this role' },
+        { status: 403 }
       )
     }
 

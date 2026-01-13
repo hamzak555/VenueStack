@@ -10,6 +10,8 @@ import { NewReservationModal } from './new-reservation-modal'
 import { TableServiceConfig, VenueLayout } from '@/lib/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { parseLocalDate } from '@/lib/utils'
+import { isServerRole, type BusinessRole } from '@/lib/auth/roles'
+import { useRealtimeBookings } from '@/lib/hooks/use-realtime-bookings'
 
 interface TableBooking {
   id: string
@@ -17,6 +19,7 @@ interface TableBooking {
   event_table_section_id: string
   table_number: string | null
   completed_table_number?: string | null
+  requested_table_number?: string | null
   customer_name: string
   customer_email: string
   customer_phone: string | null
@@ -34,6 +37,11 @@ interface LinkedTablePair {
   table2: { sectionId: string; tableName: string }
 }
 
+interface ServerAssignment {
+  tableName: string
+  serverUserIds: string[]
+}
+
 interface TablesPageContentProps {
   eventId: string
   eventTitle: string
@@ -42,6 +50,7 @@ interface TablesPageContentProps {
   eventImage?: string | null
   bookings: TableBooking[]
   businessSlug: string
+  businessId: string
   sectionTableNames: Record<string, string[]>
   venueLayoutUrl: string | null
   tableServiceConfig: TableServiceConfig
@@ -49,6 +58,9 @@ interface TablesPageContentProps {
   closedTables: Record<string, string[]>
   linkedTablePairs: LinkedTablePair[]
   initialBookingId?: string
+  userRole?: BusinessRole
+  serverAssignedTables?: Record<string, string[]>
+  allServerAssignments?: Record<string, ServerAssignment[]>
 }
 
 export function TablesPageContent({
@@ -59,6 +71,7 @@ export function TablesPageContent({
   eventImage,
   bookings,
   businessSlug,
+  businessId,
   sectionTableNames,
   venueLayoutUrl,
   tableServiceConfig,
@@ -66,10 +79,17 @@ export function TablesPageContent({
   closedTables,
   linkedTablePairs,
   initialBookingId,
+  userRole,
+  serverAssignedTables,
+  allServerAssignments,
 }: TablesPageContentProps) {
+  const isServer = userRole ? isServerRole(userRole) : false
   const [showNewReservationModal, setShowNewReservationModal] = useState(false)
   const [preSelectedSection, setPreSelectedSection] = useState<string | undefined>()
   const [preSelectedTable, setPreSelectedTable] = useState<string | undefined>()
+
+  // Subscribe to realtime updates for this event's bookings
+  useRealtimeBookings({ eventId })
 
   // Multi-layout support
   const layouts = tableServiceConfig?.layouts || []
@@ -152,13 +172,15 @@ export function TablesPageContent({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight">{eventTitle}</h1>
-              <Link
-                href={`/${businessSlug}/dashboard/events/${eventId}`}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                title="Edit event"
-              >
-                <Pencil className="h-4 w-4" />
-              </Link>
+              {!isServer && (
+                <Link
+                  href={`/${businessSlug}/dashboard/events/${eventId}`}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Edit event"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Link>
+              )}
               <Link
                 href={`/${businessSlug}/events/${eventId}/checkout?mode=tables`}
                 target="_blank"
@@ -190,10 +212,12 @@ export function TablesPageContent({
               </SelectContent>
             </Select>
           )}
-          <Button onClick={handleNewReservationClick}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Reservation
-          </Button>
+          {!isServer && (
+            <Button onClick={handleNewReservationClick}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Reservation
+            </Button>
+          )}
         </div>
       </div>
 
@@ -202,6 +226,7 @@ export function TablesPageContent({
         eventId={eventId}
         bookings={bookings}
         businessSlug={businessSlug}
+        businessId={businessId}
         venueLayoutUrl={venueLayoutUrl}
         tableServiceConfig={tableServiceConfig}
         sectionTableNames={sectionTableNames}
@@ -211,6 +236,9 @@ export function TablesPageContent({
         onEmptyTableClick={handleEmptyTableClick}
         initialBookingId={initialBookingId}
         selectedLayoutId={selectedLayoutId}
+        userRole={userRole}
+        serverAssignedTables={serverAssignedTables}
+        allServerAssignments={allServerAssignments}
       />
 
       {/* New Reservation Modal */}

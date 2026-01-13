@@ -2,6 +2,9 @@ import { getEventsByBusinessId, getEventPriceDisplay, getEventTicketSales, getEv
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { getBusinessAnalytics } from '@/lib/db/analytics'
 import { EventsViewToggle } from '@/components/business/events-view-toggle'
+import { verifyBusinessAccess } from '@/lib/auth/business-session'
+import { redirect } from 'next/navigation'
+import { type BusinessRole } from '@/lib/auth/roles'
 
 // Force dynamic rendering to always fetch fresh data
 export const dynamic = 'force-dynamic'
@@ -15,6 +18,13 @@ interface EventsPageProps {
 export default async function EventsPage({ params }: EventsPageProps) {
   const { businessSlug } = await params
   const business = await getBusinessBySlug(businessSlug)
+
+  // Get user session and role
+  const session = await verifyBusinessAccess(business.id)
+  if (!session) {
+    redirect(`/${businessSlug}/login`)
+  }
+  const userRole = session.role as BusinessRole
 
   // Fetch events and analytics in parallel
   const [events, analytics] = await Promise.all([
@@ -76,6 +86,7 @@ export default async function EventsPage({ params }: EventsPageProps) {
       businessId={business.id}
       defaultLocation={defaultLocation}
       defaultTimezone={business.default_timezone || 'America/Los_Angeles'}
+      userRole={userRole}
     />
   )
 }

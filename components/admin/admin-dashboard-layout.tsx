@@ -43,12 +43,19 @@ export async function AdminDashboardLayout({ children }: AdminDashboardLayoutPro
         </nav>
         <Separator />
         <div className="p-4 space-y-2">
-          <div className="text-xs text-muted-foreground">
-            Logged in as: {session.name}
-          </div>
           <AdminMyAccountButton />
           <AccountSwitcher />
           <AdminLogoutButton />
+          <div className="flex items-center justify-center gap-1 pt-2 text-[10px] text-muted-foreground/60">
+            <span>Powered by</span>
+            <Image
+              src="/venuestack-logo.svg"
+              alt="VenueStack"
+              width={60}
+              height={12}
+              className="h-2.5 w-auto brightness-0 invert opacity-50"
+            />
+          </div>
         </div>
       </aside>
 

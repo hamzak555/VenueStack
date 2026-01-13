@@ -19,31 +19,37 @@ import { NotificationCenter } from '@/components/business/notification-center'
 import { Menu, Calendar, Receipt, BarChart3, UserCircle, Ticket, Armchair, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getThemeColorStyle } from '@/lib/utils/color'
+import { canAccessSection, type BusinessRole } from '@/lib/auth/roles'
 
 interface MobileNavProps {
   businessSlug: string
   businessName: string
   businessId: string
-  isAdmin: boolean
   showAdminBypass: boolean
   hideLogout: boolean
   showNavLocks?: boolean
   themeColor?: string
+  userRole?: BusinessRole
 }
 
-export function MobileNav({ businessSlug, businessName, businessId, isAdmin, showAdminBypass, hideLogout, showNavLocks = false, themeColor = '#8b5cf6' }: MobileNavProps) {
+export function MobileNav({ businessSlug, businessName, businessId, showAdminBypass, hideLogout, showNavLocks = false, themeColor = '#8b5cf6', userRole }: MobileNavProps) {
   const themeStyle = getThemeColorStyle(themeColor)
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
-  const navItems = [
-    { href: `/${businessSlug}/dashboard/events`, icon: Calendar, label: 'Events' },
-    { href: `/${businessSlug}/dashboard/tables`, icon: Armchair, label: 'Table Service' },
-    { href: `/${businessSlug}/dashboard/all-tickets`, icon: Ticket, label: 'Tickets' },
-    { href: `/${businessSlug}/dashboard/tickets`, icon: Receipt, label: 'Ticket Sales' },
-    { href: `/${businessSlug}/dashboard/reports`, icon: BarChart3, label: 'Reports' },
-    { href: `/${businessSlug}/dashboard/customers`, icon: UserCircle, label: 'Customers' },
+  const allNavItems = [
+    { href: `/${businessSlug}/dashboard/events`, icon: Calendar, label: 'Events', section: 'events' },
+    { href: `/${businessSlug}/dashboard/tables`, icon: Armchair, label: 'Table Service', section: 'tables' },
+    { href: `/${businessSlug}/dashboard/all-tickets`, icon: Ticket, label: 'Tickets', section: 'tickets' },
+    { href: `/${businessSlug}/dashboard/tickets`, icon: Receipt, label: 'Ticket Sales', section: 'ticketSales' },
+    { href: `/${businessSlug}/dashboard/reports`, icon: BarChart3, label: 'Reports', section: 'reports' },
+    { href: `/${businessSlug}/dashboard/customers`, icon: UserCircle, label: 'Customers', section: 'customers' },
   ]
+
+  // Filter nav items based on user role permissions
+  const navItems = userRole
+    ? allNavItems.filter(item => canAccessSection(userRole, item.section))
+    : allNavItems
 
   return (
     <div
@@ -138,7 +144,7 @@ export function MobileNav({ businessSlug, businessName, businessId, isAdmin, sho
                 </Link>
               )
             })}
-            <SettingsNav businessSlug={businessSlug} isAdmin={isAdmin} showLocks={showNavLocks} />
+            <SettingsNav businessSlug={businessSlug} showLocks={showNavLocks} userRole={userRole} />
           </nav>
           <Separator />
           <div className="p-4 space-y-2">

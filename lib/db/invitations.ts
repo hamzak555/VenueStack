@@ -24,7 +24,7 @@ export async function createInvitation({
   business_id: string
   email?: string | null
   phone?: string | null
-  role: 'admin' | 'regular'
+  role: 'owner' | 'manager' | 'host' | 'accounting' | 'server'
   invited_by: string
 }) {
   if (!email && !phone) {

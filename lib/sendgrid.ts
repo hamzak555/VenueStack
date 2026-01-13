@@ -1,4 +1,5 @@
 import sgMail from '@sendgrid/mail'
+import { ROLE_LABELS, type BusinessRole } from '@/lib/auth/roles'
 
 // Initialize SendGrid with API key
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY
@@ -56,9 +57,11 @@ export async function sendInvitationEmail({
   to: string
   businessName: string
   inviteUrl: string
-  role: 'admin' | 'regular'
+  role: BusinessRole
 }): Promise<boolean> {
-  const roleText = role === 'admin' ? 'an admin' : 'a team member'
+  const roleLabel = ROLE_LABELS[role] || role
+  const article = ['a', 'e', 'i', 'o', 'u'].includes(roleLabel[0].toLowerCase()) ? 'an' : 'a'
+  const roleText = `${article} ${roleLabel}`
 
   const subject = `You've been invited to join ${businessName} on VenueStack`
 
@@ -129,9 +132,11 @@ export async function sendAddedToBusinessEmail({
 }: {
   to: string
   businessName: string
-  role: 'admin' | 'regular'
+  role: BusinessRole
 }): Promise<boolean> {
-  const roleText = role === 'admin' ? 'an admin' : 'a team member'
+  const roleLabel = ROLE_LABELS[role] || role
+  const article = ['a', 'e', 'i', 'o', 'u'].includes(roleLabel[0].toLowerCase()) ? 'an' : 'a'
+  const roleText = `${article} ${roleLabel}`
   const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
 
   const subject = `You've been added to ${businessName} on VenueStack`

@@ -33,7 +33,6 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
   if (!session) {
     redirect(`/${businessSlug}/login`)
   }
-  const isAdmin = session.role === 'admin'
 
   // Get current path for subscription gate
   const headersList = await headers()
@@ -65,11 +64,11 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
         businessSlug={businessSlug}
         businessName={business.name}
         businessId={business.id}
-        isAdmin={isAdmin}
         showAdminBypass={session.adminBypass ?? false}
         hideLogout={session.adminBypass ?? false}
         showNavLocks={showNavLocks}
         themeColor={business.theme_color || '#8b5cf6'}
+        userRole={session.role}
       />
 
       <div className="flex">
@@ -101,8 +100,8 @@ export async function DashboardLayout({ businessSlug, children, bypassSubscripti
         </div>
         <Separator className="flex-shrink-0" />
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <DashboardNav businessSlug={businessSlug} showLocks={showNavLocks} />
-          <SettingsNav businessSlug={businessSlug} isAdmin={isAdmin} showLocks={showNavLocks} />
+          <DashboardNav businessSlug={businessSlug} showLocks={showNavLocks} userRole={session.role} />
+          <SettingsNav businessSlug={businessSlug} showLocks={showNavLocks} userRole={session.role} />
         </nav>
         <Separator className="flex-shrink-0" />
         <div className="p-4 space-y-2 flex-shrink-0">

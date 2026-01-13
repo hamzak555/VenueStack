@@ -1,5 +1,6 @@
 import { getEventsByBusinessId } from '@/lib/db/events'
 import { getBusinessBySlug } from '@/lib/db/businesses'
+import { requireSectionAccess } from '@/lib/auth/role-guard'
 import { getBusinessAnalytics } from '@/lib/db/analytics'
 import { getTrackingLinkAnalytics } from '@/lib/db/tracking-links'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,6 +31,10 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
   const resolvedSearchParams = await searchParams
 
   const business = await getBusinessBySlug(businessSlug)
+
+  // Protect page - only owner, manager, accounting can access reports
+  await requireSectionAccess(business.id, businessSlug, 'reports')
+
   const events = await getEventsByBusinessId(business.id)
 
   // Parse date range from URL params

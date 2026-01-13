@@ -1,5 +1,6 @@
 import { getOrdersByBusinessId, Order } from '@/lib/db/orders'
 import { getBusinessBySlug } from '@/lib/db/businesses'
+import { requireSectionAccess } from '@/lib/auth/role-guard'
 import { Card, CardContent } from '@/components/ui/card'
 import { TicketsTable } from '@/components/business/tickets-table'
 
@@ -15,6 +16,10 @@ interface TicketsPageProps {
 export default async function TicketsPage({ params }: TicketsPageProps) {
   const { businessSlug } = await params
   const business = await getBusinessBySlug(businessSlug)
+
+  // Protect page - only owner, manager, accounting can access ticket sales
+  await requireSectionAccess(business.id, businessSlug, 'ticketSales')
+
   let orders: Order[] = []
   let errorMessage = ''
 

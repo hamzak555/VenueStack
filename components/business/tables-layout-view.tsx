@@ -8,12 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { UserCheck, Eye, Phone, Mail, Search, User, ZoomIn, ZoomOut, Plus, Lock, Unlock, Link2, Unlink, StickyNote, CheckCircle, ArrowUpDown, Info } from 'lucide-react'
+import { UserCheck, Eye, Phone, Mail, Search, User, ZoomIn, ZoomOut, Plus, Lock, Unlock, Link2, Unlink, StickyNote, CheckCircle, ArrowUpDown, Info, UserCog } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils/currency'
 import { BookingNotesModal } from './booking-notes-modal'
 import { BookingDetailsModal } from './booking-details-modal'
+import { ServerAssignmentModal } from './server-assignment-modal'
+import { isServerRole, canAccessSection, type BusinessRole } from '@/lib/auth/roles'
 
 interface BookingNote {
   id: string
@@ -29,6 +31,7 @@ interface TableBooking {
   event_table_section_id: string
   table_number: string | null
   completed_table_number?: string | null
+  requested_table_number?: string | null
   customer_name: string
   customer_email: string
   customer_phone: string | null
@@ -47,10 +50,16 @@ interface LinkedTablePair {
   table2: { sectionId: string; tableName: string }
 }
 
+interface ServerAssignment {
+  tableName: string
+  serverUserIds: string[]
+}
+
 interface TablesLayoutViewProps {
   eventId: string
   bookings: TableBooking[]
   businessSlug: string
+  businessId: string
   venueLayoutUrl: string | null
   tableServiceConfig: TableServiceConfig
   sectionTableNames: Record<string, string[]>
@@ -60,12 +69,16 @@ interface TablesLayoutViewProps {
   onEmptyTableClick?: (sectionId: string, tableName: string) => void
   initialBookingId?: string
   selectedLayoutId?: string | null
+  userRole?: BusinessRole
+  serverAssignedTables?: Record<string, string[]>
+  allServerAssignments?: Record<string, ServerAssignment[]>
 }
 
 export function TablesLayoutView({
   eventId,
   bookings,
   businessSlug,
+  businessId,
   venueLayoutUrl,
   tableServiceConfig,
   sectionTableNames,
@@ -75,7 +88,11 @@ export function TablesLayoutView({
   onEmptyTableClick,
   initialBookingId,
   selectedLayoutId: selectedLayoutIdProp,
+  userRole,
+  serverAssignedTables,
+  allServerAssignments,
 }: TablesLayoutViewProps) {
+  const isServer = userRole ? isServerRole(userRole) : false
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasContainerRef = useRef<HTMLDivElement>(null)
@@ -109,7 +126,29 @@ export function TablesLayoutView({
   const [isLinkingTable, setIsLinkingTable] = useState(false)
   const [notesModalBooking, setNotesModalBooking] = useState<TableBooking | null>(null)
   const [detailsModalBooking, setDetailsModalBooking] = useState<TableBooking | null>(null)
+  const [serverAssignmentModal, setServerAssignmentModal] = useState<{ sectionId: string; tableName: string } | null>(null)
+  const [serverUsers, setServerUsers] = useState<{ id: string; name: string }[]>([])
+
+  // Check if user can manage servers (owner/manager only)
+  const canManageServers = userRole ? canAccessSection(userRole, 'users') : false
   const [completionModalBooking, setCompletionModalBooking] = useState<TableBooking | null>(null)
+
+  // Fetch server users for display
+  useEffect(() => {
+    if (businessId && canManageServers) {
+      fetch(`/api/business/${businessId}/users?role=server`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setServerUsers(Array.isArray(data) ? data : []))
+        .catch(() => setServerUsers([]))
+    }
+  }, [businessId, canManageServers])
+
+  // Get server names by IDs
+  const getServerNames = (serverIds: string[]): string[] => {
+    return serverIds
+      .map(id => serverUsers.find(u => u.id === id)?.name)
+      .filter((name): name is string => !!name)
+  }
 
   // Auto-open booking details modal if initialBookingId is provided
   useEffect(() => {
@@ -142,6 +181,13 @@ export function TablesLayoutView({
     if (!selectedLayoutId || layouts.length === 0) return true
     // Check if table's layoutId matches the selected layout
     return pos.layoutId === selectedLayoutId
+  }
+
+  // Check if a table is accessible to the current server
+  const isTableAccessibleToServer = (sectionId: string, tableName: string): boolean => {
+    if (!isServer || !serverAssignedTables) return true
+    const assignedTables = serverAssignedTables[sectionId]
+    return assignedTables?.includes(tableName) ?? false
   }
 
   // Load image to get its natural aspect ratio, or use default for drawn layout
@@ -271,8 +317,21 @@ export function TablesLayoutView({
 
   // Filter and sort bookings for the cards list
   // Exclude only cancelled bookings - show completed reservations
+  // For servers: only show bookings for their assigned tables
   const filteredBookings = useMemo(() => {
     let filtered = bookings.filter(b => b.status !== 'cancelled')
+
+    // For servers: filter to only show bookings for their assigned tables
+    if (isServer && serverAssignedTables) {
+      filtered = filtered.filter(b => {
+        if (!b.table_number) return false
+        // Get the business section ID from the event table section
+        const businessSectionId = eventToBusinessSectionMap[b.event_table_section_id]
+        if (!businessSectionId) return false
+        const assignedTables = serverAssignedTables[businessSectionId]
+        return assignedTables?.includes(b.table_number) ?? false
+      })
+    }
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -302,7 +361,7 @@ export function TablesLayoutView({
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
     })
-  }, [bookings, searchQuery, sortOption])
+  }, [bookings, searchQuery, sortOption, isServer, serverAssignedTables, eventToBusinessSectionMap])
 
   // Get table position from the business config
   const getTablePosition = (section: TableSection, tableIndex: number) => {
@@ -335,6 +394,15 @@ export function TablesLayoutView({
       }
     }
     return linked
+  }
+
+  // Get current server IDs assigned to a table
+  const getAssignedServerIds = (sectionId: string, tableName: string): string[] => {
+    if (!allServerAssignments) return []
+    const sectionAssignments = allServerAssignments[sectionId]
+    if (!sectionAssignments) return []
+    const assignment = sectionAssignments.find(a => a.tableName === tableName)
+    return assignment?.serverUserIds || []
   }
 
   // Handle closing/opening a table
@@ -757,8 +825,8 @@ export function TablesLayoutView({
             filteredBookings.map(booking => (
               <Card
                 key={booking.id}
-                draggable={booking.status !== 'completed'}
-                onDragStart={(e) => booking.status !== 'completed' && handleDragStart(e, booking)}
+                draggable={!isServer && booking.status !== 'completed'}
+                onDragStart={(e) => !isServer && booking.status !== 'completed' && handleDragStart(e, booking)}
                 onDragEnd={handleDragEnd}
                 className={`cursor-pointer transition-all hover:shadow-md hover:border-primary/30 ${
                   selectedBookingId === booking.id ? 'ring-2 ring-primary border-primary shadow-md' : ''
@@ -769,14 +837,19 @@ export function TablesLayoutView({
               >
                 <CardContent className="px-3 py-1.5">
                   <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-1">
-                    <span>{booking.status === 'completed' ? 'Was Table' : 'Table'} <span className="font-medium text-foreground">{booking.table_number || booking.completed_table_number || '—'}</span></span>
+                    <span>
+                      {booking.status === 'completed' ? 'Was Table' : booking.table_number ? 'Table' : booking.requested_table_number ? 'Requested' : 'Table'}{' '}
+                      <span className={`font-medium ${booking.requested_table_number && !booking.table_number ? 'text-amber-500' : 'text-foreground'}`}>
+                        {booking.table_number || booking.completed_table_number || booking.requested_table_number || '—'}
+                      </span>
+                    </span>
                     {(() => {
                       const businessSectionId = eventToBusinessSectionMap[booking.event_table_section_id]
                       const minimumSpend = businessSectionId ? sectionMinimumSpendMap[businessSectionId] : 0
                       return (
                         <div className="flex items-center gap-2">
                           {booking.amount != null && booking.amount > 0 && (
-                            <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount)}</span>
+                            <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount, false)}</span>
                           )}
                           {minimumSpend > 0 && (
                             <span className="text-amber-500 whitespace-nowrap">Min ${Math.round(minimumSpend)}</span>
@@ -949,6 +1022,10 @@ export function TablesLayoutView({
                 if (!isTableOnCurrentLayout(section, tableIndex)) return null
 
                 const tableName = section.tableNames?.[tableIndex] || `${tableIndex + 1}`
+
+                // For servers: only show tables they are assigned to
+                if (!isTableAccessibleToServer(section.id, tableName)) return null
+
                 const booking = getBookingForTable(section.id, tableName)
                 const isClosed = isTableClosed(section.id, tableName)
                 const linkedTables = getLinkedTables(section.id, tableName)
@@ -974,17 +1051,15 @@ export function TablesLayoutView({
                   <div
                     key={`${section.id}-${tableIndex}`}
                     data-table="true"
-                    draggable={!!booking}
-                    onDragStart={(e) => booking && handleDragStart(e, booking)}
+                    draggable={!isServer && !!booking}
+                    onDragStart={(e) => !isServer && booking && handleDragStart(e, booking)}
                     onDragEnd={handleDragEnd}
                     onDragOver={(e) => handleTableDragOver(e, section.id, tableName)}
                     onDragLeave={handleTableDragLeave}
                     onDrop={(e) => handleTableDrop(e, section.id, tableName)}
                     className={`absolute flex items-center justify-center font-bold select-none transition-all ${
                       isSelected ? 'z-20' : 'z-10'
-                    } cursor-pointer ${
-                      !draggingBooking ? 'hover:scale-105' : ''
-                    } ${isDragOver && canDrop ? 'scale-110' : ''} ${
+                    } cursor-pointer ${isDragOver && canDrop ? 'scale-110' : ''} ${
                       draggingBooking && !canDrop ? 'opacity-40' : ''
                     }`}
                     style={{
@@ -1031,11 +1106,14 @@ export function TablesLayoutView({
                                 {booking.amount != null && booking.amount > 0 && (
                                   <div className="flex flex-col items-center leading-none">
                                     <span className="text-[10px] text-muted-foreground">Deposit</span>
-                                    <span className="text-xs font-medium text-green-500">{formatCurrency(booking.amount)}</span>
+                                    <span className="text-xs font-medium text-green-500">{formatCurrency(booking.amount, false)}</span>
                                   </div>
                                 )}
                                 {sectionMinimumSpendMap[section.id] > 0 && (
-                                  <span className="text-sm text-amber-500 whitespace-nowrap">Min ${Math.round(sectionMinimumSpendMap[section.id])}</span>
+                                  <div className="flex flex-col items-center leading-none">
+                                    <span className="text-[10px] text-muted-foreground">Min</span>
+                                    <span className="text-xs font-medium text-amber-500">{formatCurrency(sectionMinimumSpendMap[section.id], false)}</span>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -1050,6 +1128,19 @@ export function TablesLayoutView({
                                   <span className="font-normal">{booking.customer_phone}</span>
                                 </div>
                               )}
+                              {(() => {
+                                const assignedServerIds = getAssignedServerIds(section.id, tableName)
+                                const serverNames = getServerNames(assignedServerIds)
+                                if (serverNames.length > 0) {
+                                  return (
+                                    <div className="flex items-center gap-2">
+                                      <UserCog className="h-3.5 w-3.5" />
+                                      <span className="font-normal">{serverNames.join(', ')}</span>
+                                    </div>
+                                  )
+                                }
+                                return null
+                              })()}
                             </div>
                             {linkedTables.length > 0 && (
                               <div className="flex items-center justify-between py-2 border-t text-xs">
@@ -1057,16 +1148,18 @@ export function TablesLayoutView({
                                   <Link2 className="h-3 w-3" />
                                   <span>Linked to {linkedTables.map(t => t.tableName).join(', ')}</span>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => handleUnlinkTable(section.id, tableName)}
-                                  disabled={isLinkingTable}
-                                  title="Unlink all"
-                                >
-                                  <Unlink className="h-3.5 w-3.5" />
-                                </Button>
+                                {!isServer && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => handleUnlinkTable(section.id, tableName)}
+                                    disabled={isLinkingTable}
+                                    title="Unlink all"
+                                  >
+                                    <Unlink className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
                               </div>
                             )}
                             <div className="flex flex-col gap-2 pt-3 border-t">
@@ -1167,6 +1260,19 @@ export function TablesLayoutView({
                               >
                                 <Info className="h-3.5 w-3.5" />
                               </Button>
+                              {canManageServers && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setServerAssignmentModal({ sectionId: section.id, tableName })
+                                    setSelectedTable(null)
+                                  }}
+                                  title="Assign server"
+                                >
+                                  <UserCog className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                           </div>
@@ -1180,15 +1286,30 @@ export function TablesLayoutView({
                                   <span className="text-sm text-white/70">Closed</span>
                                 ) : sectionPriceMap[section.id] > 0 ? (
                                   <span className="text-sm text-white/70">
-                                    Deposit <span className="font-medium text-white">{formatCurrency(sectionPriceMap[section.id])}</span>
+                                    Deposit <span className="font-medium text-green-500">{formatCurrency(sectionPriceMap[section.id], false)}</span>
                                   </span>
                                 ) : (
                                   <span className="text-sm text-white/70">Available</span>
                                 )}
                               </div>
                               {!isClosed && sectionMinimumSpendMap[section.id] > 0 && (
-                                <span className="text-xs text-white/60">Min spend: {formatCurrency(sectionMinimumSpendMap[section.id])}</span>
+                                <span className="text-sm text-white/70">
+                                  Min <span className="font-medium text-amber-500">{formatCurrency(sectionMinimumSpendMap[section.id], false)}</span>
+                                </span>
                               )}
+                              {(() => {
+                                const assignedServerIds = getAssignedServerIds(section.id, tableName)
+                                const serverNames = getServerNames(assignedServerIds)
+                                if (serverNames.length > 0) {
+                                  return (
+                                    <div className="flex items-center gap-1.5 text-sm text-white/70">
+                                      <UserCog className="h-3.5 w-3.5" />
+                                      <span>{serverNames.join(', ')}</span>
+                                    </div>
+                                  )
+                                }
+                                return null
+                              })()}
                             </div>
                             {linkedTables.length > 0 && (
                               <div className="flex items-center justify-center gap-1 mb-3 text-xs text-purple-600">
@@ -1197,7 +1318,7 @@ export function TablesLayoutView({
                               </div>
                             )}
                             <div className="space-y-2">
-                              {!isClosed && onEmptyTableClick && (
+                              {!isClosed && !isServer && onEmptyTableClick && (
                                 <Button
                                   size="sm"
                                   className="w-full"
@@ -1213,47 +1334,63 @@ export function TablesLayoutView({
                                   Add Reservation
                                 </Button>
                               )}
-                              <div className="flex gap-2 justify-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => handleToggleClose(section.id, tableName, isClosed)}
-                                  disabled={isClosingTable}
-                                  title={isClosed ? 'Open table' : 'Close table'}
-                                >
-                                  {isClosed ? (
-                                    <Unlock className="h-4 w-4 text-white" />
-                                  ) : (
-                                    <Lock className="h-4 w-4 text-white" />
-                                  )}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => {
-                                    setLinkingMode({ sectionId: section.id, tableName })
-                                    setSelectedTable(null)
-                                  }}
-                                  disabled={isClosed}
-                                  title="Link to another table"
-                                >
-                                  <Link2 className="h-4 w-4 text-white" />
-                                </Button>
-                                {linkedTables.length > 0 && (
+                              {!isServer && (
+                                <div className="flex gap-2 justify-center">
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     className="h-8 w-8 p-0"
-                                    onClick={() => handleUnlinkTable(section.id, tableName)}
-                                    disabled={isLinkingTable}
-                                    title="Unlink all"
+                                    onClick={() => handleToggleClose(section.id, tableName, isClosed)}
+                                    disabled={isClosingTable}
+                                    title={isClosed ? 'Open table' : 'Close table'}
                                   >
-                                    <Unlink className="h-4 w-4 text-white" />
+                                    {isClosed ? (
+                                      <Unlock className="h-4 w-4 text-white" />
+                                    ) : (
+                                      <Lock className="h-4 w-4 text-white" />
+                                    )}
                                   </Button>
-                                )}
-                              </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => {
+                                      setLinkingMode({ sectionId: section.id, tableName })
+                                      setSelectedTable(null)
+                                    }}
+                                    disabled={isClosed}
+                                    title="Link to another table"
+                                  >
+                                    <Link2 className="h-4 w-4 text-white" />
+                                  </Button>
+                                  {linkedTables.length > 0 && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => handleUnlinkTable(section.id, tableName)}
+                                      disabled={isLinkingTable}
+                                      title="Unlink all"
+                                    >
+                                      <Unlink className="h-4 w-4 text-white" />
+                                    </Button>
+                                  )}
+                                  {canManageServers && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => {
+                                        setServerAssignmentModal({ sectionId: section.id, tableName })
+                                        setSelectedTable(null)
+                                      }}
+                                      title="Assign server"
+                                    >
+                                      <UserCog className="h-4 w-4 text-white" />
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1329,6 +1466,19 @@ export function TablesLayoutView({
         onOpenChange={(open) => !open && setDetailsModalBooking(null)}
         bookingId={detailsModalBooking?.id || ''}
         onStatusChange={() => router.refresh()}
+        userRole={userRole}
+      />
+
+      {/* Server Assignment Modal */}
+      <ServerAssignmentModal
+        open={!!serverAssignmentModal}
+        onOpenChange={(open) => !open && setServerAssignmentModal(null)}
+        eventId={eventId}
+        sectionId={serverAssignmentModal?.sectionId || ''}
+        tableName={serverAssignmentModal?.tableName || ''}
+        currentAssignedServerIds={serverAssignmentModal ? getAssignedServerIds(serverAssignmentModal.sectionId, serverAssignmentModal.tableName) : []}
+        businessId={businessId}
+        onAssignmentChange={() => router.refresh()}
       />
     </div>
   )

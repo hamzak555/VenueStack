@@ -13,12 +13,14 @@ import { Loader2, Calendar, MapPin, Users, Mail, Phone, ExternalLink, Star, Stic
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils/currency'
 import { TableBookingRefundDialog } from './table-booking-refund-dialog'
+import { isServerRole, type BusinessRole } from '@/lib/auth/roles'
 
 interface BookingDetailsModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   bookingId: string
   onStatusChange?: () => void
+  userRole?: BusinessRole
 }
 
 interface BookingData {
@@ -26,6 +28,7 @@ interface BookingData {
     id: string
     table_number: number | null
     completed_table_number?: string | null
+    requested_table_number?: string | null
     status: string
     amount: number | null
     order_id: string | null
@@ -33,6 +36,8 @@ interface BookingData {
     customer_email: string
     customer_phone: string | null
     created_at: string
+    created_by_name?: string | null
+    created_by_email?: string | null
     notes: any[]
     event: {
       id: string
@@ -84,10 +89,12 @@ export function BookingDetailsModal({
   onOpenChange,
   bookingId,
   onStatusChange,
+  userRole,
 }: BookingDetailsModalProps) {
   const [data, setData] = useState<BookingData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isReopening, setIsReopening] = useState(false)
+  const isServer = userRole ? isServerRole(userRole) : false
 
   useEffect(() => {
     if (open && bookingId) {
@@ -225,6 +232,12 @@ export function BookingDetailsModal({
               <p className="text-sm text-muted-foreground">
                 Booked on {formatDateTime(data.booking.created_at)}
               </p>
+              {/* Show requested table if no table is assigned */}
+              {!data.booking.table_number && data.booking.requested_table_number && (
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  Requested: Table #{data.booking.requested_table_number}
+                </p>
+              )}
             </DialogHeader>
 
             <div className="space-y-6 mt-4">
@@ -294,6 +307,11 @@ export function BookingDetailsModal({
                       <a href={`tel:${data.booking.customer_phone}`} className="text-primary hover:underline">
                         {data.booking.customer_phone}
                       </a>
+                    </p>
+                  )}
+                  {data.booking.created_by_name && (
+                    <p className="text-sm text-muted-foreground pt-2 border-t mt-2">
+                      Created by <span className="font-medium text-foreground">{data.booking.created_by_name}</span>
                     </p>
                   )}
                 </div>
@@ -442,7 +460,7 @@ export function BookingDetailsModal({
                         Reopen
                       </Button>
                     )}
-                    {data.bookingAmount > 0 && (
+                    {data.bookingAmount > 0 && !isServer && (
                       <TableBookingRefundDialog
                         bookingId={data.booking.id}
                         maxRefundable={data.bookingAmount}

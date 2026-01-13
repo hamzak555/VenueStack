@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
 import { deleteInvitation, resendInvitation } from '@/lib/db/invitations'
 import { createClient } from '@/lib/supabase/server'
+import { canAccessSection, type BusinessRole } from '@/lib/auth/roles'
 
 export async function DELETE(
   request: NextRequest,
@@ -10,9 +11,9 @@ export async function DELETE(
   try {
     const { businessId, invitationId } = await params
 
-    // Verify access
+    // Verify access - only owner and manager can access users
     const session = await verifyBusinessAccess(businessId)
-    if (!session || session.role !== 'admin') {
+    if (!session || !canAccessSection(session.role as BusinessRole, 'users')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -55,9 +56,9 @@ export async function POST(
     const body = await request.json()
     const { action } = body
 
-    // Verify access
+    // Verify access - only owner and manager can access users
     const session = await verifyBusinessAccess(businessId)
-    if (!session || session.role !== 'admin') {
+    if (!session || !canAccessSection(session.role as BusinessRole, 'users')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }

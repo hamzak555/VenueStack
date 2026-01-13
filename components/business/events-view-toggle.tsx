@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { EventsCalendar } from './events-calendar'
+import { canSeeFinancialStats, type BusinessRole } from '@/lib/auth/roles'
 
 interface SalesData {
   totalSold: number
@@ -49,9 +50,11 @@ interface EventsViewToggleProps {
   businessId: string
   defaultLocation?: DefaultLocation
   defaultTimezone?: string
+  userRole?: BusinessRole
 }
 
-export function EventsViewToggle({ events, businessSlug, businessId, defaultLocation, defaultTimezone }: EventsViewToggleProps) {
+export function EventsViewToggle({ events, businessSlug, businessId, defaultLocation, defaultTimezone, userRole }: EventsViewToggleProps) {
+  const showFinancialStats = userRole ? canSeeFinancialStats(userRole) : true
   const [mounted, setMounted] = useState(false)
   const [currentDate, setCurrentDate] = useState(new Date())
 
@@ -168,79 +171,81 @@ export function EventsViewToggle({ events, businessSlug, businessId, defaultLoca
             </Button>
           </div>
 
-          {/* Right side - Monthly statistics */}
-          <TooltipProvider>
-            <div className="flex items-center gap-5 text-sm">
-              {monthStats.published > 0 && (
-                <div className="flex items-center gap-1.5 text-green-600">
-                  <CheckCircle className="h-4 w-4" />
-                  <span>{monthStats.published} published</span>
-                </div>
-              )}
-              {monthStats.draft > 0 && (
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <FileEdit className="h-4 w-4" />
-                  <span>{monthStats.draft} draft</span>
-                </div>
-              )}
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Ticket className="h-4 w-4" />
-                <span>{monthStats.ticketsSold}/{monthStats.ticketsTotal} sold</span>
-              </div>
-              {monthStats.tablesBooked > 0 && (
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Armchair className="h-4 w-4" />
-                  <span>{monthStats.tablesBooked} booked</span>
-                </div>
-              )}
-              {/* Ticket Revenue with tooltip */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1.5 text-muted-foreground cursor-help">
-                    <Ticket className="h-4 w-4" />
-                    <span>${monthStats.ticketNetRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          {/* Right side - Monthly statistics (hidden for host/server) */}
+          {showFinancialStats && (
+            <TooltipProvider>
+              <div className="flex items-center gap-5 text-sm">
+                {monthStats.published > 0 && (
+                  <div className="flex items-center gap-1.5 text-green-600">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>{monthStats.published} published</span>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">
-                  <div className="space-y-1">
-                    <div className="font-medium">Ticket Revenue</div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Collected:</span>
-                      <span>${monthStats.ticketGrossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Fees:</span>
-                      <span>-${monthStats.ticketFees.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between gap-4 border-t pt-1">
-                      <span className="text-muted-foreground">You receive:</span>
-                      <span className="font-medium">${monthStats.ticketNetRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
+                )}
+                {monthStats.draft > 0 && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <FileEdit className="h-4 w-4" />
+                    <span>{monthStats.draft} draft</span>
                   </div>
-                </TooltipContent>
-              </Tooltip>
-              {/* Table Revenue with tooltip */}
-              {monthStats.tableRevenue > 0 && (
+                )}
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Ticket className="h-4 w-4" />
+                  <span>{monthStats.ticketsSold}/{monthStats.ticketsTotal} sold</span>
+                </div>
+                {monthStats.tablesBooked > 0 && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Armchair className="h-4 w-4" />
+                    <span>{monthStats.tablesBooked} booked</span>
+                  </div>
+                )}
+                {/* Ticket Revenue with tooltip */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center gap-1.5 text-muted-foreground cursor-help">
-                      <Armchair className="h-4 w-4" />
-                      <span>${monthStats.tableRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <Ticket className="h-4 w-4" />
+                      <span>${monthStats.ticketNetRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="text-xs">
                     <div className="space-y-1">
-                      <div className="font-medium">Table Service Revenue</div>
+                      <div className="font-medium">Ticket Revenue</div>
                       <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Collected:</span>
+                        <span>${monthStats.ticketGrossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Fees:</span>
+                        <span>-${monthStats.ticketFees.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between gap-4 border-t pt-1">
                         <span className="text-muted-foreground">You receive:</span>
-                        <span className="font-medium">${monthStats.tableRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="font-medium">${monthStats.ticketNetRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     </div>
                   </TooltipContent>
                 </Tooltip>
-              )}
-            </div>
-          </TooltipProvider>
+                {/* Table Revenue with tooltip */}
+                {monthStats.tableRevenue > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1.5 text-muted-foreground cursor-help">
+                        <Armchair className="h-4 w-4" />
+                        <span>${monthStats.tableRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      <div className="space-y-1">
+                        <div className="font-medium">Table Service Revenue</div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-muted-foreground">You receive:</span>
+                          <span className="font-medium">${monthStats.tableRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </TooltipProvider>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -254,6 +259,7 @@ export function EventsViewToggle({ events, businessSlug, businessId, defaultLoca
           onPreviousMonth={goToPreviousMonth}
           onNextMonth={goToNextMonth}
           onToday={goToToday}
+          userRole={userRole}
         />
       </CardContent>
     </Card>

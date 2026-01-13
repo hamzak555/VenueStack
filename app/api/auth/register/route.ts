@@ -109,11 +109,11 @@ export async function POST(request: NextRequest) {
       name: userName,
     })
 
-    // Link the user to the business as admin
+    // Link the user to the business as owner
     const businessUser = await createBusinessUserLink({
       user_id: user.id,
       business_id: business.id,
-      role: 'admin',
+      role: 'owner',
     })
 
     return NextResponse.json({

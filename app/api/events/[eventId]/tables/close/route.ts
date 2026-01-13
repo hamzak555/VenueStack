@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
+import { canManageTables, type BusinessRole } from '@/lib/auth/roles'
 
 export async function POST(
   request: NextRequest,
@@ -35,6 +36,11 @@ export async function POST(
     const session = await verifyBusinessAccess(event.business_id)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Only owner, manager, host, accounting can manage tables
+    if (!canManageTables(session.role as BusinessRole)) {
+      return NextResponse.json({ error: 'You do not have permission to close tables' }, { status: 403 })
     }
 
     // Get the event table section by business section_id

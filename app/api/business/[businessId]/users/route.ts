@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBusinessUsers, createBusinessUser } from '@/lib/db/business-users'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
 import { createClient } from '@/lib/supabase/server'
+import { canAccessSection, VALID_ROLES, type BusinessRole } from '@/lib/auth/roles'
 
 export async function GET(
   request: NextRequest,
@@ -9,10 +10,12 @@ export async function GET(
 ) {
   try {
     const { businessId } = await params
+    const { searchParams } = new URL(request.url)
+    const roleFilter = searchParams.get('role')
 
-    // Verify access
+    // Verify access - only owner and manager can access users
     const session = await verifyBusinessAccess(businessId)
-    if (!session || session.role !== 'admin') {
+    if (!session || !canAccessSection(session.role as BusinessRole, 'users')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -21,7 +24,7 @@ export async function GET(
 
     // Fetch business users with joined user data for those linked to global users
     const supabase = await createClient()
-    const { data: users, error } = await supabase
+    let query = supabase
       .from('business_users')
       .select(`
         id,
@@ -36,7 +39,13 @@ export async function GET(
         user:users(id, email, phone, name)
       `)
       .eq('business_id', businessId)
-      .order('created_at', { ascending: false })
+
+    // Filter by role if specified
+    if (roleFilter) {
+      query = query.eq('role', roleFilter)
+    }
+
+    const { data: users, error } = await query.order('created_at', { ascending: false })
 
     if (error) throw error
 
@@ -74,9 +83,9 @@ export async function POST(
   try {
     const { businessId } = await params
 
-    // Verify access
+    // Verify access - only owner and manager can access users
     const session = await verifyBusinessAccess(businessId)
-    if (!session || session.role !== 'admin') {
+    if (!session || !canAccessSection(session.role as BusinessRole, 'users')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -93,9 +102,9 @@ export async function POST(
       )
     }
 
-    if (role !== 'admin' && role !== 'regular') {
+    if (!VALID_ROLES.includes(role as BusinessRole)) {
       return NextResponse.json(
-        { error: 'Role must be either "admin" or "regular"' },
+        { error: 'Invalid role' },
         { status: 400 }
       )
     }

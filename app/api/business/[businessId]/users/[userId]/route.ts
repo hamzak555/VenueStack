@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBusinessUserById, updateBusinessUser, deleteBusinessUser } from '@/lib/db/business-users'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
 import { normalizePhoneNumber } from '@/lib/twilio'
+import { canAccessSection, canModifyUserRole, canDeleteUser, VALID_ROLES, type BusinessRole } from '@/lib/auth/roles'
 
 export async function PATCH(
   request: NextRequest,
@@ -10,9 +11,9 @@ export async function PATCH(
   try {
     const { businessId, userId } = await params
 
-    // Verify access
+    // Verify access - only owner and manager can access users
     const session = await verifyBusinessAccess(businessId)
-    if (!session || session.role !== 'admin') {
+    if (!session || !canAccessSection(session.role as BusinessRole, 'users')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -28,6 +29,14 @@ export async function PATCH(
       )
     }
 
+    // Check if user can modify this user's role
+    if (!canModifyUserRole(session.role as BusinessRole, existingUser.role as BusinessRole)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to modify this user' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { email, password, name, phone, role, is_active } = body
 
@@ -37,10 +46,17 @@ export async function PATCH(
     if (email !== undefined) updates.email = email
     if (name !== undefined) updates.name = name
     if (role !== undefined) {
-      if (role !== 'admin' && role !== 'regular') {
+      if (!VALID_ROLES.includes(role as BusinessRole)) {
         return NextResponse.json(
-          { error: 'Role must be either "admin" or "regular"' },
+          { error: 'Invalid role' },
           { status: 400 }
+        )
+      }
+      // Check if user can assign this new role
+      if (!canModifyUserRole(session.role as BusinessRole, role as BusinessRole)) {
+        return NextResponse.json(
+          { error: 'You do not have permission to assign this role' },
+          { status: 403 }
         )
       }
       updates.role = role
@@ -84,9 +100,9 @@ export async function DELETE(
   try {
     const { businessId, userId } = await params
 
-    // Verify access
+    // Verify access - only owner and manager can access users
     const session = await verifyBusinessAccess(businessId)
-    if (!session || session.role !== 'admin') {
+    if (!session || !canAccessSection(session.role as BusinessRole, 'users')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -99,6 +115,14 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
+      )
+    }
+
+    // Check if user can delete this user (manager cannot delete owner)
+    if (!canDeleteUser(session.role as BusinessRole, existingUser.role as BusinessRole)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to delete this user' },
+        { status: 403 }
       )
     }
 

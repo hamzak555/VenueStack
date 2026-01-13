@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getBusinessBySlug } from '@/lib/db/businesses'
+import { requireSectionAccess } from '@/lib/auth/role-guard'
 import { Card, CardContent } from '@/components/ui/card'
 import { TableServiceForm } from '@/components/business/table-service-form'
 import { Business } from '@/lib/types'
@@ -21,6 +22,9 @@ export default async function TableServicePage({ params }: TableServicePageProps
   } catch {
     notFound()
   }
+
+  // Protect page - only owner and manager can access floor plan
+  await requireSectionAccess(business.id, businessSlug, 'floorPlan')
 
   return (
     <div className="space-y-6">

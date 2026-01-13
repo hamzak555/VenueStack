@@ -4,23 +4,30 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Calendar, Receipt, BarChart3, UserCircle, Ticket, Armchair, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { canAccessSection, type BusinessRole } from '@/lib/auth/roles'
 
 interface DashboardNavProps {
   businessSlug: string
   showLocks?: boolean
+  userRole?: BusinessRole
 }
 
-export function DashboardNav({ businessSlug, showLocks = false }: DashboardNavProps) {
+export function DashboardNav({ businessSlug, showLocks = false, userRole }: DashboardNavProps) {
   const pathname = usePathname()
 
-  const navItems = [
-    { href: `/${businessSlug}/dashboard/events`, icon: Calendar, label: 'Events' },
-    { href: `/${businessSlug}/dashboard/tables`, icon: Armchair, label: 'Table Service' },
-    { href: `/${businessSlug}/dashboard/all-tickets`, icon: Ticket, label: 'Tickets' },
-    { href: `/${businessSlug}/dashboard/tickets`, icon: Receipt, label: 'Ticket Sales' },
-    { href: `/${businessSlug}/dashboard/reports`, icon: BarChart3, label: 'Reports' },
-    { href: `/${businessSlug}/dashboard/customers`, icon: UserCircle, label: 'Customers' },
+  const allNavItems = [
+    { href: `/${businessSlug}/dashboard/events`, icon: Calendar, label: 'Events', section: 'events' },
+    { href: `/${businessSlug}/dashboard/tables`, icon: Armchair, label: 'Table Service', section: 'tables' },
+    { href: `/${businessSlug}/dashboard/all-tickets`, icon: Ticket, label: 'Tickets', section: 'tickets' },
+    { href: `/${businessSlug}/dashboard/tickets`, icon: Receipt, label: 'Ticket Sales', section: 'ticketSales' },
+    { href: `/${businessSlug}/dashboard/reports`, icon: BarChart3, label: 'Reports', section: 'reports' },
+    { href: `/${businessSlug}/dashboard/customers`, icon: UserCircle, label: 'Customers', section: 'customers' },
   ]
+
+  // Filter nav items based on user role permissions
+  const navItems = userRole
+    ? allNavItems.filter(item => canAccessSection(userRole, item.section))
+    : allNavItems
 
   return (
     <>

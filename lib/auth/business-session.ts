@@ -13,7 +13,7 @@ export interface BusinessSession {
   globalUserId?: string // The global user ID from users table
   businessId: string
   email: string
-  role: 'admin' | 'regular'
+  role: 'owner' | 'manager' | 'host' | 'accounting' | 'server'
   name: string
   adminBypass?: boolean // Set to true when accessed from admin dashboard
   [key: string]: unknown
@@ -130,7 +130,7 @@ export async function verifyBusinessAccess(businessId: string): Promise<Business
       userId: 'admin-bypass',
       businessId,
       email: 'admin@platform.com',
-      role: 'admin',
+      role: 'owner',
       name: 'Platform Admin',
       adminBypass: true,
     }

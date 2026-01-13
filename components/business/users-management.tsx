@@ -30,15 +30,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Trash2, Send, Clock, UserPlus, Copy, Check, Mail, Phone } from 'lucide-react'
+import { Plus, Trash2, Send, Clock, UserPlus, Copy, Check, Mail, Phone, HelpCircle, CheckCircle2, XCircle, MinusCircle, ChevronDown } from 'lucide-react'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { PhoneInput } from '@/components/ui/phone-input'
+import { getInvitableRoles, ROLE_LABELS, type BusinessRole } from '@/lib/auth/roles'
 
 interface User {
   id: string
   email: string
   name: string
   phone: string | null
-  role: 'admin' | 'regular'
+  role: BusinessRole
   is_active: boolean
   created_at: string
   user_id: string | null
@@ -48,7 +54,7 @@ interface Invitation {
   id: string
   email: string | null
   phone: string | null
-  role: 'admin' | 'regular'
+  role: BusinessRole
   status: 'pending' | 'accepted' | 'expired' | 'cancelled'
   created_at: string
   expires_at: string
@@ -58,9 +64,10 @@ interface Invitation {
 interface UsersManagementProps {
   businessId: string
   businessSlug: string
+  userRole: BusinessRole
 }
 
-export function UsersManagement({ businessId, businessSlug }: UsersManagementProps) {
+export function UsersManagement({ businessId, businessSlug, userRole }: UsersManagementProps) {
   const [users, setUsers] = useState<User[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,10 +77,14 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
   const [cancelInviteDialogOpen, setCancelInviteDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [selectedInvitation, setSelectedInvitation] = useState<Invitation | null>(null)
+  // Get roles this user can invite
+  const invitableRoles = getInvitableRoles(userRole)
+  const defaultRole = invitableRoles.includes('manager') ? 'manager' : invitableRoles[0] || 'manager'
+
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
-    role: 'regular' as 'admin' | 'regular',
+    role: defaultRole as BusinessRole,
   })
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -156,7 +167,7 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
         fetchInvitations()
       }
 
-      setFormData({ email: '', phone: '', role: 'regular' })
+      setFormData({ email: '', phone: '', role: defaultRole })
       setTimeout(() => {
         setInviteDialogOpen(false)
         setSuccessMessage(null)
@@ -252,7 +263,7 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
   }
 
   const openInviteDialog = () => {
-    setFormData({ email: '', phone: '', role: 'regular' })
+    setFormData({ email: '', phone: '', role: defaultRole })
     setFormError(null)
     setSuccessMessage(null)
     setInviteDialogOpen(true)
@@ -344,7 +355,7 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
                       <Label htmlFor="role">Role</Label>
                       <Select
                         value={formData.role}
-                        onValueChange={(value: 'admin' | 'regular') =>
+                        onValueChange={(value: BusinessRole) =>
                           setFormData({ ...formData, role: value })
                         }
                         disabled={formLoading}
@@ -353,8 +364,11 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="regular">Regular User</SelectItem>
-                          <SelectItem value="admin">Admin User</SelectItem>
+                          {invitableRoles.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {ROLE_LABELS[role]}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -410,8 +424,8 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
                     <TableCell>{user.email}</TableCell>
                     <TableCell className="text-muted-foreground">{user.phone || '-'}</TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                        {user.role === 'admin' ? 'Admin' : 'Regular'}
+                      <Badge variant={user.role === 'owner' ? 'default' : user.role === 'server' ? 'outline' : 'secondary'}>
+                        {ROLE_LABELS[user.role] || user.role}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -477,8 +491,8 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={invitation.role === 'admin' ? 'default' : 'secondary'}>
-                        {invitation.role === 'admin' ? 'Admin' : 'Regular'}
+                      <Badge variant={invitation.role === 'owner' ? 'default' : invitation.role === 'server' ? 'outline' : 'secondary'}>
+                        {ROLE_LABELS[invitation.role] || invitation.role}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -596,6 +610,246 @@ export function UsersManagement({ businessId, businessSlug }: UsersManagementPro
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Role Permissions Reference */}
+      <RolePermissionsCard />
     </div>
+  )
+}
+
+// Permission indicator component
+function PermissionIcon({ access }: { access: 'full' | 'limited' | 'none' }) {
+  if (access === 'full') {
+    return <CheckCircle2 className="h-4 w-4 text-green-500" />
+  }
+  if (access === 'limited') {
+    return <MinusCircle className="h-4 w-4 text-yellow-500" />
+  }
+  return <XCircle className="h-4 w-4 text-muted-foreground/40" />
+}
+
+// Role permissions reference card
+function RolePermissionsCard() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const permissions = [
+    {
+      section: 'Events',
+      description: 'View and manage events',
+      owner: 'full',
+      manager: 'full',
+      host: 'limited',
+      accounting: 'full',
+      server: 'limited',
+    },
+    {
+      section: 'Table Service',
+      description: 'Manage table reservations',
+      owner: 'full',
+      manager: 'full',
+      host: 'full',
+      accounting: 'full',
+      server: 'limited',
+    },
+    {
+      section: 'Tickets',
+      description: 'View ticket orders and check-ins',
+      owner: 'full',
+      manager: 'full',
+      host: 'full',
+      accounting: 'full',
+      server: 'none',
+    },
+    {
+      section: 'Ticket Sales',
+      description: 'View all ticket sales and revenue',
+      owner: 'full',
+      manager: 'full',
+      host: 'none',
+      accounting: 'full',
+      server: 'none',
+    },
+    {
+      section: 'Reports',
+      description: 'View financial reports and analytics',
+      owner: 'full',
+      manager: 'full',
+      host: 'none',
+      accounting: 'full',
+      server: 'none',
+    },
+    {
+      section: 'Customers',
+      description: 'View customer database',
+      owner: 'full',
+      manager: 'full',
+      host: 'none',
+      accounting: 'none',
+      server: 'none',
+    },
+    {
+      section: 'Team Management',
+      description: 'Invite and manage users',
+      owner: 'full',
+      manager: 'limited',
+      host: 'none',
+      accounting: 'none',
+      server: 'none',
+    },
+    {
+      section: 'Floor Plan',
+      description: 'Edit venue layouts',
+      owner: 'full',
+      manager: 'full',
+      host: 'none',
+      accounting: 'none',
+      server: 'none',
+    },
+    {
+      section: 'Marketing',
+      description: 'Manage tracking links and campaigns',
+      owner: 'full',
+      manager: 'full',
+      host: 'none',
+      accounting: 'none',
+      server: 'none',
+    },
+    {
+      section: 'Account Settings',
+      description: 'Business profile and preferences',
+      owner: 'full',
+      manager: 'none',
+      host: 'none',
+      accounting: 'none',
+      server: 'none',
+    },
+    {
+      section: 'Subscription',
+      description: 'Billing and plan management',
+      owner: 'full',
+      manager: 'none',
+      host: 'none',
+      accounting: 'none',
+      server: 'none',
+    },
+    {
+      section: 'Payments',
+      description: 'Stripe connection and payouts',
+      owner: 'full',
+      manager: 'none',
+      host: 'none',
+      accounting: 'none',
+      server: 'none',
+    },
+  ] as const
+
+  const roleDescriptions = {
+    owner: 'Full access to all features including billing, payments, and account settings.',
+    manager: 'Can manage events, tables, tickets, customers, marketing, and team members (except owners).',
+    host: 'Can manage events and table service. Cannot see financial data or revenue stats.',
+    accounting: 'Financial access to reports, ticket sales, and revenue. Cannot manage customers or settings.',
+    server: 'Limited to table service for assigned tables only. Can view event calendar.',
+  }
+
+  return (
+    <Card>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger className="w-full">
+          <CardHeader className="cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="text-base">Role Permissions</CardTitle>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-0">
+            {/* Role Descriptions */}
+            <div className="grid gap-3 mb-6">
+              {(Object.entries(roleDescriptions) as [BusinessRole, string][]).map(([role, description]) => (
+                <div key={role} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                  <Badge variant={role === 'owner' ? 'default' : role === 'server' ? 'outline' : 'secondary'} className="mt-0.5">
+                    {ROLE_LABELS[role]}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground">{description}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Permissions Table */}
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-[200px]">Feature</TableHead>
+                    <TableHead className="text-center w-[80px]">Owner</TableHead>
+                    <TableHead className="text-center w-[80px]">Manager</TableHead>
+                    <TableHead className="text-center w-[80px]">Host</TableHead>
+                    <TableHead className="text-center w-[80px]">Accounting</TableHead>
+                    <TableHead className="text-center w-[80px]">Server</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {permissions.map((perm) => (
+                    <TableRow key={perm.section}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{perm.section}</p>
+                          <p className="text-xs text-muted-foreground">{perm.description}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <PermissionIcon access={perm.owner} />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <PermissionIcon access={perm.manager} />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <PermissionIcon access={perm.host} />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <PermissionIcon access={perm.accounting} />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <PermissionIcon access={perm.server} />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-6 mt-4 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                <span>Full access</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <MinusCircle className="h-3.5 w-3.5 text-yellow-500" />
+                <span>Limited access</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <XCircle className="h-3.5 w-3.5 text-muted-foreground/40" />
+                <span>No access</span>
+              </div>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
   )
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe/server'
+import { verifyBusinessAccess } from '@/lib/auth/business-session'
+import { isServerRole, type BusinessRole } from '@/lib/auth/roles'
 
 export async function POST(
   request: NextRequest,
@@ -38,6 +40,20 @@ export async function POST(
       return NextResponse.json(
         { error: 'Table booking not found' },
         { status: 404 }
+      )
+    }
+
+    // Verify user has access and is not a server
+    const session = await verifyBusinessAccess(booking.events.business_id)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Servers cannot process refunds
+    if (isServerRole(session.role as BusinessRole)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to process refunds' },
+        { status: 403 }
       )
     }
 

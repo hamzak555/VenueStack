@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
         to: email,
         businessName: 'VenueStack Admin',
         inviteUrl,
-        role: 'admin',
+        role: 'owner', // Platform admins get owner-level access
       }).catch(err => console.error('Failed to send admin invitation email:', err))
     }
 

@@ -139,6 +139,7 @@ export async function GET(
         id: booking.id,
         table_number: booking.table_number,
         completed_table_number: booking.completed_table_number,
+        requested_table_number: booking.requested_table_number,
         status: booking.status,
         amount: booking.amount,
         order_id: booking.order_id,
@@ -146,6 +147,8 @@ export async function GET(
         customer_email: booking.customer_email,
         customer_phone: booking.customer_phone,
         created_at: booking.created_at,
+        created_by_name: booking.created_by_name,
+        created_by_email: booking.created_by_email,
         notes: booking.notes || [],
         event: {
           id: booking.events.id,

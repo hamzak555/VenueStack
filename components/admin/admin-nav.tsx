@@ -25,22 +25,22 @@ export function AdminNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group',
+              'flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors group',
               isActive
                 ? 'bg-violet-500/15'
                 : 'hover:bg-violet-500/10'
             )}
           >
             <div className={cn(
-              'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
+              'h-7 w-7 rounded-md flex items-center justify-center transition-colors',
               isActive
                 ? 'bg-violet-500/25'
                 : 'bg-violet-500/10 group-hover:bg-violet-500/20'
             )}>
-              <item.icon className="h-4 w-4 text-violet-400" />
+              <item.icon className="h-3.5 w-3.5 text-violet-400" />
             </div>
             <span className={cn(
-              'font-medium text-sm',
+              'font-medium text-xs',
               isActive && 'text-violet-400'
             )}>{item.label}</span>
           </Link>

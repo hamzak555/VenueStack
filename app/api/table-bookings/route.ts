@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
+import { isServerRole, type BusinessRole } from '@/lib/auth/roles'
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,35 +54,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Section not found' }, { status: 404 })
     }
 
-    // Check the table is not already booked
-    const { data: existingBooking } = await supabase
-      .from('table_bookings')
-      .select('id')
-      .eq('event_table_section_id', eventTableSectionId)
-      .eq('table_number', tableName)
-      .neq('status', 'cancelled')
-      .single()
+    // Check if user is a server role
+    const userIsServer = isServerRole(session.role as BusinessRole)
 
-    if (existingBooking) {
-      return NextResponse.json(
-        { error: 'This table is already booked' },
-        { status: 400 }
-      )
+    // For non-server users, check if the table is already booked
+    // Server reservations don't occupy tables, so skip this check
+    if (!userIsServer) {
+      const { data: existingBooking } = await supabase
+        .from('table_bookings')
+        .select('id')
+        .eq('event_table_section_id', eventTableSectionId)
+        .eq('table_number', tableName)
+        .neq('status', 'cancelled')
+        .single()
+
+      if (existingBooking) {
+        return NextResponse.json(
+          { error: 'This table is already booked' },
+          { status: 400 }
+        )
+      }
     }
 
     // Create the booking
+    // For servers: table_number is null, requested_table_number stores their selection, status is 'confirmed'
+    // For others: table_number is assigned, status is 'seated'
     const { data: booking, error: bookingError } = await supabase
       .from('table_bookings')
       .insert({
         event_id: eventId,
         event_table_section_id: eventTableSectionId,
-        table_number: tableName,
+        table_number: userIsServer ? null : tableName,
+        requested_table_number: userIsServer ? tableName : null,
         customer_name: customerName,
         customer_email: customerEmail || null,
         customer_phone: customerPhone || null,
-        status: 'seated', // Manual reservations are seated by default
+        status: userIsServer ? 'confirmed' : 'seated', // Server reservations are confirmed, others are seated
         amount: null, // No payment for manual reservations
         order_id: null,
+        created_by_name: session.name || null,
+        created_by_email: session.email || null,
       })
       .select()
       .single()
@@ -94,8 +106,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update available tables count
-    if (section.available_tables > 0) {
+    // Update available tables count only for non-server reservations
+    // (server reservations don't occupy tables)
+    if (!userIsServer && section.available_tables > 0) {
       await supabase
         .from('event_table_sections')
         .update({ available_tables: section.available_tables - 1 })

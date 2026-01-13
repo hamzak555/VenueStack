@@ -1,6 +1,5 @@
-import { verifyBusinessAccess } from '@/lib/auth/business-session'
 import { getBusinessBySlug } from '@/lib/db/businesses'
-import { redirect } from 'next/navigation'
+import { requireSectionAccess } from '@/lib/auth/role-guard'
 import { UsersManagement } from '@/components/business/users-management'
 
 interface UsersPageProps {
@@ -13,12 +12,8 @@ export default async function UsersPage({ params }: UsersPageProps) {
   const { businessSlug } = await params
   const business = await getBusinessBySlug(businessSlug)
 
-  // Verify user has admin access
-  const session = await verifyBusinessAccess(business.id)
-
-  if (!session || session.role !== 'admin') {
-    redirect(`/${businessSlug}/dashboard`)
-  }
+  // Protect page - only owner and manager can access users
+  const session = await requireSectionAccess(business.id, businessSlug, 'users')
 
   return (
     <div className="space-y-6">
@@ -26,7 +21,7 @@ export default async function UsersPage({ params }: UsersPageProps) {
         <h1 className="text-3xl font-bold tracking-tight">Users</h1>
       </div>
 
-      <UsersManagement businessId={business.id} businessSlug={businessSlug} />
+      <UsersManagement businessId={business.id} businessSlug={businessSlug} userRole={session.role} />
     </div>
   )
 }

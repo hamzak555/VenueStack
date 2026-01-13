@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getBusinessBySlug } from '@/lib/db/businesses'
+import { requireOwnerAccess } from '@/lib/auth/role-guard'
 import { SubscriptionSettings } from '@/components/business/subscription-settings'
 import { stripe } from '@/lib/stripe/server'
 import { updateBusinessSubscription } from '@/lib/db/subscriptions'
@@ -83,6 +84,9 @@ export default async function SubscriptionSettingsPage({
   } catch {
     notFound()
   }
+
+  // Protect page - only owner can access subscription settings
+  await requireOwnerAccess(business.id, businessSlug)
 
   // Sync subscription status from Stripe when returning from checkout
   if (success === 'true') {

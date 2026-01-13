@@ -6,58 +6,79 @@ import { usePathname } from 'next/navigation'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Settings, CreditCard, Megaphone, LayoutGrid, Users, ChevronDown, Receipt, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { canAccessSection, hasSettingsAccess, type BusinessRole } from '@/lib/auth/roles'
 
 interface SettingsNavProps {
   businessSlug: string
-  isAdmin: boolean
   showLocks?: boolean
+  userRole?: BusinessRole
 }
 
-export function SettingsNav({ businessSlug, isAdmin, showLocks = false }: SettingsNavProps) {
+export function SettingsNav({ businessSlug, showLocks = false, userRole }: SettingsNavProps) {
   const pathname = usePathname()
+
+  // Hide settings completely for roles without settings access
+  if (!userRole || !hasSettingsAccess(userRole)) {
+    return null
+  }
+
   const isSettingsPath = pathname.includes('/dashboard/settings') || pathname.includes('/dashboard/users')
   const [isOpen, setIsOpen] = useState(isSettingsPath)
 
-  const settingsItems = [
+  // Define all settings items with their required sections
+  const allSettingsItems = [
     {
       href: `/${businessSlug}/dashboard/settings/account`,
       icon: Settings,
       label: 'Account',
+      section: 'accountSettings',
       showLock: true,
     },
     {
       href: `/${businessSlug}/dashboard/settings/subscription`,
       icon: Receipt,
       label: 'Subscription',
+      section: 'subscription',
       showLock: false,
     },
     {
       href: `/${businessSlug}/dashboard/settings/stripe`,
       icon: CreditCard,
       label: 'Payments',
+      section: 'payments',
       showLock: true,
     },
     {
       href: `/${businessSlug}/dashboard/settings/marketing`,
       icon: Megaphone,
       label: 'Marketing',
+      section: 'marketing',
       showLock: true,
     },
     {
       href: `/${businessSlug}/dashboard/settings/table-service`,
       icon: LayoutGrid,
       label: 'Floor Plan',
+      section: 'floorPlan',
       showLock: true,
     },
-  ]
-
-  if (isAdmin) {
-    settingsItems.push({
+    {
       href: `/${businessSlug}/dashboard/users`,
       icon: Users,
       label: 'Users',
+      section: 'users',
       showLock: false,
-    })
+    },
+  ]
+
+  // Filter settings items based on role permissions
+  const settingsItems = allSettingsItems.filter(item =>
+    canAccessSection(userRole, item.section)
+  )
+
+  // Don't show settings section if no items are accessible
+  if (settingsItems.length === 0) {
+    return null
   }
 
   return (

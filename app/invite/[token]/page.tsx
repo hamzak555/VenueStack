@@ -11,12 +11,13 @@ import { Eye, EyeOff, Building2, Check, Loader2, AlertCircle } from 'lucide-reac
 import { InteractiveGridPattern } from '@/components/ui/interactive-grid-pattern'
 import { PhoneInput } from '@/components/ui/phone-input'
 import Image from 'next/image'
+import { ROLE_LABELS, type BusinessRole } from '@/lib/auth/roles'
 
 interface InvitationData {
   id: string
   email: string | null
   phone: string | null
-  role: 'admin' | 'regular'
+  role: BusinessRole
   expires_at: string
   business: {
     id: string
@@ -315,9 +316,9 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
           </div>
           <CardTitle>Join {invitation?.business.name}</CardTitle>
           <CardDescription>
-            You&apos;ve been invited to join as a{' '}
-            <Badge variant={invitation?.role === 'admin' ? 'default' : 'secondary'} className="ml-1">
-              {invitation?.role === 'admin' ? 'Admin' : 'Team Member'}
+            You&apos;ve been invited to join as{' '}
+            <Badge variant={invitation?.role === 'owner' ? 'default' : invitation?.role === 'server' ? 'outline' : 'secondary'} className="ml-1">
+              {invitation?.role ? ROLE_LABELS[invitation.role] : 'Team Member'}
             </Badge>
           </CardDescription>
         </CardHeader>
@@ -390,16 +391,31 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password *</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                required
-                minLength={6}
-                disabled={submitting}
-                placeholder="Confirm your password"
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  required
+                  minLength={6}
+                  disabled={submitting}
+                  placeholder="Confirm your password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={submitting}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {error && (

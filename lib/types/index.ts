@@ -300,7 +300,7 @@ export interface BusinessUser {
   name: string
   phone: string | null
   // Core fields
-  role: 'admin' | 'regular'
+  role: 'owner' | 'manager' | 'host' | 'accounting' | 'server'
   is_active: boolean
   created_at: string
   updated_at: string
@@ -314,7 +314,7 @@ export interface Invitation {
   business_id: string
   email: string | null
   phone: string | null
-  role: 'admin' | 'regular'
+  role: 'owner' | 'manager' | 'host' | 'accounting' | 'server'
   status: 'pending' | 'accepted' | 'expired' | 'cancelled'
   token: string
   invited_by: string

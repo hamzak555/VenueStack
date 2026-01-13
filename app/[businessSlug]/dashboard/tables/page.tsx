@@ -2,6 +2,9 @@ import Link from 'next/link'
 import { getTableBookingsByBusinessId, getEventsWithTableService, TableBooking } from '@/lib/db/table-bookings'
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { getEventById } from '@/lib/db/events'
+import { verifyBusinessAccess } from '@/lib/auth/business-session'
+import { getTablesAssignedToServer, getServerAssignments } from '@/lib/db/server-assignments'
+import { redirect } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { TablesEventSelector } from '@/components/business/tables-event-selector'
 import { TablesPageContent } from '@/components/business/tables-page-content'
@@ -27,6 +30,14 @@ export default async function TablesPage({ params, searchParams }: TablesPagePro
   const { eventId, bookingId } = await searchParams
   const business = await getBusinessBySlug(businessSlug)
 
+  // Get user session and role
+  const session = await verifyBusinessAccess(business.id)
+  if (!session) {
+    redirect(`/${businessSlug}/login`)
+  }
+  const userRole = session.role
+  const isServer = userRole === 'server'
+
   // If no eventId, show event selection
   if (!eventId) {
     const events = await getEventsWithTableService(business.id)
@@ -44,6 +55,8 @@ export default async function TablesPage({ params, searchParams }: TablesPagePro
   let eventTableSections: { id: string; section_id: string; section_name: string; price: number; minimum_spend?: number }[] = []
   let closedTables: Record<string, string[]> = {} // sectionId -> closed table names
   let linkedTablePairs: { table1: { sectionId: string; tableName: string }; table2: { sectionId: string; tableName: string } }[] = []
+  let serverAssignedTables: Record<string, string[]> = {} // For servers: sectionId -> assigned table names
+  let allServerAssignments: Record<string, { tableName: string; serverUserIds: string[] }[]> = {} // For admins: all assignments
 
   // Get the business's table service config
   const tableServiceConfig = business.table_service_config as TableServiceConfig | null
@@ -52,6 +65,13 @@ export default async function TablesPage({ params, searchParams }: TablesPagePro
   try {
     event = await getEventById(eventId)
     bookings = await getTableBookingsByBusinessId(business.id, eventId)
+
+    // Fetch server assignments
+    if (isServer && session.userId) {
+      serverAssignedTables = await getTablesAssignedToServer(eventId, session.userId)
+    }
+    // Always fetch all assignments for display (shows who's assigned in UI)
+    allServerAssignments = await getServerAssignments(eventId)
 
     // Also fetch the event_table_sections to map section_id to business section_id
     const supabase = await createClient()
@@ -163,6 +183,7 @@ export default async function TablesPage({ params, searchParams }: TablesPagePro
         eventImage={event?.image_url}
         bookings={bookings as any}
         businessSlug={businessSlug}
+        businessId={business.id}
         sectionTableNames={sectionTableNames}
         venueLayoutUrl={venueLayoutUrl}
         tableServiceConfig={tableServiceConfig!}
@@ -170,6 +191,9 @@ export default async function TablesPage({ params, searchParams }: TablesPagePro
         closedTables={closedTables}
         linkedTablePairs={linkedTablePairs}
         initialBookingId={bookingId}
+        userRole={userRole}
+        serverAssignedTables={isServer ? serverAssignedTables : undefined}
+        allServerAssignments={allServerAssignments}
       />
     </div>
   )

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getBusinessBySlug } from '@/lib/db/businesses'
+import { requireOwnerAccess } from '@/lib/auth/role-guard'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AccountSettingsForm } from '@/components/business/account-settings-form'
 
@@ -21,6 +22,9 @@ export default async function AccountSettingsPage({ params }: AccountSettingsPag
   } catch {
     notFound()
   }
+
+  // Protect page - only owner can access account settings
+  await requireOwnerAccess(business.id, businessSlug)
 
   return (
     <div className="space-y-6">

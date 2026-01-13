@@ -137,6 +137,21 @@ export async function updateUser(id: string, updates: UserUpdate) {
     .single()
 
   if (error) throw error
+
+  // Sync name, email, phone changes to all business_users linked to this user
+  const businessUserUpdates: any = {}
+  if (updates.name !== undefined) businessUserUpdates.name = updates.name
+  if (updates.email !== undefined) businessUserUpdates.email = updates.email.toLowerCase()
+  if (updates.phone !== undefined) businessUserUpdates.phone = updates.phone || null
+  if (updates.password) businessUserUpdates.password_hash = updateData.password_hash
+
+  if (Object.keys(businessUserUpdates).length > 0) {
+    await supabase
+      .from('business_users')
+      .update(businessUserUpdates)
+      .eq('user_id', id)
+  }
+
   return data as User
 }
 
