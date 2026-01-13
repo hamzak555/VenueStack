@@ -4,6 +4,7 @@ import { getEventById } from '@/lib/db/events'
 import { getTicketTypes } from '@/lib/db/ticket-types'
 import { hasEventBeenSold } from '@/lib/db/orders'
 import { getBusinessBySlug } from '@/lib/db/businesses'
+import { getEventAnalytics } from '@/lib/db/analytics'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +18,7 @@ import { DeleteEventButton } from '@/components/delete-event-button'
 import { DuplicateEventButton } from '@/components/duplicate-event-button'
 import { CopyEventLink } from '@/components/business/copy-event-link'
 import { formatCurrency } from '@/lib/utils/currency'
+import { Ticket, Armchair, TrendingUp } from 'lucide-react'
 
 // Force dynamic rendering to always fetch fresh data
 export const dynamic = 'force-dynamic'
@@ -58,27 +60,8 @@ export default async function EventManagePage({ params }: EventManagePageProps) 
   // Check if event has been sold
   const eventHasBeenSold = await hasEventBeenSold(eventId)
 
-  // Calculate stats from ticket types
-  let totalTickets = 0
-  let availableTickets = 0
-  let soldTickets = 0
-  let revenue = 0
-
-  if (ticketTypes.length > 0) {
-    ticketTypes.forEach(tt => {
-      totalTickets += tt.total_quantity
-      availableTickets += tt.available_quantity
-      const sold = tt.total_quantity - tt.available_quantity
-      soldTickets += sold
-      revenue += sold * tt.price
-    })
-  } else {
-    // Fallback to event-level tickets if no ticket types exist
-    totalTickets = event.total_tickets || 0
-    availableTickets = event.available_tickets || 0
-    soldTickets = totalTickets - availableTickets
-    revenue = soldTickets * (event.ticket_price || 0)
-  }
+  // Fetch event analytics
+  const analytics = await getEventAnalytics(eventId)
 
   return (
     <div className="space-y-6">
@@ -125,41 +108,117 @@ export default async function EventManagePage({ params }: EventManagePageProps) 
         </div>
       </div>
 
-      {/* Event Stats */}
+      {/* Event Performance Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Tickets Sold</CardTitle>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-medium text-green-600">Net Revenue</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{soldTickets}</div>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(analytics.net_revenue)}</div>
             <p className="text-xs text-muted-foreground">
-              of {totalTickets} total
+              Amount you receive
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Available</CardTitle>
+            <CardTitle className="text-sm font-medium">Gross Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{availableTickets}</div>
+            <div className="text-2xl font-bold">{formatCurrency(analytics.gross_revenue)}</div>
             <p className="text-xs text-muted-foreground">
-              Tickets remaining
+              Total collected
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Tax Collected</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(revenue)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(analytics.ticket_tax + analytics.table_tax)}</div>
             <p className="text-xs text-muted-foreground">
-              {ticketTypes.length > 0 ? `From ${ticketTypes.length} ticket option${ticketTypes.length > 1 ? 's' : ''}` : 'Total revenue'}
+              Tickets + Tables
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Ticket & Table Breakdown */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Ticket className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Ticket Sales</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Tickets Sold</span>
+                <span className="font-medium">{analytics.tickets_sold}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Available</span>
+                <span className="font-medium">{analytics.tickets_available}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Orders</span>
+                <span className="font-medium">{analytics.ticket_orders}</span>
+              </div>
+              <div className="border-t pt-3 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Gross Revenue</span>
+                  <span className="font-medium">{formatCurrency(analytics.ticket_gross_revenue)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Tax Collected</span>
+                  <span className="font-medium">{formatCurrency(analytics.ticket_tax)}</span>
+                </div>
+                <div className="flex justify-between items-center border-t pt-2">
+                  <span className="text-sm font-medium">Net Revenue</span>
+                  <span className="font-bold text-green-600">{formatCurrency(analytics.ticket_net_revenue)}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Armchair className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Table Service</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Tables Booked</span>
+                <span className="font-medium">{analytics.tables_booked}</span>
+              </div>
+              <div className="border-t pt-3 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Gross Revenue</span>
+                  <span className="font-medium">{formatCurrency(analytics.table_revenue)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Tax Collected</span>
+                  <span className="font-medium">{formatCurrency(analytics.table_tax)}</span>
+                </div>
+                <div className="flex justify-between items-center border-t pt-2">
+                  <span className="text-sm font-medium">Net Revenue</span>
+                  <span className="font-bold text-green-600">{formatCurrency(analytics.table_revenue)}</span>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

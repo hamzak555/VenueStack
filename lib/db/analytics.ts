@@ -1,5 +1,113 @@
 import { createClient } from '@/lib/supabase/server'
 
+export interface SingleEventAnalytics {
+  tickets_sold: number
+  tickets_available: number
+  tickets_total: number
+  ticket_orders: number
+  ticket_gross_revenue: number
+  ticket_net_revenue: number
+  ticket_fees: number
+  ticket_tax: number
+  tables_booked: number
+  table_revenue: number
+  table_tax: number
+  gross_revenue: number
+  net_revenue: number
+}
+
+export async function getEventAnalytics(eventId: string): Promise<SingleEventAnalytics> {
+  const supabase = await createClient()
+
+  // Get completed ticket orders for this event
+  const { data: orders } = await supabase
+    .from('orders')
+    .select('quantity, total, tax_amount, platform_fee, stripe_fee')
+    .eq('event_id', eventId)
+    .eq('status', 'completed')
+
+  // Get confirmed table bookings for this event
+  const { data: tableBookings } = await supabase
+    .from('table_bookings')
+    .select('amount, tax_amount')
+    .eq('event_id', eventId)
+    .in('status', ['confirmed', 'arrived', 'seated', 'completed'])
+
+  // Get ticket types for available/total counts
+  const { data: ticketTypes } = await supabase
+    .from('ticket_types')
+    .select('total_quantity, available_quantity')
+    .eq('event_id', eventId)
+
+  // Calculate ticket stats
+  let tickets_sold = 0
+  let ticket_orders = 0
+  let ticket_gross_revenue = 0
+  let ticket_net_revenue = 0
+  let ticket_fees = 0
+  let ticket_tax = 0
+
+  if (orders) {
+    for (const order of orders) {
+      const total = parseFloat(order.total?.toString() || '0')
+      const taxAmount = parseFloat(order.tax_amount?.toString() || '0')
+      const platformFee = parseFloat(order.platform_fee?.toString() || '0')
+      const stripeFee = parseFloat(order.stripe_fee?.toString() || '0')
+      const netRevenue = total - platformFee - stripeFee
+
+      tickets_sold += order.quantity
+      ticket_orders += 1
+      ticket_gross_revenue += total
+      ticket_net_revenue += netRevenue
+      ticket_fees += platformFee + stripeFee
+      ticket_tax += taxAmount
+    }
+  }
+
+  // Calculate table stats
+  let tables_booked = 0
+  let table_revenue = 0
+  let table_tax = 0
+
+  if (tableBookings) {
+    for (const booking of tableBookings) {
+      tables_booked += 1
+      table_revenue += parseFloat(booking.amount?.toString() || '0')
+      table_tax += parseFloat(booking.tax_amount?.toString() || '0')
+    }
+  }
+
+  // Calculate ticket inventory
+  let tickets_total = 0
+  let tickets_available = 0
+
+  if (ticketTypes) {
+    for (const tt of ticketTypes) {
+      tickets_total += tt.total_quantity
+      tickets_available += tt.available_quantity
+    }
+  }
+
+  const gross_revenue = ticket_gross_revenue + table_revenue
+  const net_revenue = ticket_net_revenue + table_revenue
+
+  return {
+    tickets_sold,
+    tickets_available,
+    tickets_total,
+    ticket_orders,
+    ticket_gross_revenue,
+    ticket_net_revenue,
+    ticket_fees,
+    ticket_tax,
+    tables_booked,
+    table_revenue,
+    table_tax,
+    gross_revenue,
+    net_revenue,
+  }
+}
+
 export interface EventAnalytics {
   event_id: string
   event_title: string
