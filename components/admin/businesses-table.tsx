@@ -306,8 +306,11 @@ export function BusinessesTable({ businesses, businessOwners, globalSettings }: 
                     </TableCell>
                     <TableCell className="text-sm">
                       <div className="flex flex-col gap-1">
-                        <span className="capitalize">
-                          {feeConfig.type?.replace(/_/g, ' ') || 'N/A'}
+                        <span>
+                          {feeConfig.type === 'higher_of_both' ? 'Higher of Both' :
+                           feeConfig.type === 'flat' ? 'Flat' :
+                           feeConfig.type === 'percentage' ? 'Percentage' :
+                           feeConfig.type || 'N/A'}
                         </span>
                         {feeConfig.isCustom && (
                           <Badge variant="outline" className="w-fit text-xs">
