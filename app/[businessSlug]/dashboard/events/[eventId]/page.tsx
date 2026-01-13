@@ -18,7 +18,6 @@ import { DeleteEventButton } from '@/components/delete-event-button'
 import { DuplicateEventButton } from '@/components/duplicate-event-button'
 import { CopyEventLink } from '@/components/business/copy-event-link'
 import { formatCurrency } from '@/lib/utils/currency'
-import { Ticket, Armchair, TrendingUp } from 'lucide-react'
 
 // Force dynamic rendering to always fetch fresh data
 export const dynamic = 'force-dynamic'
@@ -108,120 +107,41 @@ export default async function EventManagePage({ params }: EventManagePageProps) 
         </div>
       </div>
 
-      {/* Event Performance Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              <CardTitle className="text-sm font-medium text-green-600">Net Revenue</CardTitle>
+      {/* Event Performance Stats - Compact */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">Tickets</p>
+              <p className="font-semibold">{analytics.tickets_sold} / {analytics.tickets_total}</p>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(analytics.net_revenue)}</div>
-            <p className="text-xs text-muted-foreground">
-              Amount you receive
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Gross Revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(analytics.gross_revenue)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total collected
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Tax Collected</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(analytics.ticket_tax + analytics.table_tax)}</div>
-            <p className="text-xs text-muted-foreground">
-              Tickets + Tables
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Ticket & Table Breakdown */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Ticket className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Ticket Sales</CardTitle>
+            <div>
+              <p className="text-muted-foreground">Ticket Revenue</p>
+              <p className="font-semibold">{formatCurrency(analytics.ticket_gross_revenue)}</p>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Tickets Sold</span>
-                <span className="font-medium">{analytics.tickets_sold}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Available</span>
-                <span className="font-medium">{analytics.tickets_available}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Orders</span>
-                <span className="font-medium">{analytics.ticket_orders}</span>
-              </div>
-              <div className="border-t pt-3 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Gross Revenue</span>
-                  <span className="font-medium">{formatCurrency(analytics.ticket_gross_revenue)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Tax Collected</span>
-                  <span className="font-medium">{formatCurrency(analytics.ticket_tax)}</span>
-                </div>
-                <div className="flex justify-between items-center border-t pt-2">
-                  <span className="text-sm font-medium">Net Revenue</span>
-                  <span className="font-bold text-green-600">{formatCurrency(analytics.ticket_net_revenue)}</span>
-                </div>
-              </div>
+            <div>
+              <p className="text-muted-foreground">Ticket Tax</p>
+              <p className="font-semibold">{formatCurrency(analytics.ticket_tax)}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Armchair className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Table Service</CardTitle>
+            <div>
+              <p className="text-muted-foreground">Tables</p>
+              <p className="font-semibold">{analytics.tables_booked}</p>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Tables Booked</span>
-                <span className="font-medium">{analytics.tables_booked}</span>
-              </div>
-              <div className="border-t pt-3 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Gross Revenue</span>
-                  <span className="font-medium">{formatCurrency(analytics.table_revenue)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Tax Collected</span>
-                  <span className="font-medium">{formatCurrency(analytics.table_tax)}</span>
-                </div>
-                <div className="flex justify-between items-center border-t pt-2">
-                  <span className="text-sm font-medium">Net Revenue</span>
-                  <span className="font-bold text-green-600">{formatCurrency(analytics.table_revenue)}</span>
-                </div>
-              </div>
+            <div>
+              <p className="text-muted-foreground">Table Revenue</p>
+              <p className="font-semibold">{formatCurrency(analytics.table_revenue)}</p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div>
+              <p className="text-muted-foreground">Table Tax</p>
+              <p className="font-semibold">{formatCurrency(analytics.table_tax)}</p>
+            </div>
+            <div className="border-l pl-4">
+              <p className="text-muted-foreground">Net Revenue</p>
+              <p className="font-bold text-green-600">{formatCurrency(analytics.net_revenue)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Event Management Tabs */}
       <Tabs defaultValue="details" className="space-y-4">
