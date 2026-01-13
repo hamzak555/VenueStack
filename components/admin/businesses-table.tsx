@@ -22,7 +22,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { BusinessDashboardLink } from '@/components/admin/business-dashboard-link'
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Pencil } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Pencil, Mail, Phone } from 'lucide-react'
 
 const ITEMS_PER_PAGE = 10
 
@@ -269,20 +269,33 @@ export function BusinessesTable({ businesses, businessOwners, globalSettings }: 
                       {owners.length === 0 ? (
                         <span className="text-muted-foreground">-</span>
                       ) : (
-                        <TooltipProvider>
-                          <div className="flex flex-wrap gap-1">
+                        <TooltipProvider delayDuration={100}>
+                          <div className="flex flex-wrap gap-x-1">
                             {owners.map((owner, index) => (
                               <Tooltip key={index}>
                                 <TooltipTrigger asChild>
-                                  <span className="font-medium cursor-default hover:text-primary transition-colors">
+                                  <span className="font-medium cursor-default hover:text-primary hover:underline transition-colors">
                                     {owner.name}{index < owners.length - 1 ? ',' : ''}
                                   </span>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  <div className="space-y-1">
-                                    <p className="font-medium">{owner.name}</p>
-                                    <p className="text-xs">{owner.email}</p>
-                                    {owner.phone && <p className="text-xs">{owner.phone}</p>}
+                                <TooltipContent side="bottom" align="start" className="p-0 overflow-hidden">
+                                  <div className="bg-popover border rounded-lg shadow-lg min-w-[200px]">
+                                    <div className="px-3 py-2 border-b bg-muted/50">
+                                      <p className="font-semibold">{owner.name}</p>
+                                      <p className="text-xs text-muted-foreground">Owner</p>
+                                    </div>
+                                    <div className="px-3 py-2 space-y-2">
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                        <span className="truncate">{owner.email}</span>
+                                      </div>
+                                      {owner.phone && (
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                          <span>{owner.phone}</span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
