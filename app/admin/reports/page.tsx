@@ -1,8 +1,8 @@
 import { AdminDashboardLayout } from '@/components/admin/admin-dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { BusinessPerformanceTable } from '@/components/admin/business-performance-table'
 import { createClient } from '@/lib/supabase/server'
 import {
   DollarSign,
@@ -692,15 +692,15 @@ export default async function ReportsPage() {
               </TabsList>
 
               <TabsContent value="all">
-                <BusinessTable businesses={businesses} />
+                <BusinessPerformanceTable businesses={businesses} />
               </TabsContent>
 
               <TabsContent value="subscribers">
-                <BusinessTable businesses={businesses.filter(b => b.subscription_status)} />
+                <BusinessPerformanceTable businesses={businesses.filter(b => b.subscription_status)} />
               </TabsContent>
 
               <TabsContent value="active">
-                <BusinessTable businesses={businesses.filter(b => b.total_orders > 0 || b.total_table_bookings > 0)} />
+                <BusinessPerformanceTable businesses={businesses.filter(b => b.total_orders > 0 || b.total_table_bookings > 0)} />
               </TabsContent>
             </Tabs>
           </CardContent>
@@ -888,84 +888,3 @@ export default async function ReportsPage() {
   )
 }
 
-function BusinessTable({ businesses }: { businesses: BusinessReport[] }) {
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Business</TableHead>
-            <TableHead className="text-center">Subscription</TableHead>
-            <TableHead className="text-center">Events</TableHead>
-            <TableHead className="text-center">Tickets</TableHead>
-            <TableHead className="text-center">Tables</TableHead>
-            <TableHead className="text-right">Gross Revenue</TableHead>
-            <TableHead className="text-right text-green-600">Platform Fees</TableHead>
-            <TableHead className="text-right text-purple-600">Sub Revenue</TableHead>
-            <TableHead className="text-right">Last Activity</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {businesses.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                No businesses found
-              </TableCell>
-            </TableRow>
-          ) : (
-            businesses.map((business) => (
-              <TableRow key={business.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{business.name}</div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                      /{business.slug}
-                      {!business.stripe_onboarding_complete && (
-                        <Badge variant="outline" className="text-xs">No Stripe</Badge>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  {getSubscriptionBadge(business.subscription_status, business.subscription_cancel_at_period_end)}
-                </TableCell>
-                <TableCell className="text-center">
-                  <div>
-                    <div className="font-medium">{business.published_events}</div>
-                    <div className="text-xs text-muted-foreground">{business.total_events} total</div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  <div>
-                    <div className="font-medium">{business.total_tickets_sold.toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground">{business.total_orders} orders</div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  <div>
-                    <div className="font-medium">{business.total_table_bookings}</div>
-                    <div className="text-xs text-muted-foreground">{formatCurrency(business.table_booking_revenue)}</div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  {formatCurrency(business.total_revenue)}
-                </TableCell>
-                <TableCell className="text-right font-bold text-green-600">
-                  {formatCurrency(business.total_platform_fees)}
-                </TableCell>
-                <TableCell className="text-right font-medium text-purple-600">
-                  {business.subscription_revenue_collected > 0
-                    ? formatCurrency(business.subscription_revenue_collected)
-                    : '-'}
-                </TableCell>
-                <TableCell className="text-right text-sm text-muted-foreground">
-                  {formatDate(business.last_activity_date)}
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}
