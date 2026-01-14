@@ -159,14 +159,14 @@ export function EventsViewToggle({ events, businessSlug, businessId, defaultLoca
         <div className="flex items-center justify-between gap-4">
           {/* Left side - Calendar navigation (desktop only, mobile has week nav in calendar) */}
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={goToPreviousMonth}>
-              <ChevronLeft className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousMonth}>
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={goToNextMonth}>
-              <ChevronRight className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextMonth}>
+              <ChevronRight className="h-4 w-4" />
             </Button>
-            <h2 className="text-lg font-semibold ml-1" style={{ color: 'var(--theme-color-hex)' }}>{monthName}</h2>
-            <Button variant="outline" size="sm" className="ml-2 h-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" style={{ color: 'var(--theme-color-hex)' }} onClick={goToToday}>
+            <h2 className="text-lg font-semibold ml-1">{monthName}</h2>
+            <Button variant="outline" size="sm" className="ml-2 h-8" onClick={goToToday}>
               Today
             </Button>
           </div>

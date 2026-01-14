@@ -104,16 +104,6 @@ export function PageViewsChart({ stats, themeColor = '#3b82f6' }: PageViewsChart
                   data={chartData}
                   margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                 >
-                  <defs>
-                    <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={themeColor} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={themeColor} stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={secondaryColor} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={secondaryColor} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis
                     dataKey="dateLabel"
@@ -141,16 +131,16 @@ export function PageViewsChart({ stats, themeColor = '#3b82f6' }: PageViewsChart
                     dataKey="views"
                     name="Page Views"
                     stroke={themeColor}
-                    fillOpacity={1}
-                    fill="url(#colorViews)"
+                    strokeWidth={2}
+                    fill="none"
                   />
                   <Area
                     type="monotone"
                     dataKey="unique_visitors"
                     name="Unique Visitors"
                     stroke={secondaryColor}
-                    fillOpacity={1}
-                    fill="url(#colorVisitors)"
+                    strokeWidth={2}
+                    fill="none"
                   />
                 </AreaChart>
               </ResponsiveContainer>

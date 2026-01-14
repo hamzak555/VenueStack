@@ -263,14 +263,14 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
       <div className="lg:hidden">
         {/* Week Navigation */}
         <div className="flex items-center gap-2 mb-6">
-          <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={goToPreviousWeek}>
-            <ChevronLeft className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousWeek}>
+            <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={goToNextWeek}>
-            <ChevronRight className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextWeek}>
+            <ChevronRight className="h-4 w-4" />
           </Button>
-          <span className="text-base font-bold ml-1" style={{ color: 'var(--theme-color-hex)' }}>{mobileWeekLabel}</span>
-          <Button variant="outline" size="sm" className="ml-2 h-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" style={{ color: 'var(--theme-color-hex)' }} onClick={goToCurrentWeek}>
+          <span className="text-base font-bold ml-1">{mobileWeekLabel}</span>
+          <Button variant="outline" size="sm" className="ml-2 h-8" onClick={goToCurrentWeek}>
             This Week
           </Button>
         </div>
@@ -477,13 +477,13 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
                             )}
                           </div>
                         ) : !pastDay ? (
-                          <div className="relative rounded-lg overflow-hidden border border-dashed border-muted-foreground/20 hover:border-primary/50 transition-all h-full">
+                          <div className={cn(
+                            "relative rounded-lg overflow-hidden border border-dashed border-muted-foreground/20 hover:border-primary/50 transition-all",
+                            isCompactRow ? "h-full" : "aspect-square"
+                          )}>
                             <button
                               onClick={() => openCreateModalByDay(day)}
-                              className={cn(
-                                "w-full flex items-center justify-center hover:bg-accent/50 transition-colors group",
-                                isCompactRow ? "h-full" : "aspect-square"
-                              )}
+                              className="w-full h-full flex items-center justify-center hover:bg-accent/50 transition-colors group"
                             >
                               <Plus className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
                             </button>
@@ -519,16 +519,16 @@ export function EventsCalendar({ events, businessSlug, businessId, currentDate, 
           {/* Navigation */}
           {(onPreviousMonth || onNextMonth || onToday) && (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={onPreviousMonth}>
-                <ChevronLeft className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPreviousMonth}>
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" className="h-8 w-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" onClick={onNextMonth}>
-                <ChevronRight className="h-4 w-4" style={{ color: 'var(--theme-color-hex)' }} />
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNextMonth}>
+                <ChevronRight className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium px-2" style={{ color: 'var(--theme-color-hex)' }}>
+              <span className="text-sm font-medium px-2">
                 {new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </span>
-              <Button variant="outline" size="sm" className="h-8 border-[rgb(var(--theme-color))]/30 hover:bg-[rgb(var(--theme-color))]/10 hover:border-[rgb(var(--theme-color))]/50" style={{ color: 'var(--theme-color-hex)' }} onClick={onToday}>
+              <Button variant="outline" size="sm" className="h-8" onClick={onToday}>
                 Today
               </Button>
             </div>
