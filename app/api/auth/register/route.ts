@@ -3,6 +3,7 @@ import { createBusiness, isSlugAvailable } from '@/lib/db/businesses'
 import { createBusinessUserLink } from '@/lib/db/business-users'
 import { createUser, getUserByEmail } from '@/lib/db/users'
 import { normalizePhoneNumber } from '@/lib/twilio'
+import { validatePassword, getPasswordRequirements } from '@/lib/auth/password-validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,10 +27,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate password length
-    if (password.length < 6) {
+    // Validate password strength
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.valid) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        { error: passwordValidation.errors[0] || getPasswordRequirements() },
         { status: 400 }
       )
     }

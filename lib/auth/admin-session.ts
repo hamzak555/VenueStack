@@ -3,9 +3,17 @@ import { SignJWT, jwtVerify } from 'jose'
 import { AdminUser, User } from '@/lib/types'
 
 const SESSION_COOKIE_NAME = 'admin_session'
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production'
-)
+
+// Validate SESSION_SECRET is properly configured
+if (!process.env.SESSION_SECRET) {
+  throw new Error(
+    'CRITICAL: SESSION_SECRET environment variable is not set. ' +
+    'This is required for secure session management. ' +
+    'Generate a secure secret with: openssl rand -base64 32'
+  )
+}
+
+const SECRET_KEY = new TextEncoder().encode(process.env.SESSION_SECRET)
 
 export interface AdminSession {
   userId: string

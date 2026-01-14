@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getTicketType } from '@/lib/db/ticket-types'
+import { getTicketTypesByIds, decrementTicketQuantity } from '@/lib/db/ticket-types'
 import { getPromoCodeById, incrementPromoCodeUsage } from '@/lib/db/promo-codes'
 import { getTrackingLinkByRefCode } from '@/lib/db/tracking-links'
 import { nanoid } from 'nanoid'
@@ -28,10 +28,22 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
-    // Get event details
+    // Get event details with only needed columns
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('*, businesses(*)')
+      .select(`
+        id,
+        title,
+        business_id,
+        ticket_price,
+        available_tickets,
+        status,
+        businesses (
+          id,
+          tax_percentage,
+          stripe_account_id
+        )
+      `)
       .eq('id', eventId)
       .single()
 
@@ -44,12 +56,17 @@ export async function POST(request: NextRequest) {
 
     let totalAmount = 0
     let totalTickets = 0
-    let ticketTypeMetadata: any = {}
+    let ticketTypeMetadata: Record<string, { name: string; price: number; quantity: number }> = {}
 
-    // Handle multiple ticket types
+    // Handle multiple ticket types - batch fetch all at once to prevent N+1
     if (ticketSelections && Array.isArray(ticketSelections)) {
+      // Extract all ticket type IDs and fetch them in one query
+      const ticketTypeIds = ticketSelections.map((s: { ticketTypeId: string }) => s.ticketTypeId)
+      const ticketTypesMap = await getTicketTypesByIds(ticketTypeIds)
+
+      // Validate all ticket types
       for (const selection of ticketSelections) {
-        const ticketType = await getTicketType(selection.ticketTypeId)
+        const ticketType = ticketTypesMap.get(selection.ticketTypeId)
 
         if (!ticketType) {
           return NextResponse.json(
@@ -199,27 +216,8 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Update ticket type availability
-        await supabase
-          .from('ticket_types')
-          .update({
-            available_quantity: supabase.rpc('decrement', { x: selection.quantity })
-          })
-          .eq('id', selection.ticketTypeId)
-
-        // Actually decrement the quantity
-        const { data: currentType } = await supabase
-          .from('ticket_types')
-          .select('available_quantity')
-          .eq('id', selection.ticketTypeId)
-          .single()
-
-        if (currentType) {
-          await supabase
-            .from('ticket_types')
-            .update({ available_quantity: currentType.available_quantity - selection.quantity })
-            .eq('id', selection.ticketTypeId)
-        }
+        // Atomically decrement ticket quantity (single query instead of 3)
+        await decrementTicketQuantity(selection.ticketTypeId, selection.quantity)
       }
     } else if (quantity) {
       // Legacy single-price tickets

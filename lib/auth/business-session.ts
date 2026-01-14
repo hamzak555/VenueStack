@@ -4,9 +4,17 @@ import { BusinessUser } from '@/lib/types'
 
 const SESSION_COOKIE_NAME = 'business_session'
 const ADMIN_BYPASS_COOKIE_NAME = 'admin_bypass'
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production'
-)
+
+// Validate SESSION_SECRET is properly configured
+if (!process.env.SESSION_SECRET) {
+  throw new Error(
+    'CRITICAL: SESSION_SECRET environment variable is not set. ' +
+    'This is required for secure session management. ' +
+    'Generate a secure secret with: openssl rand -base64 32'
+  )
+}
+
+const SECRET_KEY = new TextEncoder().encode(process.env.SESSION_SECRET)
 
 export interface BusinessSession {
   userId: string

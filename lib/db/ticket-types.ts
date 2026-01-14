@@ -75,6 +75,66 @@ export async function getTicketType(id: string): Promise<TicketType | null> {
   return data
 }
 
+/**
+ * Batch fetch multiple ticket types by IDs
+ * Prevents N+1 queries when validating multiple ticket selections
+ */
+export async function getTicketTypesByIds(ids: string[]): Promise<Map<string, TicketType>> {
+  if (ids.length === 0) return new Map()
+
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('ticket_types')
+    .select('*')
+    .in('id', ids)
+
+  if (error) {
+    console.error('Error fetching ticket types:', error)
+    throw new Error('Failed to fetch ticket types')
+  }
+
+  const ticketTypeMap = new Map<string, TicketType>()
+  for (const ticketType of data || []) {
+    ticketTypeMap.set(ticketType.id, ticketType)
+  }
+
+  return ticketTypeMap
+}
+
+/**
+ * Atomically decrement ticket quantity
+ * Uses database function to prevent race conditions
+ */
+export async function decrementTicketQuantity(
+  id: string,
+  quantity: number
+): Promise<number> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.rpc('decrement_ticket_quantity', {
+    ticket_type_id: id,
+    quantity: quantity,
+  })
+
+  if (error) {
+    console.error('Error decrementing ticket quantity:', error)
+    // Fallback to manual update if RPC not available
+    const ticketType = await getTicketType(id)
+    if (!ticketType) throw new Error('Ticket type not found')
+
+    const newQuantity = Math.max(0, ticketType.available_quantity - quantity)
+    await supabase
+      .from('ticket_types')
+      .update({ available_quantity: newQuantity })
+      .eq('id', id)
+
+    return newQuantity
+  }
+
+  return data
+}
+
 export async function createTicketType(ticketTypeData: TicketTypeCreate): Promise<TicketType> {
   const supabase = await createClient()
 

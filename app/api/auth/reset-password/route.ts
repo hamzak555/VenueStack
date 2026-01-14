@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { updateUser } from '@/lib/db/users'
 import { jwtVerify } from 'jose'
+import { validatePassword, getPasswordRequirements } from '@/lib/auth/password-validation'
 
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production'
-)
+// Validate SESSION_SECRET is properly configured
+if (!process.env.SESSION_SECRET) {
+  throw new Error(
+    'CRITICAL: SESSION_SECRET environment variable is not set. ' +
+    'This is required for secure session management.'
+  )
+}
+
+const SECRET_KEY = new TextEncoder().encode(process.env.SESSION_SECRET)
 
 interface ResetTokenPayload {
   userId: string
@@ -23,9 +30,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (password.length < 6) {
+    // Validate password strength
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.valid) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        { error: passwordValidation.errors[0] || getPasswordRequirements() },
         { status: 400 }
       )
     }
