@@ -104,7 +104,7 @@ export function CustomersTable({ customers, businessSlug, title }: CustomersTabl
   // Export to CSV
   const exportToCSV = () => {
     // Create CSV header
-    const headers = ['Name', 'Email', 'Phone', 'Reservations', 'Tickets', 'Total Spent', 'Rating', 'Last Purchase']
+    const headers = ['Name', 'Email', 'Phone', 'Reservations', 'Tickets', 'Total Spent', 'Rating', 'Customer Since', 'Last Purchase']
 
     // Create CSV rows
     const rows = sortedCustomers.map(customer => [
@@ -115,6 +115,7 @@ export function CustomersTable({ customers, businessSlug, title }: CustomersTabl
       customer.total_tickets.toString(),
       customer.total_spent.toFixed(2),
       customer.average_rating?.toFixed(1) || '',
+      new Date(customer.first_purchase).toLocaleDateString(),
       new Date(customer.last_purchase).toLocaleDateString(),
     ])
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminUserPassword } from '@/lib/db/admin-users'
-import { verifyUserPassword, verifyPlatformAdminPassword } from '@/lib/db/users'
+import { verifyUserPassword } from '@/lib/db/users'
 import { getBusinessUsersByUserId } from '@/lib/db/business-users'
 import { cookies } from 'next/headers'
 import { SignJWT } from 'jose'
@@ -44,53 +43,37 @@ export async function POST(request: NextRequest) {
     let userName = ''
     let globalUserId = ''
 
-    // Check global user credentials first
-    const globalUser = await verifyUserPassword(email, password)
-    if (globalUser) {
-      globalUserId = globalUser.id
-      userName = globalUser.name
+    // Verify user credentials
+    const user = await verifyUserPassword(email, password)
+    if (user) {
+      globalUserId = user.id
+      userName = user.name
 
       // If user is a platform admin, add admin affiliation
-      if (globalUser.is_platform_admin) {
+      if (user.is_platform_admin) {
         affiliations.push({
           type: 'admin',
-          id: globalUser.id,
-          name: globalUser.name,
-          userId: globalUser.id,
+          id: user.id,
+          name: user.name,
+          userId: user.id,
         })
       }
 
       // Get all business affiliations for this user
-      const businessLinks = await getBusinessUsersByUserId(globalUser.id)
+      const businessLinks = await getBusinessUsersByUserId(user.id)
       if (businessLinks && businessLinks.length > 0) {
         for (const link of businessLinks) {
           const business = link.business as { id: string; name: string; slug: string; logo_url: string | null } | null
           affiliations.push({
             type: 'business',
             id: link.id,
-            name: globalUser.name,
-            userId: globalUser.id,
+            name: user.name,
+            userId: user.id,
             businessId: link.business_id,
             businessSlug: business?.slug,
             businessName: business?.name,
             businessLogo: business?.logo_url,
             role: link.role,
-          })
-        }
-      }
-    }
-
-    // Fallback: Check legacy admin_users table (for backwards compatibility during migration)
-    if (affiliations.length === 0 || !affiliations.some(a => a.type === 'admin')) {
-      const legacyAdminUser = await verifyAdminUserPassword(email, password)
-      if (legacyAdminUser) {
-        if (!userName) userName = legacyAdminUser.name
-        // Only add if not already added from global users
-        if (!affiliations.some(a => a.type === 'admin')) {
-          affiliations.push({
-            type: 'admin',
-            id: legacyAdminUser.id,
-            name: legacyAdminUser.name,
           })
         }
       }

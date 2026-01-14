@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { calculateStripeFee, calculateCustomerPaysAmount, calculateBusinessPaysAmount } from '@/lib/utils/stripe-fees'
 import { parseLocalDate } from '@/lib/utils'
 import { InteractiveTableMap } from '@/components/business/interactive-table-map'
+import { PageViewTracker } from '@/components/page-view-tracker'
 import { TableServiceConfig } from '@/lib/types'
 import {
   Dialog,
@@ -928,6 +929,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8 relative">
+      {/* Page View Tracking */}
+      {business && <PageViewTracker businessId={business.id} pageType="checkout" eventId={event.id} />}
+
       {/* Animated Background Glow from Event Image */}
       <AnimatedImageGlow imageUrl={event.image_url} />
 

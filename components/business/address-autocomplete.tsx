@@ -90,11 +90,11 @@ export function AddressAutocomplete({ value, onChange, disabled }: AddressAutoco
           <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
         )}
       </div>
-      <p className="text-xs text-muted-foreground">
-        {hasValidAddress
-          ? 'Address verified. Map will be displayed on your public page.'
-          : 'Start typing and select from the dropdown to set your address and map location.'}
-      </p>
+      {!hasValidAddress && (
+        <p className="text-xs text-muted-foreground">
+          Start typing and select from the dropdown to set your address and map location.
+        </p>
+      )}
     </div>
   )
 }

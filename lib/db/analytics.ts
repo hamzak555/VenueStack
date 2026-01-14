@@ -194,7 +194,7 @@ export async function getBusinessAnalytics(
     throw new Error('Failed to fetch analytics data')
   }
 
-  // Get all confirmed table bookings for this business's events
+  // Get all confirmed/completed table bookings for this business's events
   let tableBookingsQuery = supabase
     .from('table_bookings')
     .select(`
@@ -213,7 +213,7 @@ export async function getBusinessAnalytics(
       )
     `)
     .eq('event.business_id', businessId)
-    .eq('status', 'confirmed')
+    .in('status', ['confirmed', 'arrived', 'seated', 'completed'])
 
   // Apply date filter if provided
   if (dateRange) {

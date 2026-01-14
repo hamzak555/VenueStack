@@ -85,6 +85,9 @@ export function AccountSettingsForm({ businessId, businessSlug, business }: Acco
       formData.contact_email !== initialFormData.contact_email ||
       formData.contact_phone !== initialFormData.contact_phone ||
       formData.address !== initialFormData.address ||
+      formData.address_latitude !== initialFormData.address_latitude ||
+      formData.address_longitude !== initialFormData.address_longitude ||
+      formData.google_place_id !== initialFormData.google_place_id ||
       formData.website !== initialFormData.website ||
       formData.instagram !== initialFormData.instagram ||
       formData.tiktok !== initialFormData.tiktok ||
@@ -122,96 +125,93 @@ export function AccountSettingsForm({ businessId, businessSlug, business }: Acco
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Business Logo */}
-      <LogoUpload
-        businessId={businessId}
-        currentLogoUrl={formData.logo_url}
-        onLogoChange={(url) => setFormData({ ...formData, logo_url: url })}
-        disabled={isLoading}
-      />
-
-      {/* Theme Color */}
-      <ThemeColorPicker
-        value={formData.theme_color}
-        onChange={(color) => setFormData({ ...formData, theme_color: color })}
-        disabled={isLoading}
-      />
-
-      {/* Business Name */}
-      <div className="space-y-2">
-        <Label htmlFor="name">Business Name</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Your Business Name"
-          required
-        />
-      </div>
-
-      {/* Contact Email */}
-      <div className="space-y-2">
-        <Label htmlFor="contact_email">Contact Email</Label>
-        <Input
-          id="contact_email"
-          type="email"
-          value={formData.contact_email}
-          onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-          placeholder="contact@yourbusiness.com"
-        />
-        <p className="text-xs text-muted-foreground">
-          This email will be displayed to customers for support inquiries
-        </p>
-      </div>
-
-      {/* Phone Number */}
-      <div className="space-y-2">
-        <Label htmlFor="contact_phone">Phone Number</Label>
-        <Input
-          id="contact_phone"
-          type="tel"
-          value={formData.contact_phone}
-          onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-          placeholder="+1 (555) 123-4567"
-        />
-      </div>
-
-      {/* Address */}
-      <GoogleMapsProvider>
-        <AddressAutocomplete
-          value={formData.address}
-          onChange={(address, placeId, lat, lng) =>
-            setFormData({
-              ...formData,
-              address,
-              google_place_id: placeId,
-              address_latitude: lat,
-              address_longitude: lng,
-            })
-          }
+      {/* Business Logo & Theme Color */}
+      <div className="flex items-start gap-8">
+        <LogoUpload
+          businessId={businessId}
+          currentLogoUrl={formData.logo_url}
+          onLogoChange={(url) => setFormData({ ...formData, logo_url: url })}
           disabled={isLoading}
         />
-      </GoogleMapsProvider>
 
-      {/* Default Timezone */}
-      <TimezoneSelector
-        value={formData.default_timezone}
-        onChange={(timezone) => setFormData({ ...formData, default_timezone: timezone })}
-        disabled={isLoading}
-        label="Timezone"
-        description="All events will use this timezone for displaying dates and times."
-      />
-
-      {/* Website */}
-      <div className="space-y-2">
-        <Label htmlFor="website">Website</Label>
-        <Input
-          id="website"
-          type="url"
-          value={formData.website}
-          onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-          placeholder="https://yourbusiness.com"
+        <ThemeColorPicker
+          value={formData.theme_color}
+          onChange={(color) => setFormData({ ...formData, theme_color: color })}
+          disabled={isLoading}
         />
+      </div>
+
+      {/* Business Name, Email & Phone */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Business Name</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Your Business Name"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="contact_email">Contact Email</Label>
+          <Input
+            id="contact_email"
+            type="email"
+            value={formData.contact_email}
+            onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+            placeholder="contact@yourbusiness.com"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="contact_phone">Phone Number</Label>
+          <Input
+            id="contact_phone"
+            type="tel"
+            value={formData.contact_phone}
+            onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
+            placeholder="+1 (555) 123-4567"
+          />
+        </div>
+      </div>
+
+      {/* Address, Timezone & Website */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <GoogleMapsProvider>
+          <AddressAutocomplete
+            value={formData.address}
+            onChange={(address, placeId, lat, lng) =>
+              setFormData({
+                ...formData,
+                address,
+                google_place_id: placeId,
+                address_latitude: lat,
+                address_longitude: lng,
+              })
+            }
+            disabled={isLoading}
+          />
+        </GoogleMapsProvider>
+
+        <TimezoneSelector
+          value={formData.default_timezone}
+          onChange={(timezone) => setFormData({ ...formData, default_timezone: timezone })}
+          disabled={isLoading}
+          label="Timezone"
+        />
+
+        <div className="space-y-2">
+          <Label htmlFor="website">Website</Label>
+          <Input
+            id="website"
+            type="url"
+            value={formData.website}
+            onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+            placeholder="https://yourbusiness.com"
+          />
+        </div>
       </div>
 
       {/* Social Media */}

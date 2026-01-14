@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminUserPassword } from '@/lib/db/admin-users'
+import { verifyPlatformAdminPassword } from '@/lib/db/users'
 import { createAdminSession } from '@/lib/auth/admin-session'
 
 export async function POST(request: NextRequest) {
@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify credentials
-    const user = await verifyAdminUserPassword(email, password)
+    // Verify credentials against users table with is_platform_admin flag
+    const user = await verifyPlatformAdminPassword(email, password)
 
     if (!user) {
       return NextResponse.json(

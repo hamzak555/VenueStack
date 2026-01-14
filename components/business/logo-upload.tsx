@@ -2,8 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Upload, X, Image as ImageIcon } from 'lucide-react'
+import { X, Image as ImageIcon } from 'lucide-react'
 import Image from 'next/image'
 import { toast } from 'sonner'
 
@@ -83,65 +82,60 @@ export function LogoUpload({ businessId, currentLogoUrl, onLogoChange, disabled 
     <div className="space-y-2">
       <Label>Business Logo</Label>
 
-      <div className="flex items-start gap-4">
-        {/* Logo Preview */}
-        <div className="flex-shrink-0">
-          {logoPreview ? (
-            <div className="relative w-32 h-32 rounded-lg border bg-muted overflow-hidden group">
-              <Image
-                src={logoPreview}
-                alt="Business logo"
-                fill
-                className="object-contain p-2"
-              />
-              <button
-                type="button"
-                onClick={handleRemoveLogo}
-                disabled={disabled || uploading}
-                className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="w-32 h-32 rounded-lg border-2 border-dashed bg-muted flex items-center justify-center">
-              <ImageIcon className="h-8 w-8 text-muted-foreground" />
-            </div>
-          )}
-        </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        disabled={disabled || uploading}
+        className="hidden"
+      />
 
-        {/* Upload Controls */}
-        <div className="flex-1 space-y-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            disabled={disabled || uploading}
-            className="hidden"
-          />
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || uploading}
+      {/* Logo Preview - Clickable */}
+      <div className="inline-block">
+        {logoPreview ? (
+          <div
+            className="relative w-32 h-32 rounded-lg border bg-muted overflow-hidden group cursor-pointer hover:border-primary transition-colors"
+            onClick={() => !disabled && !uploading && fileInputRef.current?.click()}
           >
-            <Upload className="mr-2 h-4 w-4" />
-            {uploading ? 'Uploading...' : logoPreview ? 'Change Logo' : 'Upload Logo'}
-          </Button>
-
-          <p className="text-xs text-muted-foreground">
-            Max size: 5MB.
-          </p>
-
-          {logoPreview && (
-            <p className="text-xs text-green-600">
-              Logo will replace business name on your public page.
-            </p>
-          )}
-        </div>
+            <Image
+              src={logoPreview}
+              alt="Business logo"
+              fill
+              className="object-contain p-2"
+            />
+            {uploading && (
+              <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
+                <span className="text-xs text-muted-foreground">Uploading...</span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleRemoveLogo()
+              }}
+              disabled={disabled || uploading}
+              className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div
+            className="w-32 h-32 rounded-lg border-2 border-dashed bg-muted flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+            onClick={() => !disabled && !uploading && fileInputRef.current?.click()}
+          >
+            {uploading ? (
+              <span className="text-xs text-muted-foreground">Uploading...</span>
+            ) : (
+              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+            )}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground mt-2">
+          Max size: 5MB.
+        </p>
       </div>
     </div>
   )

@@ -3,9 +3,8 @@ import { cookies, headers } from 'next/headers'
 import { jwtVerify, SignJWT } from 'jose'
 import { createAdminSession, getAdminSession, deleteAdminSession } from '@/lib/auth/admin-session'
 import { createBusinessSession, getBusinessSession, deleteBusinessSession } from '@/lib/auth/business-session'
-import { getAdminUserByEmail } from '@/lib/db/admin-users'
 import { getPlatformAdminByEmail, getUserById } from '@/lib/db/users'
-import { getBusinessUserByEmail, getBusinessUsersByEmail, getBusinessUserByUserId } from '@/lib/db/business-users'
+import { getBusinessUserByEmail, getBusinessUserByUserId } from '@/lib/db/business-users'
 import { createClient } from '@/lib/supabase/server'
 import { createLoginLog } from '@/lib/db/login-logs'
 
@@ -110,7 +109,7 @@ export async function POST(request: NextRequest) {
     const userAgent = headersList.get('user-agent') || null
 
     if (affiliationType === 'admin') {
-      // Try to find platform admin from global users first
+      // Find platform admin from users table
       let adminUser = null
 
       // If we have a globalUserId, check if that user is a platform admin
@@ -124,14 +123,6 @@ export async function POST(request: NextRequest) {
       // If not found by ID, try by email
       if (!adminUser) {
         adminUser = await getPlatformAdminByEmail(email)
-      }
-
-      // Fallback to legacy admin_users table
-      if (!adminUser) {
-        const legacyAdmin = await getAdminUserByEmail(email)
-        if (legacyAdmin) {
-          adminUser = legacyAdmin
-        }
       }
 
       if (!adminUser) {

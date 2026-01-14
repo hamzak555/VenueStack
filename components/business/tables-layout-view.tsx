@@ -132,6 +132,7 @@ export function TablesLayoutView({
   const [unseatedOpen, setUnseatedOpen] = useState(true)
   const [seatedOpen, setSeatedOpen] = useState(true)
   const [completedOpen, setCompletedOpen] = useState(false)
+  const [initialBookingHandled, setInitialBookingHandled] = useState(false)
 
   // Check if user can manage servers (owner/manager only)
   const canManageServers = userRole ? canAccessSection(userRole, 'users') : false
@@ -154,16 +155,17 @@ export function TablesLayoutView({
       .filter((name): name is string => !!name)
   }
 
-  // Auto-open booking details modal if initialBookingId is provided
+  // Auto-open booking details modal if initialBookingId is provided (only once)
   useEffect(() => {
-    if (initialBookingId) {
+    if (initialBookingId && !initialBookingHandled) {
       const booking = bookings.find(b => b.id === initialBookingId)
       if (booking) {
         setDetailsModalBooking(booking)
         setSelectedBookingId(booking.id)
+        setInitialBookingHandled(true)
       }
     }
-  }, [initialBookingId, bookings])
+  }, [initialBookingId, bookings, initialBookingHandled])
 
   const sections = tableServiceConfig?.sections || []
   const fontSize = tableServiceConfig?.fontSize ?? 12

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth/admin-session'
 import { getBusinessSession } from '@/lib/auth/business-session'
-import { getAdminUserByEmail } from '@/lib/db/admin-users'
+import { getPlatformAdminByEmail } from '@/lib/db/users'
 import { getBusinessUsersByEmail } from '@/lib/db/business-users'
 import { jwtVerify } from 'jose'
-import { createClient } from '@/lib/supabase/server'
 
 const SECRET_KEY = new TextEncoder().encode(
   process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production'
@@ -78,14 +77,14 @@ export async function GET(request: NextRequest) {
 
     const affiliations: UserAffiliation[] = []
 
-    // Check if user is an admin (only include for web, not mobile scanner)
+    // Check if user is a platform admin (only include for web, not mobile scanner)
     if (!isFromMobileApp) {
-      const adminUser = await getAdminUserByEmail(email)
-      if (adminUser && adminUser.is_active) {
+      const platformAdmin = await getPlatformAdminByEmail(email)
+      if (platformAdmin) {
         affiliations.push({
           type: 'admin',
-          id: adminUser.id,
-          name: adminUser.name,
+          id: platformAdmin.id,
+          name: platformAdmin.name,
           // Admin is current if we're on admin dashboard AND have admin session
           isCurrentSession: isOnAdminDashboard && !!adminSession,
         })

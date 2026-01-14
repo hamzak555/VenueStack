@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth/admin-session'
-import { getAdminUserById, updateAdminUser } from '@/lib/db/admin-users'
-import { getUserById, updateUser, getPlatformAdminByEmail } from '@/lib/db/users'
+import { getUserById, updateUser } from '@/lib/db/users'
+import { validatePassword, getPasswordRequirements } from '@/lib/auth/password-validation'
 import bcrypt from 'bcryptjs'
 
 /**
@@ -19,26 +19,10 @@ export async function GET() {
       )
     }
 
-    // Try global users first (new system)
-    let user = await getUserById(session.userId)
+    // Get user from users table
+    const user = await getUserById(session.userId)
 
-    // If not found or not platform admin, try legacy admin_users table
     if (!user || !user.is_platform_admin) {
-      const legacyUser = await getAdminUserById(session.userId)
-      if (legacyUser) {
-        return NextResponse.json({
-          id: legacyUser.id,
-          email: legacyUser.email,
-          phone: legacyUser.phone,
-          name: legacyUser.name,
-          created_at: legacyUser.created_at,
-          updated_at: legacyUser.updated_at,
-          isLegacy: true,
-        })
-      }
-    }
-
-    if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -78,20 +62,10 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // Try global users first (new system)
-    let user = await getUserById(session.userId)
-    let isLegacyUser = false
+    // Get user from users table
+    const user = await getUserById(session.userId)
 
-    // If not found or not platform admin, try legacy admin_users table
     if (!user || !user.is_platform_admin) {
-      const legacyUser = await getAdminUserById(session.userId)
-      if (legacyUser) {
-        user = legacyUser as any
-        isLegacyUser = true
-      }
-    }
-
-    if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -119,9 +93,10 @@ export async function PATCH(request: NextRequest) {
         )
       }
 
-      if (password.length < 6) {
+      const passwordValidation = validatePassword(password)
+      if (!passwordValidation.valid) {
         return NextResponse.json(
-          { error: 'New password must be at least 6 characters' },
+          { error: getPasswordRequirements() },
           { status: 400 }
         )
       }
@@ -158,13 +133,8 @@ export async function PATCH(request: NextRequest) {
       })
     }
 
-    // Update the user using appropriate function
-    let updatedUser
-    if (isLegacyUser) {
-      updatedUser = await updateAdminUser(user.id, updates)
-    } else {
-      updatedUser = await updateUser(user.id, updates)
-    }
+    // Update the user
+    const updatedUser = await updateUser(user.id, updates)
 
     return NextResponse.json({
       id: updatedUser.id,

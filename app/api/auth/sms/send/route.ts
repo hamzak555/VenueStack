@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendSMS, normalizePhoneNumber, generateVerificationCode } from '@/lib/twilio'
 import { getUserByPhone } from '@/lib/db/users'
-import { getAdminUserByPhone, getAdminUserByEmail } from '@/lib/db/admin-users'
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,20 +17,11 @@ export async function POST(request: NextRequest) {
     // Normalize the phone number
     const normalizedPhone = normalizePhoneNumber(phone)
 
-    // Check if this phone number exists in our system (global users or admin)
-    let globalUser = null
-    let adminUser = null
+    // Check if this phone number exists in our system
+    let user = null
 
     try {
-      [globalUser, adminUser] = await Promise.all([
-        getUserByPhone(normalizedPhone),
-        getAdminUserByPhone(normalizedPhone),
-      ])
-
-      // If no admin found by phone, check if global user's email matches an admin
-      if (!adminUser && globalUser?.email) {
-        adminUser = await getAdminUserByEmail(globalUser.email)
-      }
+      user = await getUserByPhone(normalizedPhone)
     } catch (dbError) {
       console.error('Database error checking phone:', dbError)
       return NextResponse.json(
@@ -40,9 +30,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const hasAccount = globalUser || adminUser
-
-    if (!hasAccount) {
+    if (!user) {
       return NextResponse.json(
         { error: 'No account found with this phone number' },
         { status: 404 }

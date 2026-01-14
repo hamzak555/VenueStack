@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Paintbrush } from 'lucide-react'
 
@@ -11,6 +10,38 @@ interface ThemeColorPickerProps {
   value: string
   onChange: (color: string) => void
   disabled?: boolean
+}
+
+// Calculate relative luminance to determine if color is light or dark
+function getLuminance(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
+
+  const [rs, gs, bs] = [r, g, b].map(c =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  )
+
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
+}
+
+// Get a contrasting shade of the same color
+function getContrastingShade(hex: string): string {
+  const luminance = getLuminance(hex)
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+
+  // If color is light, darken it; if dark, lighten it
+  const factor = luminance > 0.4 ? 0.5 : 1.8
+
+  const adjust = (c: number) => Math.max(0, Math.min(255, Math.round(c * factor)))
+
+  const newR = adjust(r).toString(16).padStart(2, '0')
+  const newG = adjust(g).toString(16).padStart(2, '0')
+  const newB = adjust(b).toString(16).padStart(2, '0')
+
+  return `#${newR}${newG}${newB}`
 }
 
 const PRESET_COLORS = [
@@ -52,27 +83,17 @@ export function ThemeColorPicker({ value, onChange, disabled }: ThemeColorPicker
   return (
     <div className="space-y-2">
       <Label>Theme Color</Label>
-      <p className="text-xs text-muted-foreground mb-3">
-        Choose a color that represents your brand.
-      </p>
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="outline"
+          <button
+            type="button"
             disabled={disabled}
-            className="w-full justify-start gap-3 h-auto py-3"
+            className="w-32 h-32 rounded-lg border bg-muted overflow-hidden flex items-center justify-center cursor-pointer hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: value }}
           >
-            <div
-              className="h-10 w-10 rounded-md border-2 border-white/20 shadow-lg"
-              style={{ backgroundColor: value }}
-            />
-            <div className="flex flex-col items-start flex-1">
-              <span className="text-xs text-muted-foreground">Selected Color</span>
-              <span className="font-mono text-sm font-medium">{value.toUpperCase()}</span>
-            </div>
-            <Paintbrush className="h-4 w-4 ml-auto text-muted-foreground" />
-          </Button>
+            <Paintbrush className="h-8 w-8" style={{ color: getContrastingShade(value) }} />
+          </button>
         </PopoverTrigger>
         <PopoverContent className="w-80" align="start">
           <div className="space-y-4">

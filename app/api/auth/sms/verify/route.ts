@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getUserByPhone, getPlatformAdminByEmail } from '@/lib/db/users'
+import { getUserByPhone } from '@/lib/db/users'
 import { getBusinessUsersByUserId } from '@/lib/db/business-users'
-import { getAdminUserByPhone, getAdminUserByEmail } from '@/lib/db/admin-users'
 import { cookies } from 'next/headers'
 import { SignJWT } from 'jose'
 
@@ -79,43 +78,39 @@ export async function POST(request: NextRequest) {
       .delete()
       .eq('phone', phone)
 
-    // Get user affiliations
-    const [globalUser, legacyAdminUserByPhone] = await Promise.all([
-      getUserByPhone(phone),
-      getAdminUserByPhone(phone),
-    ])
+    // Get user by phone
+    const user = await getUserByPhone(phone)
 
     const affiliations: UserAffiliation[] = []
     let userName = ''
     let userEmail = ''
     let globalUserId = ''
 
-    // Check global user first
-    if (globalUser) {
-      globalUserId = globalUser.id
-      userName = globalUser.name
-      userEmail = globalUser.email
+    if (user) {
+      globalUserId = user.id
+      userName = user.name
+      userEmail = user.email
 
       // If user is a platform admin, add admin affiliation
-      if (globalUser.is_platform_admin) {
+      if (user.is_platform_admin) {
         affiliations.push({
           type: 'admin',
-          id: globalUser.id,
-          name: globalUser.name,
-          userId: globalUser.id,
+          id: user.id,
+          name: user.name,
+          userId: user.id,
         })
       }
 
       // Get all business affiliations for this user
-      const businessLinks = await getBusinessUsersByUserId(globalUser.id)
+      const businessLinks = await getBusinessUsersByUserId(user.id)
       if (businessLinks && businessLinks.length > 0) {
         for (const link of businessLinks) {
           const business = link.business as { id: string; name: string; slug: string; logo_url: string | null } | null
           affiliations.push({
             type: 'business',
             id: link.id,
-            name: globalUser.name,
-            userId: globalUser.id,
+            name: user.name,
+            userId: user.id,
             businessId: link.business_id,
             businessSlug: business?.slug,
             businessName: business?.name,
@@ -123,26 +118,6 @@ export async function POST(request: NextRequest) {
             role: link.role,
           })
         }
-      }
-    }
-
-    // Fallback: Check legacy admin_users table (for backwards compatibility)
-    if (!affiliations.some(a => a.type === 'admin')) {
-      let legacyAdminUser = legacyAdminUserByPhone
-
-      // If no admin found by phone, check if global user's email matches a legacy admin
-      if (!legacyAdminUser && globalUser?.email) {
-        legacyAdminUser = await getAdminUserByEmail(globalUser.email)
-      }
-
-      if (legacyAdminUser) {
-        if (!userName) userName = legacyAdminUser.name
-        if (!userEmail) userEmail = legacyAdminUser.email
-        affiliations.push({
-          type: 'admin',
-          id: legacyAdminUser.id,
-          name: legacyAdminUser.name,
-        })
       }
     }
 

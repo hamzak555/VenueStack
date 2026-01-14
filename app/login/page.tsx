@@ -543,14 +543,23 @@ export default function UnifiedLoginPage() {
         />
       </div>
       <Card className="w-full max-w-md relative z-10">
-        <CardHeader>
-          <CardTitle>{mode === 'login' ? 'Sign in' : 'Register your business'}</CardTitle>
-          <CardDescription>
-            {mode === 'login'
-              ? 'Choose how you\'d like to sign in'
-              : 'Create your account and start your free trial'
-            }
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>{mode === 'login' ? 'Sign in' : 'Register your business'}</CardTitle>
+            <CardDescription>
+              {mode === 'login'
+                ? 'Choose how you\'d like to sign in'
+                : 'Create your account and start your free trial'
+              }
+            </CardDescription>
+          </div>
+          <Image
+            src="/venuestack-icon.svg"
+            alt="VenueStack"
+            width={20}
+            height={20}
+            className="opacity-20 dark:opacity-10 grayscale"
+          />
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Login Form */}
@@ -614,7 +623,7 @@ export default function UnifiedLoginPage() {
                           setShowForgotPassword(true)
                           setForgotEmail(email)
                         }}
-                        className="text-sm text-primary hover:underline"
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                       >
                         Forgot password?
                       </button>
@@ -795,7 +804,7 @@ export default function UnifiedLoginPage() {
                   <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">New to VenueStack?</span>
+                  <span className="bg-card px-2 text-muted-foreground normal-case">New to VenueStack?</span>
                 </div>
               </div>
               <Button
@@ -807,6 +816,7 @@ export default function UnifiedLoginPage() {
                 <Building2 className="mr-2 h-4 w-4" />
                 Register your business
               </Button>
+
             </>
           )}
 

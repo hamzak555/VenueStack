@@ -129,6 +129,13 @@ function formatTime(time: string): string {
   return `${hour12}:${minutes} ${ampm}`
 }
 
+function formatStatus(status: string): string {
+  return status
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 export function CustomerDetailPanel({
   open,
   onOpenChange,
@@ -358,7 +365,7 @@ function ReservationCard({
         </div>
         <div className="flex flex-col items-end gap-1">
           <Badge variant={getStatusVariant(reservation.status)}>
-            {reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1)}
+            {formatStatus(reservation.status)}
           </Badge>
           {reservation.amount && (
             <span className="text-sm font-medium">
@@ -434,7 +441,7 @@ function TicketCard({ ticket, businessSlug }: { ticket: TicketPurchase; business
                 : 'secondary'
             }
           >
-            {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+            {formatStatus(ticket.status)}
           </Badge>
           <span className="text-sm font-medium">{formatCurrency(ticket.total)}</span>
         </div>

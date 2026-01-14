@@ -33,6 +33,9 @@ export default async function TicketsPage({ params }: TicketsPageProps) {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Ticket Sales</h1>
+      </div>
       {errorMessage && (
         <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
           <p className="text-sm text-destructive">Error loading orders: {errorMessage}</p>
@@ -40,7 +43,7 @@ export default async function TicketsPage({ params }: TicketsPageProps) {
       )}
       <Card>
         <CardContent className="pt-4">
-          <TicketsTable orders={orders} businessSlug={businessSlug} title="Ticket Sales" />
+          <TicketsTable orders={orders} businessSlug={businessSlug} />
         </CardContent>
       </Card>
     </div>

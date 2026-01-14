@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminUsers, createAdminUser } from '@/lib/db/admin-users'
-import { getPlatformAdmins } from '@/lib/db/users'
+import { getPlatformAdmins, createPlatformAdmin } from '@/lib/db/users'
 import { verifyAdminAccess } from '@/lib/auth/admin-session'
+import { validatePassword, getPasswordRequirements } from '@/lib/auth/password-validation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,49 +14,19 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch from both legacy admin_users table and new users table
-    const [legacyUsers, platformAdmins] = await Promise.all([
-      getAdminUsers(),
-      getPlatformAdmins()
-    ])
+    // Fetch platform admins from users table
+    const platformAdmins = await getPlatformAdmins()
 
-    // Remove password_hash from legacy users
-    const sanitizedLegacyUsers = legacyUsers.map(({ password_hash, ...user }) => ({
+    // Remove password_hash and format response
+    const sanitizedAdmins = platformAdmins.map(({ password_hash, ...user }) => ({
       ...user,
-      source: 'legacy'
+      is_active: true,
     }))
-
-    // Format platform admins to match the expected structure and remove password_hash
-    const sanitizedPlatformAdmins = platformAdmins.map(({ password_hash, ...user }) => ({
-      ...user,
-      is_active: true, // Platform admins are always active
-      source: 'global'
-    }))
-
-    // Combine both lists, avoiding duplicates by email
-    const seenEmails = new Set<string>()
-    const allUsers = []
-
-    // Add platform admins first (newer system takes priority)
-    for (const user of sanitizedPlatformAdmins) {
-      if (user.email && !seenEmails.has(user.email.toLowerCase())) {
-        seenEmails.add(user.email.toLowerCase())
-        allUsers.push(user)
-      }
-    }
-
-    // Add legacy users that aren't already in the list
-    for (const user of sanitizedLegacyUsers) {
-      if (user.email && !seenEmails.has(user.email.toLowerCase())) {
-        seenEmails.add(user.email.toLowerCase())
-        allUsers.push(user)
-      }
-    }
 
     // Sort by created_at descending
-    allUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    sanitizedAdmins.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-    return NextResponse.json(allUsers)
+    return NextResponse.json(sanitizedAdmins)
   } catch (error) {
     console.error('Error fetching admin users:', error)
     return NextResponse.json(
@@ -97,21 +67,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate password length
-    if (password.length < 6) {
+    // Validate password strength
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.valid) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters long' },
+        { error: getPasswordRequirements() },
         { status: 400 }
       )
     }
 
-    // Create the user
-    const user = await createAdminUser({
+    // Create the platform admin user
+    const user = await createPlatformAdmin({
       email,
       password,
       name,
       phone: phone || null,
-      is_active: true,
     })
 
     // Remove password_hash from response
@@ -124,7 +94,7 @@ export async function POST(request: NextRequest) {
     // Check for unique constraint violation
     if (error.code === '23505' || error.message?.includes('duplicate key')) {
       return NextResponse.json(
-        { error: 'An admin user with this email already exists' },
+        { error: 'A user with this email already exists' },
         { status: 400 }
       )
     }

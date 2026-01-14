@@ -11,6 +11,7 @@ import { BusinessMap } from '@/components/business/business-map'
 import { AnimatedThemeGlow } from '@/components/business/animated-theme-glow'
 import { GlowPointer } from '@/components/business/glow-pointer'
 import { PublicEventsCalendar } from '@/components/public/public-events-calendar'
+import { PageViewTracker } from '@/components/page-view-tracker'
 import { Armchair, Ticket } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 
@@ -157,6 +158,9 @@ export default async function BusinessPage({ params, searchParams }: BusinessPag
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Page View Tracking */}
+      <PageViewTracker businessId={business.id} pageType="business_home" />
+
       {/* Pointer tracking for glow effect */}
       <GlowPointer />
 

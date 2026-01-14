@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateAdminUser, deleteAdminUser, getAdminUserById } from '@/lib/db/admin-users'
-import { getUserById, setPlatformAdmin } from '@/lib/db/users'
+import { getUserById, setPlatformAdmin, updatePlatformAdmin } from '@/lib/db/users'
 import { verifyAdminAccess } from '@/lib/auth/admin-session'
+import { validatePassword, getPasswordRequirements } from '@/lib/auth/password-validation'
 
 interface RouteContext {
   params: Promise<{
@@ -23,9 +23,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const { userId } = await context.params
     const body = await request.json()
 
-    // Validate that the user exists
-    const existingUser = await getAdminUserById(userId)
-    if (!existingUser) {
+    // Validate that the user exists and is a platform admin
+    const existingUser = await getUserById(userId)
+    if (!existingUser || !existingUser.is_platform_admin) {
       return NextResponse.json(
         { error: 'Admin user not found' },
         { status: 404 }
@@ -43,16 +43,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     }
 
-    // Validate password length if provided
-    if (body.password && body.password.length < 6) {
-      return NextResponse.json(
-        { error: 'Password must be at least 6 characters long' },
-        { status: 400 }
-      )
+    // Validate password strength if provided
+    if (body.password) {
+      const passwordValidation = validatePassword(body.password)
+      if (!passwordValidation.valid) {
+        return NextResponse.json(
+          { error: getPasswordRequirements() },
+          { status: 400 }
+        )
+      }
     }
 
     // Update the user
-    const updatedUser = await updateAdminUser(userId, body)
+    const updatedUser = await updatePlatformAdmin(userId, body)
 
     // Remove password_hash from response
     const { password_hash, ...sanitizedUser } = updatedUser
@@ -64,7 +67,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Check for unique constraint violation
     if (error.code === '23505' || error.message?.includes('duplicate key')) {
       return NextResponse.json(
-        { error: 'An admin user with this email already exists' },
+        { error: 'A user with this email already exists' },
         { status: 400 }
       )
     }
@@ -97,29 +100,22 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       )
     }
 
-    // First check if user is in global users table
-    const globalUser = await getUserById(userId)
-    if (globalUser && globalUser.is_platform_admin) {
-      // Remove admin status instead of deleting the user
-      await setPlatformAdmin(userId, false)
-      return NextResponse.json({ success: true })
+    // Check if user exists and is a platform admin
+    const user = await getUserById(userId)
+    if (!user || !user.is_platform_admin) {
+      return NextResponse.json(
+        { error: 'Admin user not found' },
+        { status: 404 }
+      )
     }
 
-    // Check legacy admin_users table
-    const legacyUser = await getAdminUserById(userId)
-    if (legacyUser) {
-      await deleteAdminUser(userId)
-      return NextResponse.json({ success: true })
-    }
-
-    return NextResponse.json(
-      { error: 'Admin user not found' },
-      { status: 404 }
-    )
+    // Remove admin status (don't delete the user, just remove admin privileges)
+    await setPlatformAdmin(userId, false)
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting admin user:', error)
+    console.error('Error removing admin access:', error)
     return NextResponse.json(
-      { error: 'Failed to delete admin user' },
+      { error: 'Failed to remove admin access' },
       { status: 500 }
     )
   }

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getBusinessBySlug } from '@/lib/db/businesses'
 import { requireOwnerAccess } from '@/lib/auth/role-guard'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { AccountSettingsForm } from '@/components/business/account-settings-form'
 
 // Force dynamic rendering to always fetch fresh data
@@ -33,13 +33,7 @@ export default async function AccountSettingsPage({ params }: AccountSettingsPag
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Business Information</CardTitle>
-          <CardDescription>
-            Update your business details, contact information, and social media links
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <AccountSettingsForm businessId={business.id} businessSlug={businessSlug} business={business} />
         </CardContent>
       </Card>

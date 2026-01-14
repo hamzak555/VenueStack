@@ -152,22 +152,6 @@ export async function updateUser(id: string, updates: UserUpdate) {
       .eq('user_id', id)
   }
 
-  // Sync password to legacy admin_users table if user exists there (for backwards compatibility)
-  if (updates.password && data.email) {
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('email', data.email)
-      .single()
-
-    if (adminUser) {
-      await supabase
-        .from('admin_users')
-        .update({ password_hash: updateData.password_hash })
-        .eq('id', adminUser.id)
-    }
-  }
-
   return data as User
 }
 
@@ -302,4 +286,66 @@ export async function getPlatformAdminByEmail(email: string) {
 
   if (error && error.code !== 'PGRST116') throw error
   return data as User | null
+}
+
+/**
+ * Create a new platform admin user
+ */
+export async function createPlatformAdmin(userData: {
+  email: string
+  password: string
+  name: string
+  phone?: string | null
+}) {
+  const supabase = await createServerClient()
+
+  // Hash the password
+  const password_hash = await bcrypt.hash(userData.password, 10)
+
+  const { data, error } = await supabase
+    .from('users')
+    .insert({
+      email: userData.email.toLowerCase(),
+      phone: userData.phone || null,
+      password_hash,
+      name: userData.name,
+      is_platform_admin: true,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as User
+}
+
+/**
+ * Update a platform admin user
+ */
+export async function updatePlatformAdmin(
+  id: string,
+  updates: { name?: string; email?: string; phone?: string | null; password?: string }
+) {
+  const supabase = await createServerClient()
+
+  const updateData: Record<string, unknown> = {}
+
+  if (updates.email !== undefined) updateData.email = updates.email.toLowerCase()
+  if (updates.phone !== undefined) updateData.phone = updates.phone || null
+  if (updates.name !== undefined) updateData.name = updates.name
+  if (updates.password) {
+    updateData.password_hash = await bcrypt.hash(updates.password, 10)
+  }
+
+  updateData.updated_at = new Date().toISOString()
+
+  const { data, error } = await supabase
+    .from('users')
+    .update(updateData)
+    .eq('id', id)
+    .eq('is_platform_admin', true)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as User
 }

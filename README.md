@@ -87,6 +87,25 @@ The database schema includes three main tables:
 
 Run the `supabase-schema.sql` file in your Supabase SQL Editor to create all necessary tables, indexes, and Row Level Security (RLS) policies.
 
+## Database Backups
+
+This repo includes scripts to create/restore Postgres dumps (no secrets are committed).
+
+1. In Supabase, copy your Postgres connection string from **Project Settings → Database → Connection string**.
+2. Export it locally and run the backup script:
+
+```bash
+export SUPABASE_DB_URL="postgresql://postgres:YOUR_PASSWORD@db.YOUR_REF.supabase.co:5432/postgres"
+./scripts/db-backup.sh --public-only
+```
+
+Backups are written to `backups/` (gitignored). To restore a dump:
+
+```bash
+export SUPABASE_DB_URL="postgresql://..."
+./scripts/db-restore.sh --file backups/venuestack_public_full_YYYYmmdd_HHMMSS.dump
+```
+
 ## Key Features to Implement
 
 ### Dashboard

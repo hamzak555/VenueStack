@@ -393,6 +393,24 @@ export interface TrackingLinkAnalytics {
   last_activity: string | null // ISO date of most recent order/booking
 }
 
+export interface PageView {
+  id: string
+  business_id: string
+  page_type: 'business_home' | 'event_page' | 'checkout'
+  event_id: string | null
+  visitor_id: string
+  referrer: string | null
+  user_agent: string | null
+  ip_address: string | null
+  created_at: string
+}
+
+export interface PageViewAnalytics {
+  date: string
+  views: number
+  unique_visitors: number
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -464,6 +482,11 @@ export interface Database {
       login_logs: {
         Row: LoginLog
         Insert: Omit<LoginLog, 'id' | 'created_at'>
+        Update: never
+      }
+      page_views: {
+        Row: PageView
+        Insert: Omit<PageView, 'id' | 'created_at'>
         Update: never
       }
     }

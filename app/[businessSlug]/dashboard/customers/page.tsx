@@ -32,14 +32,17 @@ export default async function CustomersPage({ params }: CustomersPageProps) {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Customer Database</h1>
+      </div>
       {errorMessage && (
         <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
           <p className="text-sm text-destructive">Error loading customers: {errorMessage}</p>
         </div>
       )}
       <Card>
-        <CardContent className="pt-2">
-          <CustomersTable customers={customers} businessSlug={businessSlug} title="Customer Database" />
+        <CardContent className="pt-4">
+          <CustomersTable customers={customers} businessSlug={businessSlug} />
         </CardContent>
       </Card>
     </div>

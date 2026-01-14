@@ -3,12 +3,14 @@ import { getBusinessBySlug } from '@/lib/db/businesses'
 import { requireSectionAccess } from '@/lib/auth/role-guard'
 import { getBusinessAnalytics } from '@/lib/db/analytics'
 import { getTrackingLinkAnalytics } from '@/lib/db/tracking-links'
+import { getPageViewAnalytics } from '@/lib/db/page-views'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils/currency'
 import { parseDateRangeParams } from '@/lib/utils/date-range'
 import { createClient } from '@/lib/supabase/server'
 import { Ticket, Armchair, DollarSign, TrendingUp, Receipt } from 'lucide-react'
 import { EventPerformanceTable } from '@/components/business/event-performance-table'
+import { PageViewsChart } from '@/components/business/page-views-chart'
 import { TrackingLinkAnalytics } from '@/components/business/tracking-link-analytics'
 import { ReportsDateFilter } from '@/components/business/reports-date-filter'
 
@@ -42,6 +44,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
 
   const analytics = await getBusinessAnalytics(business.id, dateRange)
   const trackingAnalytics = await getTrackingLinkAnalytics(business.id, dateRange)
+  const pageViewStats = await getPageViewAnalytics(business.id, dateRange)
 
   // Get ticket types for all events to calculate available tickets
   const supabase = await createClient()
@@ -250,6 +253,9 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
         }))}
         eventAnalytics={analytics.events}
       />
+
+      {/* Public Page Performance */}
+      <PageViewsChart stats={pageViewStats} themeColor={business.theme_color} />
 
       {/* Tracking Link Performance */}
       <TrackingLinkAnalytics analytics={trackingAnalytics} />
