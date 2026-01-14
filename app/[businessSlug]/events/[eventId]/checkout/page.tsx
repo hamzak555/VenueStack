@@ -258,6 +258,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
     phone: false,
   })
 
+  // Field validation helpers for green outline
+  const isValidName = customerInfo.name.trim().length >= 2
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerInfo.email)
+  const isValidPhone = customerInfo.phone.trim().length >= 10
+
   // Promo code state
   const [promoCode, setPromoCode] = useState('')
   const [promoCodeData, setPromoCodeData] = useState<any>(null)
@@ -1114,7 +1119,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                     placeholder="John Doe"
                     required
                     disabled={!!clientSecret}
-                    className={fieldErrors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    className={
+                      fieldErrors.name
+                        ? 'border-red-500 focus-visible:ring-red-500'
+                        : isValidName
+                        ? 'border-green-500 focus-visible:ring-green-500'
+                        : ''
+                    }
                   />
                 </div>
 
@@ -1131,7 +1142,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                     placeholder="john@example.com"
                     required
                     disabled={!!clientSecret}
-                    className={fieldErrors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    className={
+                      fieldErrors.email
+                        ? 'border-red-500 focus-visible:ring-red-500'
+                        : isValidEmail
+                        ? 'border-green-500 focus-visible:ring-green-500'
+                        : ''
+                    }
                   />
                 </div>
 
@@ -1146,7 +1163,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                     placeholder="Phone number"
                     required
                     disabled={!!clientSecret}
-                    className={fieldErrors.phone ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    className={
+                      fieldErrors.phone
+                        ? 'border-red-500 focus-visible:ring-red-500'
+                        : isValidPhone
+                        ? 'border-green-500 focus-visible:ring-green-500'
+                        : ''
+                    }
                   />
                 </div>
 

@@ -173,9 +173,10 @@ export async function getTrackingLinkAnalytics(
   const eventIds = events.map(e => e.id)
 
   // Get orders with tracking data
+  // Select subtotal, discount, and tax to calculate revenue excluding processing fees
   let ordersQuery = supabase
     .from('orders')
-    .select('tracking_ref, tracking_link_id, total, status, created_at')
+    .select('tracking_ref, tracking_link_id, subtotal, discount_amount, tax_amount, status, created_at')
     .in('event_id', eventIds)
     .eq('status', 'completed')
     .not('tracking_ref', 'is', null)
@@ -189,9 +190,10 @@ export async function getTrackingLinkAnalytics(
   const { data: orders } = await ordersQuery
 
   // Get table bookings with tracking data
+  // Select amount and tax_amount to calculate revenue excluding processing fees
   let tableBookingsQuery = supabase
     .from('table_bookings')
-    .select('tracking_ref, tracking_link_id, amount, status, created_at')
+    .select('tracking_ref, tracking_link_id, amount, tax_amount, status, created_at')
     .in('event_id', eventIds)
     .eq('status', 'confirmed')
     .not('tracking_ref', 'is', null)
@@ -234,10 +236,16 @@ export async function getTrackingLinkAnalytics(
       })
     }
     const analytics = analyticsMap.get(ref)!
+    // Calculate revenue as subtotal - discount + tax (excluding processing fees)
+    const subtotal = parseFloat(order.subtotal?.toString() || '0')
+    const discount = parseFloat(order.discount_amount?.toString() || '0')
+    const tax = parseFloat(order.tax_amount?.toString() || '0')
+    const orderRevenue = subtotal - discount + tax
+
     analytics.ticket_orders += 1
-    analytics.ticket_revenue += parseFloat(order.total?.toString() || '0')
+    analytics.ticket_revenue += orderRevenue
     analytics.total_orders += 1
-    analytics.total_revenue += parseFloat(order.total?.toString() || '0')
+    analytics.total_revenue += orderRevenue
     // Track most recent activity
     if (!analytics.last_activity || order.created_at > analytics.last_activity) {
       analytics.last_activity = order.created_at
@@ -260,10 +268,15 @@ export async function getTrackingLinkAnalytics(
       })
     }
     const analytics = analyticsMap.get(ref)!
+    // Calculate revenue as amount + tax (excluding processing fees)
+    const amount = parseFloat(booking.amount?.toString() || '0')
+    const tax = parseFloat(booking.tax_amount?.toString() || '0')
+    const bookingRevenue = amount + tax
+
     analytics.table_bookings += 1
-    analytics.table_revenue += parseFloat(booking.amount?.toString() || '0')
+    analytics.table_revenue += bookingRevenue
     analytics.total_orders += 1
-    analytics.total_revenue += parseFloat(booking.amount?.toString() || '0')
+    analytics.total_revenue += bookingRevenue
     // Track most recent activity
     if (!analytics.last_activity || booking.created_at > analytics.last_activity) {
       analytics.last_activity = booking.created_at

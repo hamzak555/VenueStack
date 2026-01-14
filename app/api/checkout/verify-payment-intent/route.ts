@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { updateTicketTypeAvailability } from '@/lib/db/ticket-types'
 import { incrementPromoCodeUsage } from '@/lib/db/promo-codes'
 import { getTrackingLinkByRefCode } from '@/lib/db/tracking-links'
+import { nanoid } from 'nanoid'
 
 export async function GET(request: NextRequest) {
   try {
@@ -180,7 +181,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create order record
-    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+    const orderNumber = nanoid(10).toUpperCase()
     const ticketQuantity = parseInt(totalTickets)
 
     let orderId: string | null = null
@@ -226,16 +227,14 @@ export async function GET(request: NextRequest) {
               const { quantity: typeQuantity, price } = data as { name: string; price: number; quantity: number }
 
               for (let i = 0; i < typeQuantity; i++) {
-                const ticketNumber = `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-                const qrCodeData = `${ticketNumber}|${eventId}|${orderId}`
-
+                const ticketNumber: string = `${orderNumber}-${ticketsToCreate.length + 1}`
                 ticketsToCreate.push({
                   order_id: orderId,
                   event_id: eventId,
                   ticket_type_id: ticketTypeId,
                   ticket_number: ticketNumber,
                   price: price,
-                  qr_code_data: qrCodeData,
+                  qr_code_data: `ticket:${ticketNumber}`,
                   status: 'valid'
                 })
               }
@@ -244,15 +243,13 @@ export async function GET(request: NextRequest) {
             console.error('Error creating tickets with types:', error)
             // Fallback to creating tickets without types
             for (let i = 0; i < ticketQuantity; i++) {
-              const ticketNumber = `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-              const qrCodeData = `${ticketNumber}|${eventId}|${orderId}`
-
+              const ticketNumber: string = `${orderNumber}-${ticketsToCreate.length + 1}`
               ticketsToCreate.push({
                 order_id: orderId,
                 event_id: eventId,
                 ticket_number: ticketNumber,
                 price: subtotal / ticketQuantity,
-                qr_code_data: qrCodeData,
+                qr_code_data: `ticket:${ticketNumber}`,
                 status: 'valid'
               })
             }
@@ -260,15 +257,13 @@ export async function GET(request: NextRequest) {
         } else {
           // Legacy: Create tickets without ticket types
           for (let i = 0; i < ticketQuantity; i++) {
-            const ticketNumber = `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-            const qrCodeData = `${ticketNumber}|${eventId}|${orderId}`
-
+            const ticketNumber = `${orderNumber}-${i + 1}`
             ticketsToCreate.push({
               order_id: orderId,
               event_id: eventId,
               ticket_number: ticketNumber,
               price: subtotal / ticketQuantity,
-              qr_code_data: qrCodeData,
+              qr_code_data: `ticket:${ticketNumber}`,
               status: 'valid'
             })
           }

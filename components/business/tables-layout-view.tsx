@@ -8,9 +8,16 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { UserCheck, Eye, Phone, Mail, Search, User, ZoomIn, ZoomOut, Plus, Lock, Unlock, Link2, Unlink, StickyNote, CheckCircle, ArrowUpDown, Info, ChevronDown } from 'lucide-react'
+import { UserCheck, Eye, Phone, Mail, Search, User, ZoomIn, ZoomOut, Plus, Lock, Unlock, Link2, Unlink, StickyNote, CheckCircle, ArrowUpDown, ChevronDown, MoreVertical, Info } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils/currency'
 import { BookingNotesModal } from './booking-notes-modal'
@@ -97,6 +104,7 @@ export function TablesLayoutView({
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasContainerRef = useRef<HTMLDivElement>(null)
+  const tableRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [imageAspectRatio, setImageAspectRatio] = useState<number | null>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [zoom, setZoom] = useState(() => {
@@ -655,6 +663,29 @@ export function TablesLayoutView({
     }
   }
 
+  const handleReopen = async (bookingId: string) => {
+    setMarkingArrived(bookingId)
+    try {
+      const response = await fetch(`/api/table-bookings/${bookingId}/reopen`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to reopen reservation')
+      }
+
+      toast.success('Reservation reopened')
+      setSelectedTable(null)
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to reopen')
+    } finally {
+      setMarkingArrived(null)
+    }
+  }
+
   const handleTableClick = (e: React.MouseEvent, sectionId: string, tableIndex: number, tableName: string, hasBooking: boolean) => {
     e.stopPropagation()
 
@@ -693,6 +724,15 @@ export function TablesLayoutView({
         const tableIndex = section.tableNames?.findIndex(name => name === booking.table_number) ?? -1
         if (tableIndex >= 0) {
           setSelectedTable({ sectionId: businessSectionId, tableIndex, tableName: booking.table_number })
+
+          // Scroll to the table element
+          const tableKey = `${businessSectionId}-${tableIndex}`
+          setTimeout(() => {
+            const tableElement = tableRefs.current[tableKey]
+            if (tableElement) {
+              tableElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+            }
+          }, 50)
         }
       }
     }
@@ -811,9 +851,9 @@ export function TablesLayoutView({
   }
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-180px)] min-h-[600px]">
-      {/* Left Panel - Reservations List */}
-      <div className="w-[340px] flex-shrink-0 flex flex-col bg-background border rounded-xl overflow-hidden">
+    <div className="flex flex-col-reverse lg:flex-row gap-4 lg:gap-6 lg:h-[calc(100vh-180px)] lg:min-h-[600px]">
+      {/* Reservations List - Below on mobile, Left on desktop */}
+      <div className="w-full lg:w-[340px] flex-shrink-0 flex flex-col bg-background border rounded-xl overflow-hidden h-[40vh] lg:h-auto">
         <div className="p-4 border-b bg-muted/30">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-lg">Reservations</h2>
@@ -902,18 +942,33 @@ export function TablesLayoutView({
                             <Badge variant={getStatusColor(booking.status)} className="text-xs">
                               {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                             </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setDetailsModalBooking(booking)
-                              }}
-                              title="View details"
-                            >
-                              <Info className="h-4 w-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem onClick={() => setDetailsModalBooking(booking)}>
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setNotesModalBooking(booking)}>
+                                  <span className="flex items-center gap-2">
+                                    Add Notes
+                                    {booking.notes && booking.notes.length > 0 && (
+                                      <span className="inline-flex items-center justify-center h-5 min-w-5 px-1 text-[10px] font-medium bg-green-500 text-white rounded-full">
+                                        {booking.notes.length}
+                                      </span>
+                                    )}
+                                  </span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       </CardContent>
@@ -978,18 +1033,65 @@ export function TablesLayoutView({
                             <Badge variant={getStatusColor(booking.status)} className="text-xs">
                               {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                             </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setDetailsModalBooking(booking)
-                              }}
-                              title="View details"
-                            >
-                              <Info className="h-4 w-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem onClick={() => setDetailsModalBooking(booking)}>
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {booking.status === 'seated' && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleUndoSeated(booking.id)}>
+                                      Unseat
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleMarkArrived(booking.id)}>
+                                      Arrive
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {booking.status === 'arrived' && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleUndoArrived(booking.id)}>
+                                      Unarrive
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setCompletionModalBooking(booking)}>
+                                      Complete
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setNotesModalBooking(booking)}>
+                                  <span className="flex items-center gap-2">
+                                    Add Notes
+                                    {booking.notes && booking.notes.length > 0 && (
+                                      <span className="inline-flex items-center justify-center h-5 min-w-5 px-1 text-[10px] font-medium bg-green-500 text-white rounded-full">
+                                        {booking.notes.length}
+                                      </span>
+                                    )}
+                                  </span>
+                                </DropdownMenuItem>
+                                {canManageServers && booking.table_number && (
+                                  <DropdownMenuItem onClick={() => {
+                                    const businessSectionId = eventToBusinessSectionMap[booking.event_table_section_id]
+                                    if (businessSectionId) {
+                                      setServerAssignmentModal({ sectionId: businessSectionId, tableName: booking.table_number! })
+                                    }
+                                  }}>
+                                    Assign Server
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       </CardContent>
@@ -1040,18 +1142,38 @@ export function TablesLayoutView({
                             <Badge variant="purple" className="text-xs">
                               Completed
                             </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setDetailsModalBooking(booking)
-                              }}
-                              title="View details"
-                            >
-                              <Info className="h-4 w-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem onClick={() => setDetailsModalBooking(booking)}>
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleReopen(booking.id)}>
+                                  Reopen
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setNotesModalBooking(booking)}>
+                                  <span className="flex items-center gap-2">
+                                    Add Notes
+                                    {booking.notes && booking.notes.length > 0 && (
+                                      <span className="inline-flex items-center justify-center h-5 min-w-5 px-1 text-[10px] font-medium bg-green-500 text-white rounded-full">
+                                        {booking.notes.length}
+                                      </span>
+                                    )}
+                                  </span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       </CardContent>
@@ -1067,9 +1189,9 @@ export function TablesLayoutView({
         </div>
       </div>
 
-      {/* Right Panel - Layout Map */}
+      {/* Layout Map - Above on mobile, Right on desktop */}
       <div
-        className="flex-1 relative border rounded-lg bg-neutral-900 flex flex-col"
+        className="relative border rounded-lg bg-neutral-900 flex flex-col h-[65vh] lg:h-auto lg:flex-1"
       >
         {/* Scrollable content area */}
         <div className="absolute inset-0 overflow-auto">
@@ -1229,6 +1351,7 @@ export function TablesLayoutView({
                 return (
                   <div
                     key={`${section.id}-${tableIndex}`}
+                    ref={(el) => { tableRefs.current[`${section.id}-${tableIndex}`] = el }}
                     data-table="true"
                     draggable={!isServer && !!booking}
                     onDragStart={(e) => !isServer && booking && handleDragStart(e, booking)}
@@ -1423,7 +1546,7 @@ export function TablesLayoutView({
                               >
                                 <StickyNote className={`h-3.5 w-3.5 ${booking.notes && booking.notes.length > 0 ? 'text-green-500' : ''}`} />
                                 {booking.notes && booking.notes.length > 0 && (
-                                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-green-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                                  <span className="absolute -top-1.5 -right-1.5 h-4 w-4 bg-green-500 text-white text-[8px] rounded-full flex items-center justify-center">
                                     {booking.notes.length}
                                   </span>
                                 )}

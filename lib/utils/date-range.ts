@@ -75,9 +75,15 @@ export function parseDateRangeParams(searchParams: {
   const preset = (searchParams.preset as DateRangePreset) || 'last-30-days'
 
   if (preset === 'custom' && searchParams.from && searchParams.to) {
+    const fromDate = new Date(searchParams.from)
+    fromDate.setHours(0, 0, 0, 0) // Start of day
+
+    const toDate = new Date(searchParams.to)
+    toDate.setHours(23, 59, 59, 999) // End of day
+
     return {
-      from: new Date(searchParams.from),
-      to: new Date(searchParams.to),
+      from: fromDate,
+      to: toDate,
     }
   }
 

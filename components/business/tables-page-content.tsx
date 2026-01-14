@@ -157,10 +157,10 @@ export function TablesPageContent({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3 min-w-0">
           {eventImage && (
-            <div className="relative h-16 w-16 rounded-lg overflow-hidden flex-shrink-0">
+            <div className="relative h-10 w-10 lg:h-16 lg:w-16 rounded-lg overflow-hidden flex-shrink-0">
               <Image
                 src={eventImage}
                 alt={eventTitle}
@@ -169,13 +169,13 @@ export function TablesPageContent({
               />
             </div>
           )}
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight">{eventTitle}</h1>
+              <h1 className="text-base lg:text-2xl font-bold tracking-tight truncate">{eventTitle}</h1>
               {!isServer && (
                 <Link
                   href={`/${businessSlug}/dashboard/events/${eventId}`}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                   title="Edit event"
                 >
                   <Pencil className="h-4 w-4" />
@@ -184,23 +184,23 @@ export function TablesPageContent({
               <Link
                 href={`/${businessSlug}/events/${eventId}/checkout?mode=tables`}
                 target="_blank"
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                 title="View checkout page"
               >
                 <ExternalLink className="h-4 w-4" />
               </Link>
             </div>
             {eventDate && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs lg:text-sm text-muted-foreground truncate">
                 {formattedDate}{eventTime && ` at ${formatTimeTo12Hour(eventTime)}`}
               </p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 lg:gap-3">
           {layouts.length > 1 && (
             <Select value={selectedLayoutId || ''} onValueChange={setSelectedLayoutId}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[140px] lg:w-[180px]">
                 <SelectValue placeholder="Select room" />
               </SelectTrigger>
               <SelectContent>
@@ -213,9 +213,9 @@ export function TablesPageContent({
             </Select>
           )}
           {!isServer && (
-            <Button onClick={handleNewReservationClick}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Reservation
+            <Button onClick={handleNewReservationClick} size="sm" className="lg:size-default">
+              <Plus className="h-4 w-4 lg:mr-2" />
+              <span className="hidden lg:inline">New Reservation</span>
             </Button>
           )}
         </div>

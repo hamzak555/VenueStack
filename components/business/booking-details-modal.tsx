@@ -13,6 +13,7 @@ import { Loader2, Calendar, MapPin, Users, Mail, Phone, ExternalLink, Star, Stic
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils/currency'
 import { TableBookingRefundDialog } from './table-booking-refund-dialog'
+import { ProcessingFeeTooltip } from './processing-fee-tooltip'
 import { isServerRole, type BusinessRole } from '@/lib/auth/roles'
 
 interface BookingDetailsModalProps {
@@ -402,7 +403,13 @@ export function BookingDetailsModal({
 
                       {(data.paymentMetadata.platformFee + data.paymentMetadata.stripeFee) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Processing Fee</span>
+                          <span className="text-muted-foreground flex items-center">
+                            Processing Fee
+                            <ProcessingFeeTooltip
+                              platformFee={data.paymentMetadata.platformFee}
+                              stripeFee={data.paymentMetadata.stripeFee}
+                            />
+                          </span>
                           <span>{formatCurrency(data.paymentMetadata.platformFee + data.paymentMetadata.stripeFee)}</span>
                         </div>
                       )}
