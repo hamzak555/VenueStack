@@ -255,7 +255,7 @@ export async function sendTicketConfirmationEmail({
 }): Promise<boolean> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jovbrnjczxnppzqvjkji.supabase.co'
-  const emailImagesUrl = `${supabaseUrl}/storage/v1/object/public/Email%20Images`
+  const emailImagesUrl = `${supabaseUrl}/storage/v1/object/public/business-assets/email-images`
 
   // Format date nicely
   const formattedDate = eventDate ? new Date(eventDate).toLocaleDateString('en-US', {
