@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
 
     // If order exists, return it (prevents duplicate orders from page refreshes)
     if (existingOrder && !existingOrderError) {
-      console.log('Order already exists for payment intent:', paymentIntentId)
+      console.log('Order already exists for payment intent:', paymentIntentId, '- skipping email (already sent)')
       return NextResponse.json({
         success: true,
         orderId: existingOrder.id,
@@ -301,6 +301,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Send confirmation email (fire and forget)
+        console.log('Sending ticket confirmation email to:', customerEmail, 'for order:', orderNumber)
         sendTicketConfirmationEmail({
           to: customerEmail,
           customerName,

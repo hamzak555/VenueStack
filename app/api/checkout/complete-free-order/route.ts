@@ -280,6 +280,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send confirmation email (fire and forget)
+    console.log('Sending ticket confirmation email to:', customerEmail, 'for order:', order.order_number)
     sendTicketConfirmationEmail({
       to: customerEmail,
       customerName,
