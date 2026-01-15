@@ -382,7 +382,7 @@ export async function sendTicketConfirmationEmail({
   const eventImageHtml = eventImageUrl ? `
     <tr>
       <td align="left" style="padding: 0 0 24px 0;">
-        <img src="${eventImageUrl}" alt="${eventTitle}" width="520" style="display: block; border-radius: 8px; max-width: 100%; height: auto;">
+        <img src="${eventImageUrl}" alt="${eventTitle}" width="260" style="display: block; border-radius: 8px; max-width: 100%; height: auto;">
       </td>
     </tr>
   ` : ''
