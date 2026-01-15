@@ -279,25 +279,29 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Send confirmation email (fire and forget)
+    // Send confirmation email (awaited for serverless)
     console.log('Sending ticket confirmation email to:', customerEmail, 'for order:', order.order_number)
-    sendTicketConfirmationEmail({
-      to: customerEmail,
-      customerName,
-      orderNumber: order.order_number,
-      eventTitle: event.title,
-      eventDate: event.event_date,
-      eventTime: event.event_time,
-      eventLocation: event.location,
-      eventImageUrl: event.image_url,
-      tickets: ticketLineItems,
-      subtotal: ticketSubtotalInCents / 100,
-      discountAmount: discountAmount / 100,
-      promoCode: promoCode?.code,
-      taxAmount: 0,
-      platformFee: 0,
-      total: 0,
-    }).catch((err) => console.error('Failed to send ticket confirmation email:', err))
+    try {
+      await sendTicketConfirmationEmail({
+        to: customerEmail,
+        customerName,
+        orderNumber: order.order_number,
+        eventTitle: event.title,
+        eventDate: event.event_date,
+        eventTime: event.event_time,
+        eventLocation: event.location,
+        eventImageUrl: event.image_url,
+        tickets: ticketLineItems,
+        subtotal: ticketSubtotalInCents / 100,
+        discountAmount: discountAmount / 100,
+        promoCode: promoCode?.code,
+        taxAmount: 0,
+        platformFee: 0,
+        total: 0,
+      })
+    } catch (emailErr) {
+      console.error('Failed to send ticket confirmation email:', emailErr)
+    }
 
     return NextResponse.json({
       orderId: order.id,
