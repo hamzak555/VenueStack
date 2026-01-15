@@ -60,6 +60,10 @@ export async function sendInvitationEmail({
   inviteUrl: string
   role: BusinessRole
 }): Promise<boolean> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jovbrnjczxnppzqvjkji.supabase.co'
+  const emailImagesUrl = `${supabaseUrl}/storage/v1/object/public/business-assets/email-images`
+
   const roleLabel = ROLE_LABELS[role] || role
   const article = ['a', 'e', 'i', 'o', 'u'].includes(roleLabel[0].toLowerCase()) ? 'an' : 'a'
   const roleText = `${article} ${roleLabel}`
@@ -80,43 +84,159 @@ If you didn't expect this invitation, you can safely ignore this email.
 `.trim()
 
   const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">You're Invited!</h1>
-  </div>
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+  <head>
+    <title>You're Invited to VenueStack</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type="text/css">
+      #outlook a { padding: 0 }
+      body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100% }
+      table, td { border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0 }
+      img { border: 0; height: auto; line-height: 100%; outline: 0; text-decoration: none; -ms-interpolation-mode: bicubic }
+      p { display: block; margin: 13px 0 }
+    </style>
+    <!--[if mso]>
+    <noscript>
+      <xml>
+        <o:OfficeDocumentSettings>
+          <o:AllowPNG/>
+          <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+      </xml>
+    </noscript>
+    <![endif]-->
+    <!--[if lte mso 11]>
+    <style type="text/css">.mj-outlook-group-fix{width:100%!important}</style>
+    <![endif]-->
+    <style type="text/css">
+      @media only screen and (max-width:480px) {
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
+        .header-padding { padding-left: 20px !important; padding-right: 20px !important }
+        .content-padding { padding: 24px 20px !important }
+        .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
+      }
+    </style>
+    <style type="text/css">
+      @media screen {
+        @font-face {
+          font-family: 'Inter';
+          font-style: normal;
+          font-weight: 400;
+          font-display: swap;
+          src: url(https://fonts.gstatic.com/s/inter/v8/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2) format('woff2');
+        }
+        @font-face {
+          font-family: 'Inter';
+          font-style: normal;
+          font-weight: 600;
+          font-display: swap;
+          src: url(https://fonts.gstatic.com/s/inter/v8/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2) format('woff2');
+        }
+      }
+    </style>
+  </head>
+  <body style="margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; background-color: #f4f4f5;">
+    <div class="body" style="padding-top: 40px; padding-bottom: 40px; background-color: #f4f4f5;">
 
-  <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-    <p style="font-size: 16px; margin-bottom: 20px;">
-      You've been invited to join <strong>${businessName}</strong> as ${roleText} on VenueStack.
-    </p>
+      <!-- EMAIL WRAPPER WITH BORDER AND ROUNDED CORNERS -->
+      <div class="email-wrapper" style="margin: 0px auto; max-width: 600px; border: 1px solid #e4e4e7; border-radius: 12px; overflow: hidden;">
 
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${inviteUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
-        Accept Invitation
-      </a>
+        <!-- EMAIL HEADER -->
+        <div class="header" style="background: #ffffff;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
+            <tbody>
+              <tr>
+                <td class="header-padding" style="border-bottom: 1px solid #e4e4e7; padding: 24px 40px;" align="left">
+                  <!-- Logo -->
+                  <img src="${emailImagesUrl}/VS%20Logo%20Black.png" alt="VenueStack" width="140" height="auto" style="display: block; border: 0; outline: none;">
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- MAIN CONTENT SECTION -->
+        <div class="section" style="background: #ffffff;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
+            <tbody>
+              <tr>
+                <td class="content-padding" style="padding: 40px;" align="left">
+                  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+                    <tbody>
+                      <!-- Heading -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 8px 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 24px; font-weight: 600; line-height: 32px; color: #18181b;">You're Invited!</div>
+                        </td>
+                      </tr>
+                      <!-- Body Text -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 24px 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; color: #3f3f46;">
+                            You've been invited to join <strong>${businessName}</strong> as ${roleText} on VenueStack.
+                          </div>
+                        </td>
+                      </tr>
+                      <!-- Primary Button -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 24px 0;">
+                          <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                            <tbody>
+                              <tr>
+                                <td align="center" bgcolor="#18181b" role="presentation" style="border-radius: 6px; cursor: pointer;" valign="middle">
+                                  <a href="${inviteUrl}" style="display: inline-block; background: #18181b; color: #ffffff; font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 600; line-height: 20px; text-decoration: none; padding: 12px 24px; border-radius: 6px;">Accept Invitation</a>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Additional Info -->
+                      <tr>
+                        <td align="left" style="padding: 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #71717a;">
+                            This invitation will expire in 7 days. If you didn't expect this invitation, you can safely ignore this email.
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer" style="background: #18181b;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #18181b; width: 100%;" width="100%" bgcolor="#18181b">
+            <tbody>
+              <tr>
+                <td class="footer-padding" style="padding: 32px 40px;" align="left">
+                  <!-- Icon -->
+                  <img src="${emailImagesUrl}/VS%20Icon%20White.png" alt="VenueStack" width="24" height="24" style="display: block; margin: 0 0 24px 0; border: 0; outline: none; opacity: 0.6;">
+                  <!-- Reason for email -->
+                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
+                    You're receiving this email because you were invited to join a business on VenueStack.
+                  </div>
+                  <!-- Legal Text -->
+                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+      <!-- END EMAIL WRAPPER -->
+
     </div>
-
-    <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
-      This invitation will expire in 7 days.
-    </p>
-
-    <p style="font-size: 14px; color: #6b7280;">
-      If you didn't expect this invitation, you can safely ignore this email.
-    </p>
-
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-
-    <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
-      - The VenueStack Team
-    </p>
-  </div>
-</body>
+  </body>
 </html>
 `.trim()
 
@@ -138,6 +258,10 @@ export async function sendPasswordResetEmail({
   resetUrl: string
   userName: string
 }): Promise<boolean> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jovbrnjczxnppzqvjkji.supabase.co'
+  const emailImagesUrl = `${supabaseUrl}/storage/v1/object/public/business-assets/email-images`
+
   const subject = 'Reset your VenueStack password'
 
   const text = `
@@ -156,47 +280,159 @@ If you didn't request this password reset, you can safely ignore this email. You
 `.trim()
 
   const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Reset Your Password</h1>
-  </div>
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+  <head>
+    <title>Reset Your Password - VenueStack</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type="text/css">
+      #outlook a { padding: 0 }
+      body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100% }
+      table, td { border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0 }
+      img { border: 0; height: auto; line-height: 100%; outline: 0; text-decoration: none; -ms-interpolation-mode: bicubic }
+      p { display: block; margin: 13px 0 }
+    </style>
+    <!--[if mso]>
+    <noscript>
+      <xml>
+        <o:OfficeDocumentSettings>
+          <o:AllowPNG/>
+          <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+      </xml>
+    </noscript>
+    <![endif]-->
+    <!--[if lte mso 11]>
+    <style type="text/css">.mj-outlook-group-fix{width:100%!important}</style>
+    <![endif]-->
+    <style type="text/css">
+      @media only screen and (max-width:480px) {
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
+        .header-padding { padding-left: 20px !important; padding-right: 20px !important }
+        .content-padding { padding: 24px 20px !important }
+        .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
+      }
+    </style>
+    <style type="text/css">
+      @media screen {
+        @font-face {
+          font-family: 'Inter';
+          font-style: normal;
+          font-weight: 400;
+          font-display: swap;
+          src: url(https://fonts.gstatic.com/s/inter/v8/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2) format('woff2');
+        }
+        @font-face {
+          font-family: 'Inter';
+          font-style: normal;
+          font-weight: 600;
+          font-display: swap;
+          src: url(https://fonts.gstatic.com/s/inter/v8/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2) format('woff2');
+        }
+      }
+    </style>
+  </head>
+  <body style="margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; background-color: #f4f4f5;">
+    <div class="body" style="padding-top: 40px; padding-bottom: 40px; background-color: #f4f4f5;">
 
-  <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-    <p style="font-size: 16px; margin-bottom: 20px;">
-      Hi <strong>${userName}</strong>,
-    </p>
+      <!-- EMAIL WRAPPER WITH BORDER AND ROUNDED CORNERS -->
+      <div class="email-wrapper" style="margin: 0px auto; max-width: 600px; border: 1px solid #e4e4e7; border-radius: 12px; overflow: hidden;">
 
-    <p style="font-size: 16px; margin-bottom: 20px;">
-      You requested to reset your password for your VenueStack account. Click the button below to set a new password.
-    </p>
+        <!-- EMAIL HEADER -->
+        <div class="header" style="background: #ffffff;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
+            <tbody>
+              <tr>
+                <td class="header-padding" style="border-bottom: 1px solid #e4e4e7; padding: 24px 40px;" align="left">
+                  <!-- Logo -->
+                  <img src="${emailImagesUrl}/VS%20Logo%20Black.png" alt="VenueStack" width="140" height="auto" style="display: block; border: 0; outline: none;">
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${resetUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
-        Reset Password
-      </a>
+        <!-- MAIN CONTENT SECTION -->
+        <div class="section" style="background: #ffffff;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
+            <tbody>
+              <tr>
+                <td class="content-padding" style="padding: 40px;" align="left">
+                  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+                    <tbody>
+                      <!-- Heading -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 8px 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 24px; font-weight: 600; line-height: 32px; color: #18181b;">Reset Your Password</div>
+                        </td>
+                      </tr>
+                      <!-- Body Text -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 24px 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; color: #3f3f46;">
+                            Hi <strong>${userName}</strong>, you requested to reset your password for your VenueStack account. Click the button below to set a new password.
+                          </div>
+                        </td>
+                      </tr>
+                      <!-- Primary Button -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 24px 0;">
+                          <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                            <tbody>
+                              <tr>
+                                <td align="center" bgcolor="#18181b" role="presentation" style="border-radius: 6px; cursor: pointer;" valign="middle">
+                                  <a href="${resetUrl}" style="display: inline-block; background: #18181b; color: #ffffff; font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 600; line-height: 20px; text-decoration: none; padding: 12px 24px; border-radius: 6px;">Reset Password</a>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Additional Info -->
+                      <tr>
+                        <td align="left" style="padding: 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #71717a;">
+                            This link will expire in 1 hour. If you didn't request this password reset, you can safely ignore this email. Your password will not be changed.
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer" style="background: #18181b;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #18181b; width: 100%;" width="100%" bgcolor="#18181b">
+            <tbody>
+              <tr>
+                <td class="footer-padding" style="padding: 32px 40px;" align="left">
+                  <!-- Icon -->
+                  <img src="${emailImagesUrl}/VS%20Icon%20White.png" alt="VenueStack" width="24" height="24" style="display: block; margin: 0 0 24px 0; border: 0; outline: none; opacity: 0.6;">
+                  <!-- Reason for email -->
+                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
+                    You're receiving this email because you requested a password reset for your VenueStack account.
+                  </div>
+                  <!-- Legal Text -->
+                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+      <!-- END EMAIL WRAPPER -->
+
     </div>
-
-    <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
-      This link will expire in 1 hour.
-    </p>
-
-    <p style="font-size: 14px; color: #6b7280;">
-      If you didn't request this password reset, you can safely ignore this email. Your password will not be changed.
-    </p>
-
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-
-    <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
-      - The VenueStack Team
-    </p>
-  </div>
-</body>
+  </body>
 </html>
 `.trim()
 
@@ -2314,30 +2550,18 @@ export async function sendAddedToBusinessEmail({
   to,
   businessName,
   role,
-  themeColor,
 }: {
   to: string
   businessName: string
   role: BusinessRole
-  themeColor?: string | null
 }): Promise<boolean> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jovbrnjczxnppzqvjkji.supabase.co'
+  const emailImagesUrl = `${supabaseUrl}/storage/v1/object/public/business-assets/email-images`
+
   const roleLabel = ROLE_LABELS[role] || role
   const article = ['a', 'e', 'i', 'o', 'u'].includes(roleLabel[0].toLowerCase()) ? 'an' : 'a'
   const roleText = `${article} ${roleLabel}`
-  const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
-  const rawThemeColor = (themeColor || '').trim()
-  const themeHex = rawThemeColor
-    ? rawThemeColor.startsWith('#')
-      ? rawThemeColor
-      : `#${rawThemeColor}`
-    : '#8b5cf6'
-  const parsedThemeRgb = hexToRgb(themeHex)
-  const resolvedThemeHex = parsedThemeRgb ? themeHex : '#8b5cf6'
-  const themeRgb = parsedThemeRgb || { r: 139, g: 92, b: 246 }
-  const buttonTextColor = isLightColor(resolvedThemeHex) ? '#0b0d10' : '#ffffff'
-  const glowStrong = `rgba(${themeRgb.r}, ${themeRgb.g}, ${themeRgb.b}, 0.35)`
-  const glowSoft = `rgba(${themeRgb.r}, ${themeRgb.g}, ${themeRgb.b}, 0.16)`
-  const glowFaint = `rgba(${themeRgb.r}, ${themeRgb.g}, ${themeRgb.b}, 0.08)`
 
   const subject = `You've been added to ${businessName} on VenueStack`
 
@@ -2345,58 +2569,165 @@ export async function sendAddedToBusinessEmail({
 You've been added to ${businessName} as ${roleText} on VenueStack.
 
 Log in to access your dashboard:
-${loginUrl}/login
+${appUrl}/login
 
 - The VenueStack Team
 `.trim()
 
   const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; background-color: #0b0d10; color: #e2e8f0; font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 32px 16px;">
-  <div style="max-width: 640px; margin: 0 auto;">
-    <div style="background-color: #141820; border: 1px solid #1f242d; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45), 0 0 0 1px ${glowFaint};">
-      <div style="padding: 28px 32px; background-color: #141820; background-image: linear-gradient(135deg, ${glowStrong} 0%, ${glowSoft} 45%, rgba(20, 24, 32, 0) 100%); border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
-        <p style="margin: 0 0 8px 0; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(226, 232, 240, 0.6);">
-          VenueStack Dashboard
-        </p>
-        <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">
-          Welcome to ${businessName}
-        </h1>
-        <p style="margin: 12px 0 0 0; font-size: 15px; color: rgba(226, 232, 240, 0.85);">
-          You now have access as ${roleText}.
-        </p>
-      </div>
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+  <head>
+    <title>Welcome to ${businessName} - VenueStack</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type="text/css">
+      #outlook a { padding: 0 }
+      body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100% }
+      table, td { border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0 }
+      img { border: 0; height: auto; line-height: 100%; outline: 0; text-decoration: none; -ms-interpolation-mode: bicubic }
+      p { display: block; margin: 13px 0 }
+    </style>
+    <!--[if mso]>
+    <noscript>
+      <xml>
+        <o:OfficeDocumentSettings>
+          <o:AllowPNG/>
+          <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+      </xml>
+    </noscript>
+    <![endif]-->
+    <!--[if lte mso 11]>
+    <style type="text/css">.mj-outlook-group-fix{width:100%!important}</style>
+    <![endif]-->
+    <style type="text/css">
+      @media only screen and (max-width:480px) {
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
+        .header-padding { padding-left: 20px !important; padding-right: 20px !important }
+        .content-padding { padding: 24px 20px !important }
+        .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
+      }
+    </style>
+    <style type="text/css">
+      @media screen {
+        @font-face {
+          font-family: 'Inter';
+          font-style: normal;
+          font-weight: 400;
+          font-display: swap;
+          src: url(https://fonts.gstatic.com/s/inter/v8/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2) format('woff2');
+        }
+        @font-face {
+          font-family: 'Inter';
+          font-style: normal;
+          font-weight: 600;
+          font-display: swap;
+          src: url(https://fonts.gstatic.com/s/inter/v8/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2) format('woff2');
+        }
+      }
+    </style>
+  </head>
+  <body style="margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; background-color: #f4f4f5;">
+    <div class="body" style="padding-top: 40px; padding-bottom: 40px; background-color: #f4f4f5;">
 
-      <div style="padding: 24px 32px 32px;">
-        <p style="margin: 0 0 20px 0; font-size: 15px; color: rgba(226, 232, 240, 0.85);">
-          Log in to manage events, tickets, and tables for ${businessName}.
-        </p>
+      <!-- EMAIL WRAPPER WITH BORDER AND ROUNDED CORNERS -->
+      <div class="email-wrapper" style="margin: 0px auto; max-width: 600px; border: 1px solid #e4e4e7; border-radius: 12px; overflow: hidden;">
 
-        <div style="margin: 24px 0 10px;">
-          <a href="${loginUrl}/login" style="background: ${resolvedThemeHex}; color: ${buttonTextColor}; padding: 12px 22px; text-decoration: none; border-radius: 10px; font-weight: 600; display: inline-block; font-size: 14px; box-shadow: 0 12px 24px ${glowSoft};">
-            Open Dashboard
-          </a>
+        <!-- EMAIL HEADER -->
+        <div class="header" style="background: #ffffff;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
+            <tbody>
+              <tr>
+                <td class="header-padding" style="border-bottom: 1px solid #e4e4e7; padding: 24px 40px;" align="left">
+                  <!-- Logo -->
+                  <img src="${emailImagesUrl}/VS%20Logo%20Black.png" alt="VenueStack" width="140" height="auto" style="display: block; border: 0; outline: none;">
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        <p style="margin: 18px 0 0 0; font-size: 12px; color: rgba(148, 163, 184, 0.8);">
-          If you weren't expecting this, you can ignore this email.
-        </p>
-      </div>
+        <!-- MAIN CONTENT SECTION -->
+        <div class="section" style="background: #ffffff;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
+            <tbody>
+              <tr>
+                <td class="content-padding" style="padding: 40px;" align="left">
+                  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+                    <tbody>
+                      <!-- Heading -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 8px 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 24px; font-weight: 600; line-height: 32px; color: #18181b;">Welcome to ${businessName}</div>
+                        </td>
+                      </tr>
+                      <!-- Body Text -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 24px 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; color: #3f3f46;">
+                            You now have access as ${roleText}. Log in to manage events, tickets, and tables for ${businessName}.
+                          </div>
+                        </td>
+                      </tr>
+                      <!-- Primary Button -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 24px 0;">
+                          <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                            <tbody>
+                              <tr>
+                                <td align="center" bgcolor="#18181b" role="presentation" style="border-radius: 6px; cursor: pointer;" valign="middle">
+                                  <a href="${appUrl}/login" style="display: inline-block; background: #18181b; color: #ffffff; font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 600; line-height: 20px; text-decoration: none; padding: 12px 24px; border-radius: 6px;">Open Dashboard</a>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Additional Info -->
+                      <tr>
+                        <td align="left" style="padding: 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #71717a;">
+                            If you weren't expecting this, you can ignore this email.
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <div style="padding: 0 32px 28px; text-align: center;">
-        <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin-bottom: 16px;"></div>
-        <p style="margin: 0; font-size: 12px; color: rgba(148, 163, 184, 0.6);">
-          - The VenueStack Team
-        </p>
+        <!-- FOOTER -->
+        <div class="footer" style="background: #18181b;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #18181b; width: 100%;" width="100%" bgcolor="#18181b">
+            <tbody>
+              <tr>
+                <td class="footer-padding" style="padding: 32px 40px;" align="left">
+                  <!-- Icon -->
+                  <img src="${emailImagesUrl}/VS%20Icon%20White.png" alt="VenueStack" width="24" height="24" style="display: block; margin: 0 0 24px 0; border: 0; outline: none; opacity: 0.6;">
+                  <!-- Reason for email -->
+                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
+                    You're receiving this email because you were added to a business on VenueStack.
+                  </div>
+                  <!-- Legal Text -->
+                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
+      <!-- END EMAIL WRAPPER -->
+
     </div>
-  </div>
-</body>
+  </body>
 </html>
 `.trim()
 
