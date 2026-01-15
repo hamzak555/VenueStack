@@ -629,8 +629,6 @@ Present your tickets at the door by showing the QR code on your phone or printed
                 <td class="footer-padding" style="padding: 32px 40px;" align="left">
                   <!-- Icon -->
                   <img src="${emailImagesUrl}/VS%20Icon%20White.png" alt="VenueStack" width="24" height="24" style="display: block; margin: 0 0 24px 0; border: 0; outline: none; opacity: 0.6;">
-                  <!-- Divider -->
-                  <div style="border-top: 1px solid #3f3f46; width: 100%; margin: 16px 0;"></div>
                   <!-- Reason for email -->
                   <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
                     You're receiving this email because you purchased tickets through VenueStack.
