@@ -947,6 +947,7 @@ export async function sendTableReservationConfirmedEmail({
   eventDate,
   eventTime,
   eventLocation,
+  eventImageUrl,
   tables,
   subtotal,
   discountAmount,
@@ -963,6 +964,7 @@ export async function sendTableReservationConfirmedEmail({
   eventDate: string
   eventTime?: string | null
   eventLocation?: string | null
+  eventImageUrl?: string | null
   tables: TableLineItem[]
   subtotal: number
   discountAmount?: number
@@ -995,6 +997,15 @@ export async function sendTableReservationConfirmedEmail({
   const formattedDateTime = eventTime
     ? `${formattedDate} at ${formatTime(eventTime)}`
     : formattedDate
+
+  // Event image HTML (half size of ticket confirmation)
+  const eventImageHtml = eventImageUrl ? `
+    <tr>
+      <td align="left" style="padding: 0 0 24px 0;">
+        <img src="${eventImageUrl}" alt="${eventTitle}" width="260" style="display: block; border-radius: 8px; max-width: 100%; height: auto;">
+      </td>
+    </tr>
+  ` : ''
 
   const subject = `Table Reservation Confirmed for ${eventTitle} - #${reservationNumber}`
 
@@ -1204,6 +1215,9 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
                         </td>
                       </tr>
 
+                      <!-- EVENT IMAGE -->
+                      ${eventImageHtml}
+
                       <!-- RESERVATION DETAILS CARD -->
                       <tr>
                         <td align="left" style="padding: 0 0 24px 0;">
@@ -1343,6 +1357,7 @@ export async function sendTableReservationReceivedEmail({
   eventDate,
   eventTime,
   eventLocation,
+  eventImageUrl,
   tables,
   subtotal,
   discountAmount,
@@ -1360,6 +1375,7 @@ export async function sendTableReservationReceivedEmail({
   eventDate: string
   eventTime?: string | null
   eventLocation?: string | null
+  eventImageUrl?: string | null
   tables: TableLineItem[]
   subtotal: number
   discountAmount?: number
@@ -1393,6 +1409,15 @@ export async function sendTableReservationReceivedEmail({
   const formattedDateTime = eventTime
     ? `${formattedDate} at ${formatTime(eventTime)}`
     : formattedDate
+
+  // Event image HTML (half size of ticket confirmation)
+  const eventImageHtml = eventImageUrl ? `
+    <tr>
+      <td align="left" style="padding: 0 0 24px 0;">
+        <img src="${eventImageUrl}" alt="${eventTitle}" width="260" style="display: block; border-radius: 8px; max-width: 100%; height: auto;">
+      </td>
+    </tr>
+  ` : ''
 
   const subject = `Table Reservation Request Received for ${eventTitle} - #${reservationNumber}`
 
@@ -1632,6 +1657,9 @@ IMPORTANT: Tables without a deposit are not guaranteed and require confirmation 
                         </td>
                       </tr>
 
+                      <!-- EVENT IMAGE -->
+                      ${eventImageHtml}
+
                       <!-- RESERVATION DETAILS CARD -->
                       <tr>
                         <td align="left" style="padding: 0 0 24px 0;">
@@ -1771,6 +1799,7 @@ export async function sendTableReservationApprovedEmail({
   eventDate,
   eventTime,
   eventLocation,
+  eventImageUrl,
   tableName,
 }: {
   to: string
@@ -1780,6 +1809,7 @@ export async function sendTableReservationApprovedEmail({
   eventDate: string
   eventTime?: string | null
   eventLocation?: string | null
+  eventImageUrl?: string | null
   tableName: string
 }): Promise<boolean> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
@@ -1805,6 +1835,15 @@ export async function sendTableReservationApprovedEmail({
   const formattedDateTime = eventTime
     ? `${formattedDate} at ${formatTime(eventTime)}`
     : formattedDate
+
+  // Event image HTML (half size of ticket confirmation)
+  const eventImageHtml = eventImageUrl ? `
+    <tr>
+      <td align="left" style="padding: 0 0 24px 0;">
+        <img src="${eventImageUrl}" alt="${eventTitle}" width="260" style="display: block; border-radius: 8px; max-width: 100%; height: auto;">
+      </td>
+    </tr>
+  ` : ''
 
   const subject = `Table Reservation Confirmed for ${eventTitle} - #${reservationNumber}`
 
@@ -1941,6 +1980,9 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
                           </table>
                         </td>
                       </tr>
+
+                      <!-- EVENT IMAGE -->
+                      ${eventImageHtml}
 
                       <!-- RESERVATION DETAILS CARD -->
                       <tr>
