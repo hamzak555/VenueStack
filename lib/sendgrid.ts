@@ -437,6 +437,9 @@ Present your tickets at the door by showing the QR code on your phone or printed
     <style type="text/css">
       @media only screen and (max-width:480px) {
         .body { padding-left: 16px !important; padding-right: 16px !important }
+        .header-padding { padding-left: 20px !important; padding-right: 20px !important }
+        .content-padding { padding: 24px 20px !important }
+        .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
         .button-stack { display: block !important; width: 100% !important; margin-bottom: 12px !important; }
         .button-stack a { display: block !important; text-align: center !important; }
       }
@@ -471,7 +474,7 @@ Present your tickets at the door by showing the QR code on your phone or printed
           <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
             <tbody>
               <tr>
-                <td style="border-bottom: 1px solid #e4e4e7; padding: 24px 40px;" align="left">
+                <td class="header-padding" style="border-bottom: 1px solid #e4e4e7; padding: 24px 40px;" align="left">
                   <!-- Logo -->
                   <img src="${emailImagesUrl}/VS%20Logo%20Black.png" alt="VenueStack" width="140" height="auto" style="display: block; border: 0; outline: none;">
                 </td>
@@ -485,7 +488,7 @@ Present your tickets at the door by showing the QR code on your phone or printed
           <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
             <tbody>
               <tr>
-                <td style="padding: 40px;" align="left">
+                <td class="content-padding" style="padding: 40px;" align="left">
                   <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
                     <tbody>
                       <!-- Heading -->
@@ -623,7 +626,7 @@ Present your tickets at the door by showing the QR code on your phone or printed
           <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #18181b; width: 100%;" width="100%" bgcolor="#18181b">
             <tbody>
               <tr>
-                <td style="padding: 32px 40px;" align="left">
+                <td class="footer-padding" style="padding: 32px 40px;" align="left">
                   <!-- Icon -->
                   <img src="${emailImagesUrl}/VS%20Icon%20White.png" alt="VenueStack" width="24" height="24" style="display: block; margin: 0 0 24px 0; border: 0; outline: none; opacity: 0.6;">
                   <!-- Divider -->
