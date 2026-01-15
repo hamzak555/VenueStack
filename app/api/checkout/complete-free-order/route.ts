@@ -295,7 +295,7 @@ export async function POST(request: NextRequest) {
         discountAmount: discountAmount / 100,
         promoCode: promoCode?.code,
         taxAmount: 0,
-        platformFee: 0,
+        processingFees: 0,
         total: 0,
       })
     } catch (emailErr) {

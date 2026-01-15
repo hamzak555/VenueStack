@@ -232,7 +232,7 @@ export async function sendTicketConfirmationEmail({
   discountAmount,
   promoCode,
   taxAmount,
-  platformFee,
+  processingFees,
   total,
   paymentMethod,
 }: {
@@ -249,7 +249,7 @@ export async function sendTicketConfirmationEmail({
   discountAmount?: number
   promoCode?: string | null
   taxAmount?: number
-  platformFee?: number
+  processingFees?: number
   total: number
   paymentMethod?: string | null
 }): Promise<boolean> {
@@ -332,17 +332,17 @@ export async function sendTicketConfirmationEmail({
   ` : ''
 
   // Build optional fee line
-  const feeHtml = platformFee && platformFee > 0 ? `
+  const feeHtml = processingFees && processingFees > 0 ? `
     <tr>
       <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
         <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
           <tbody>
             <tr>
               <td style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #71717a;">
-                Service Fee
+                Processing Fees
               </td>
               <td align="right" style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #71717a;">
-                $${platformFee.toFixed(2)}
+                $${processingFees.toFixed(2)}
               </td>
             </tr>
           </tbody>

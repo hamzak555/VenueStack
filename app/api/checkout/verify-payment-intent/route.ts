@@ -315,7 +315,7 @@ export async function GET(request: NextRequest) {
             discountAmount,
             promoCode: promoCodeUsed,
             taxAmount,
-            platformFee,
+            processingFees: platformFee + stripeFee,
             total: totalAmount,
           })
         } catch (emailErr) {
