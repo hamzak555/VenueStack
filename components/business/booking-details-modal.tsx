@@ -9,7 +9,18 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Calendar, MapPin, Users, Mail, Phone, ExternalLink, Star, StickyNote, RotateCcw } from 'lucide-react'
+import { Loader2, Calendar, MapPin, Users, Mail, Phone, ExternalLink, Star, StickyNote, RotateCcw, XCircle } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils/currency'
 import { TableBookingRefundDialog } from './table-booking-refund-dialog'
@@ -95,6 +106,7 @@ export function BookingDetailsModal({
   const [data, setData] = useState<BookingData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isReopening, setIsReopening] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
   const isServer = userRole ? isServerRole(userRole) : false
 
   useEffect(() => {
@@ -142,6 +154,30 @@ export function BookingDetailsModal({
       toast.error(error instanceof Error ? error.message : 'Failed to reopen reservation')
     } finally {
       setIsReopening(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!bookingId) return
+    setIsCancelling(true)
+    try {
+      const response = await fetch(`/api/table-bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'cancelled' }),
+      })
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.error || 'Failed to cancel reservation')
+      }
+      toast.success('Reservation cancelled')
+      onOpenChange(false)
+      onStatusChange?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel reservation')
+    } finally {
+      setIsCancelling(false)
     }
   }
 
@@ -449,7 +485,7 @@ export function BookingDetailsModal({
               )}
 
               {/* Actions - Only show if there are relevant actions */}
-              {(data.booking.status === 'completed' || data.bookingAmount > 0) && (
+              {(data.booking.status === 'completed' || data.bookingAmount > 0 || !['cancelled', 'completed'].includes(data.booking.status)) && (
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-3">Actions</h4>
                   <div className="flex flex-wrap gap-3">
@@ -476,6 +512,43 @@ export function BookingDetailsModal({
                         tableNumber={data.booking.table_number}
                         onRefundComplete={handleStatusChange}
                       />
+                    )}
+                    {/* Cancel button - show for active reservations (not cancelled or completed) */}
+                    {!['cancelled', 'completed'].includes(data.booking.status) && !isServer && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" className="text-destructive hover:text-destructive">
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Cancel Reservation
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancel Reservation?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will cancel the reservation for {data.booking.customer_name} at {data.booking.section.name}.
+                              {data.bookingAmount > 0 && data.totalRefunded < data.bookingAmount && (
+                                <span className="block mt-2 text-amber-600 dark:text-amber-400">
+                                  Note: This reservation has a deposit of {formatCurrency(data.bookingAmount - data.totalRefunded)} that has not been refunded.
+                                </span>
+                              )}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep Reservation</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleCancel}
+                              disabled={isCancelling}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {isCancelling ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : null}
+                              Cancel Reservation
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
                 </div>

@@ -262,17 +262,21 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
               )}
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="rounded-full bg-green-100 dark:bg-green-900/20 p-2">
-                    <Armchair className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  <div className={`rounded-full p-2 ${bookingDetails.amount > 0 ? 'bg-green-100 dark:bg-green-900/20' : 'bg-amber-100 dark:bg-amber-900/20'}`}>
+                    <Armchair className={`h-6 w-6 ${bookingDetails.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`} />
                   </div>
                   <CardTitle className="text-2xl">
-                    {(bookingDetails.totalTables || 1) > 1 ? 'Tables Reserved!' : 'Table Reserved!'}
+                    {bookingDetails.amount > 0
+                      ? ((bookingDetails.totalTables || 1) > 1 ? 'Tables Reserved!' : 'Table Reserved!')
+                      : 'Request Submitted!'}
                   </CardTitle>
                 </div>
                 <CardDescription>
-                  {(bookingDetails.totalTables || 1) > 1
-                    ? `Your ${bookingDetails.totalTables} tables have been successfully reserved`
-                    : 'Your table has been successfully reserved'}
+                  {bookingDetails.amount > 0
+                    ? ((bookingDetails.totalTables || 1) > 1
+                        ? `Your ${bookingDetails.totalTables} tables have been successfully reserved`
+                        : 'Your table has been successfully reserved')
+                    : 'Your reservation request has been submitted for review'}
                 </CardDescription>
               </div>
             </div>
@@ -303,9 +307,12 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
               </div>
             </div>
 
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-              <p className="text-sm text-green-900 dark:text-green-100">
-                A confirmation email with your table reservation details will be sent to <strong>{bookingDetails.customerEmail}</strong> shortly.
+            <div className={`rounded-lg p-4 ${bookingDetails.amount > 0 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'}`}>
+              <p className={`text-sm ${bookingDetails.amount > 0 ? 'text-green-900 dark:text-green-100' : 'text-amber-900 dark:text-amber-100'}`}>
+                {bookingDetails.amount > 0
+                  ? <>A confirmation email with your table reservation details will be sent to <strong>{bookingDetails.customerEmail}</strong> shortly.</>
+                  : <>Your request is pending approval. You&apos;ll receive a confirmation email at <strong>{bookingDetails.customerEmail}</strong> once the venue reviews your request.</>
+                }
               </p>
             </div>
 

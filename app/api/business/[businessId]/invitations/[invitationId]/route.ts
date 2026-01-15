@@ -3,6 +3,7 @@ import { verifyBusinessAccess } from '@/lib/auth/business-session'
 import { deleteInvitation, resendInvitation } from '@/lib/db/invitations'
 import { createClient } from '@/lib/supabase/server'
 import { canAccessSection, type BusinessRole } from '@/lib/auth/roles'
+import { sendInvitationEmail } from '@/lib/sendgrid'
 
 export async function DELETE(
   request: NextRequest,
@@ -89,8 +90,19 @@ export async function POST(
 
     if (action === 'resend') {
       const updated = await resendInvitation(invitationId)
-      
-      // TODO: Send invitation email/SMS here
+
+      // Send invitation email if email exists
+      if (updated.email) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
+        const inviteUrl = `${appUrl}/invitations/${updated.token}`
+
+        sendInvitationEmail({
+          to: updated.email,
+          businessName: updated.business?.name || 'a business',
+          inviteUrl,
+          role: updated.role as BusinessRole,
+        }).catch(err => console.error('Failed to send invitation email:', err))
+      }
 
       return NextResponse.json({
         success: true,

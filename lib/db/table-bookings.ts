@@ -17,6 +17,7 @@ export interface EventWithTableInfo {
     confirmed: number
     reserved: number
     completed: number
+    cancelled: number
   }
 }
 
@@ -69,20 +70,21 @@ export async function getEventsWithTableService(businessId: string): Promise<Eve
     .in('event_id', eventIds)
     .eq('is_enabled', true)
 
-  // Get all bookings (not cancelled) for counting
+  // Get all bookings for counting (including cancelled for the cancelled count display)
   const { data: tableBookings } = await supabase
     .from('table_bookings')
     .select('event_id, status, table_number')
     .in('event_id', eventIds)
-    .neq('status', 'cancelled')
 
   // Aggregate data per event
   return events.map(event => {
     const eventSections = tableSections?.filter(s => s.event_id === event.id) || []
-    // All bookings (not cancelled) for the count
+    // All bookings for status display
     const allBookings = tableBookings?.filter(b => b.event_id === event.id) || []
+    // Active bookings (not cancelled) for counting active reservations
+    const activeBookings = allBookings.filter(b => b.status !== 'cancelled')
     // Bookings occupying a table: has table assigned, not cancelled, not completed
-    const occupyingBookings = allBookings.filter(b => b.status !== 'completed' && b.table_number !== null)
+    const occupyingBookings = activeBookings.filter(b => b.status !== 'completed' && b.table_number !== null)
 
     // Use tableCount from business config (source of truth) or fall back to stored total_tables
     const totalTables = eventSections.reduce((sum, s) => {
@@ -101,11 +103,12 @@ export async function getEventsWithTableService(businessId: string): Promise<Eve
 
     // Count bookings by status
     const bookingsByStatus = {
-      seated: allBookings.filter(b => b.status === 'seated').length,
-      arrived: allBookings.filter(b => b.status === 'arrived').length,
-      confirmed: allBookings.filter(b => b.status === 'confirmed').length,
-      reserved: allBookings.filter(b => b.status === 'reserved').length,
-      completed: allBookings.filter(b => b.status === 'completed').length,
+      seated: activeBookings.filter(b => b.status === 'seated').length,
+      arrived: activeBookings.filter(b => b.status === 'arrived').length,
+      confirmed: activeBookings.filter(b => b.status === 'confirmed').length,
+      reserved: activeBookings.filter(b => b.status === 'reserved').length,
+      completed: activeBookings.filter(b => b.status === 'completed').length,
+      cancelled: allBookings.filter(b => b.status === 'cancelled').length,
     }
 
     return {
@@ -116,7 +119,7 @@ export async function getEventsWithTableService(businessId: string): Promise<Eve
       location: event.location,
       image_url: event.image_url,
       status: event.status,
-      table_bookings_count: allBookings.length,
+      table_bookings_count: activeBookings.length,
       total_tables: totalTables,
       available_tables: availableTables,
       bookings_by_status: bookingsByStatus,
@@ -178,7 +181,6 @@ export async function getTableBookingsByBusinessId(businessId: string, eventId?:
       )
     `)
     .eq('events.business_id', businessId)
-    .neq('status', 'cancelled')
     .order('created_at', { ascending: false })
 
   // Filter by event if provided
@@ -191,6 +193,15 @@ export async function getTableBookingsByBusinessId(businessId: string, eventId?:
   if (error) {
     console.error('Error fetching table bookings:', error)
     return []
+  }
+
+  // Debug: Log status counts
+  if (data) {
+    const statusCounts = data.reduce((acc: Record<string, number>, b: any) => {
+      acc[b.status] = (acc[b.status] || 0) + 1
+      return acc
+    }, {})
+    console.log('Table bookings status counts:', statusCounts)
   }
 
   if (!data) {

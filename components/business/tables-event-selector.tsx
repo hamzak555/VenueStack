@@ -27,6 +27,7 @@ interface EventWithTableInfo {
     confirmed: number
     reserved: number
     completed: number
+    cancelled: number
   }
 }
 
@@ -294,6 +295,11 @@ export function TablesEventSelector({ events, businessSlug, title }: TablesEvent
                                 {event.bookings_by_status.reserved > 0 && (
                                   <Badge variant="secondary" className="text-xs">
                                     {event.bookings_by_status.reserved} Reserved
+                                  </Badge>
+                                )}
+                                {event.bookings_by_status.cancelled > 0 && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    {event.bookings_by_status.cancelled} Cancelled
                                   </Badge>
                                 )}
                                 {event.table_bookings_count === 0 && (

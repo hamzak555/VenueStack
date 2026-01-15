@@ -1568,9 +1568,12 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                   </div>
                 )}
 
-                {/* Complete Free Table Reservation Button - Shows for $0 table bookings */}
+                {/* Submit Request Button - Shows for $0 table bookings (no deposit required) */}
                 {checkoutMode === 'tables' && !clientSecret && totalTables > 0 && customerInfo.name.trim() && customerInfo.email.trim() && customerInfo.phone.trim() && isTableFreeBooking() && (
-                  <div className="pt-4 border-t">
+                  <div className="pt-4 border-t space-y-3">
+                    <p className="text-xs text-muted-foreground text-center">
+                      Your request will be reviewed by the venue. You&apos;ll receive a confirmation email once approved.
+                    </p>
                     <Button
                       type="button"
                       onClick={completeFreeTableBooking}
@@ -1581,10 +1584,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ businessSlu
                       {isCompletingFreeTableBooking ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
+                          Submitting...
                         </>
                       ) : (
-                        'Complete Reservation'
+                        'Submit Request'
                       )}
                     </Button>
                   </div>

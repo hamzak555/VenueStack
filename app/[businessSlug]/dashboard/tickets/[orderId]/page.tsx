@@ -4,8 +4,9 @@ import { getOrderById } from '@/lib/db/orders'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Mail, ExternalLink } from 'lucide-react'
+import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { DownloadTicketsButton } from '@/components/business/download-tickets-button'
+import { ResendTicketsButton } from '@/components/business/resend-tickets-button'
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency } from '@/lib/utils/currency'
 import { OrderTicketsDisplay } from '@/components/business/order-tickets-display'
@@ -214,10 +215,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   orderId={order.id}
                   orderNumber={order.order_number}
                 />
-                <Button variant="outline" disabled>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Resend Tickets
-                </Button>
+                <ResendTicketsButton
+                  orderId={order.id}
+                  customerEmail={order.customer_email}
+                />
                 <RefundDialog
                   orderId={order.id}
                   orderNumber={order.order_number}
@@ -225,9 +226,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   totalRefunded={totalRefunded}
                 />
               </div>
-              <p className="text-xs text-muted-foreground mt-4">
-                Note: Resend tickets functionality coming soon
-              </p>
             </CardContent>
           </Card>
 

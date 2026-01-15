@@ -140,6 +140,7 @@ export function TablesLayoutView({
   const [unseatedOpen, setUnseatedOpen] = useState(true)
   const [seatedOpen, setSeatedOpen] = useState(true)
   const [completedOpen, setCompletedOpen] = useState(false)
+  const [cancelledOpen, setCancelledOpen] = useState(false)
   const [initialBookingHandled, setInitialBookingHandled] = useState(false)
 
   // Check if user can manage servers (owner/manager only)
@@ -333,11 +334,13 @@ export function TablesLayoutView({
   // Exclude only cancelled bookings - show completed reservations
   // For servers: only show bookings for their assigned tables
   const filteredBookings = useMemo(() => {
-    let filtered = bookings.filter(b => b.status !== 'cancelled')
+    let filtered = [...bookings]
 
-    // For servers: filter to only show bookings for their assigned tables
+    // For servers: filter to only show bookings for their assigned tables (exclude cancelled)
     if (isServer && serverAssignedTables) {
       filtered = filtered.filter(b => {
+        // Servers don't see cancelled bookings
+        if (b.status === 'cancelled') return false
         if (!b.table_number) return false
         // Get the business section ID from the event table section
         const businessSectionId = eventToBusinessSectionMap[b.event_table_section_id]
@@ -377,14 +380,17 @@ export function TablesLayoutView({
     })
   }, [bookings, searchQuery, sortOption, isServer, serverAssignedTables, eventToBusinessSectionMap])
 
-  // Group bookings into Unseated, Seated, and Completed categories
+  // Group bookings into Unseated, Seated, Completed, and Cancelled categories
   const groupedBookings = useMemo(() => {
     const unseated: TableBooking[] = []
     const seated: TableBooking[] = []
     const completed: TableBooking[] = []
+    const cancelled: TableBooking[] = []
 
     for (const booking of filteredBookings) {
-      if (booking.status === 'completed') {
+      if (booking.status === 'cancelled') {
+        cancelled.push(booking)
+      } else if (booking.status === 'completed') {
         completed.push(booking)
       } else if (booking.status === 'seated' || booking.status === 'arrived') {
         seated.push(booking)
@@ -394,7 +400,7 @@ export function TablesLayoutView({
       }
     }
 
-    return { unseated, seated, completed }
+    return { unseated, seated, completed, cancelled }
   }, [filteredBookings])
 
   // Get table position from the business config
@@ -686,6 +692,31 @@ export function TablesLayoutView({
     }
   }
 
+  const handleCancel = async (bookingId: string) => {
+    setMarkingArrived(bookingId)
+    try {
+      const response = await fetch(`/api/table-bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'cancelled' }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to cancel reservation')
+      }
+
+      toast.success('Reservation cancelled')
+      setSelectedTable(null)
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel')
+    } finally {
+      setMarkingArrived(null)
+    }
+  }
+
   const handleTableClick = (e: React.MouseEvent, sectionId: string, tableIndex: number, tableName: string, hasBooking: boolean) => {
     e.stopPropagation()
 
@@ -967,6 +998,17 @@ export function TablesLayoutView({
                                     )}
                                   </span>
                                 </DropdownMenuItem>
+                                {!isServer && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => handleCancel(booking.id)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      Cancel Reservation
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1090,6 +1132,17 @@ export function TablesLayoutView({
                                     Assign Server
                                   </DropdownMenuItem>
                                 )}
+                                {!isServer && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => handleCancel(booking.id)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      Cancel Reservation
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1181,6 +1234,86 @@ export function TablesLayoutView({
                   ))}
                   {groupedBookings.completed.length === 0 && (
                     <p className="text-xs text-muted-foreground text-center py-2">No completed reservations</p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Cancelled Section */}
+              <Collapsible open={cancelledOpen} onOpenChange={setCancelledOpen}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1.5 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className={`h-4 w-4 transition-transform ${cancelledOpen ? '' : '-rotate-90'}`} />
+                    <span className="font-medium text-sm">Cancelled</span>
+                    <Badge variant="destructive" className="text-xs h-5 px-1.5">{groupedBookings.cancelled.length}</Badge>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 mt-2">
+                  {groupedBookings.cancelled.map(booking => (
+                    <Card
+                      key={booking.id}
+                      className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30 opacity-60"
+                      onClick={() => setDetailsModalBooking(booking)}
+                    >
+                      <CardContent className="px-3 py-1.5">
+                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-1">
+                          <span>
+                            Table{' '}
+                            <span className="font-medium text-foreground">
+                              {booking.table_number || '—'}
+                            </span>
+                          </span>
+                          {booking.amount != null && booking.amount > 0 && (
+                            <span className="font-medium text-muted-foreground">Deposit {formatCurrency(booking.amount, false)}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{booking.customer_name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{booking.section_name}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant="destructive" className="text-xs">
+                              Cancelled
+                            </Badge>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem onClick={() => setDetailsModalBooking(booking)}>
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleReopen(booking.id)}>
+                                  Reopen
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setNotesModalBooking(booking)}>
+                                  <span className="flex items-center gap-2">
+                                    Add Notes
+                                    {booking.notes && booking.notes.length > 0 && (
+                                      <span className="inline-flex items-center justify-center h-5 min-w-5 px-1 text-[10px] font-medium bg-green-500 text-white rounded-full">
+                                        {booking.notes.length}
+                                      </span>
+                                    )}
+                                  </span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {groupedBookings.cancelled.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">No cancelled reservations</p>
                   )}
                 </CollapsibleContent>
               </Collapsible>

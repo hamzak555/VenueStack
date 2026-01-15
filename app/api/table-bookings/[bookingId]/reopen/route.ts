@@ -41,10 +41,10 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only allow reopening 'completed' bookings
-    if (booking.status !== 'completed') {
+    // Only allow reopening 'completed' or 'cancelled' bookings
+    if (booking.status !== 'completed' && booking.status !== 'cancelled') {
       return NextResponse.json(
-        { error: 'Only completed reservations can be reopened' },
+        { error: 'Only completed or cancelled reservations can be reopened' },
         { status: 400 }
       )
     }

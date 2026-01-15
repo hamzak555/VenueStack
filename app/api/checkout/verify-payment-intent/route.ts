@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { updateTicketTypeAvailability } from '@/lib/db/ticket-types'
 import { incrementPromoCodeUsage } from '@/lib/db/promo-codes'
 import { getTrackingLinkByRefCode } from '@/lib/db/tracking-links'
-import { sendTicketConfirmationEmail } from '@/lib/sendgrid'
+import { sendTicketConfirmationEmail, sendTableReservationConfirmedEmail } from '@/lib/sendgrid'
 import { nanoid } from 'nanoid'
 
 export async function GET(request: NextRequest) {
@@ -560,6 +560,35 @@ async function handleTableBookingVerification(
       console.error('Error sending broadcast notification:', broadcastError)
       // Continue anyway - booking was created successfully
     }
+
+    // Send confirmation email for paid table reservation
+    const tableLineItems = parsedOrderDetails.map(detail => ({
+      name: detail.sectionName,
+      quantity: detail.quantity,
+      price: detail.price,
+      depositType: 'paid' as const,
+    }))
+
+    const platformFee = parseFloat(metadata.platformFeeStr || '0')
+    const stripeFee = parseFloat(metadata.stripeFeeStr || '0')
+    const totalAmount = paymentIntent.amount / 100
+
+    sendTableReservationConfirmedEmail({
+      to: customerEmail,
+      customerName,
+      reservationNumber: createdBookings[0]?.id || paymentIntent.id,
+      eventTitle: event.title,
+      eventDate: event.event_date,
+      eventTime: event.event_time,
+      eventLocation: event.location,
+      eventImageUrl: event.image_url,
+      tables: tableLineItems,
+      subtotal: totalTablePrice,
+      taxAmount: totalTaxAmount,
+      processingFees: platformFee + stripeFee,
+      total: totalAmount,
+      paymentMethod: 'Card',
+    }).catch(err => console.error('Failed to send table reservation confirmation email:', err))
   }
 
   return NextResponse.json({

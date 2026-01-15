@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe/server'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
 import { isServerRole, type BusinessRole } from '@/lib/auth/roles'
+import { sendTableRefundEmail } from '@/lib/sendgrid'
 
 export async function POST(
   request: NextRequest,
@@ -163,31 +164,24 @@ export async function POST(
       // Note: The Stripe refund was already processed
     }
 
-    // Update booking status if fully refunded
+    // Calculate new total refunded (don't auto-cancel - let business cancel manually)
     const newTotalRefunded = totalRefunded + amount
-    const bookingAmount = parseFloat(booking.amount?.toString() || '0')
 
-    // Calculate how much of this specific booking has been refunded
-    const { data: bookingRefunds } = await supabase
-      .from('table_booking_refunds')
-      .select('amount')
-      .eq('table_booking_id', bookingId)
-      .eq('status', 'succeeded')
+    // Keep the current status - refunds don't affect reservation status
+    // Business can manually cancel the reservation if needed
+    const newStatus = booking.status
 
-    const bookingTotalRefunded = (bookingRefunds?.reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0) || 0) + amount
-
-    // Update booking status based on refund
-    let newStatus = booking.status
-    if (bookingTotalRefunded >= bookingAmount) {
-      newStatus = 'cancelled' // Fully refunded
-    }
-
-    if (newStatus !== booking.status) {
-      await supabase
-        .from('table_bookings')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', bookingId)
-    }
+    // Send refund email to customer
+    const event = booking.events
+    sendTableRefundEmail({
+      to: booking.customer_email,
+      customerName: booking.customer_name || booking.customer_email.split('@')[0],
+      reservationNumber: bookingId,
+      eventTitle: event.title,
+      eventDate: event.event_date,
+      eventTime: event.event_time,
+      refundAmount: amount,
+    }).catch(err => console.error('Failed to send table refund email:', err))
 
     return NextResponse.json({
       success: true,

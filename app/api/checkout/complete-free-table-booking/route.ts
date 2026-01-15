@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getTrackingLinkByRefCode } from '@/lib/db/tracking-links'
+import { sendTableReservationReceivedEmail } from '@/lib/sendgrid'
 import { nanoid } from 'nanoid'
 
 export async function POST(request: NextRequest) {
@@ -248,6 +249,32 @@ export async function POST(request: NextRequest) {
         console.error('Error sending broadcast notification:', broadcastError)
         // Continue anyway - booking was created successfully
       }
+
+      // Send "request received" email for free table reservation
+      const tableLineItems = orderDetails.map(detail => ({
+        name: detail.sectionName,
+        quantity: detail.quantity,
+        price: detail.price,
+        depositType: 'free' as const,
+      }))
+
+      sendTableReservationReceivedEmail({
+        to: customerEmail,
+        customerName,
+        reservationNumber: createdBookings[0]?.id || orderId,
+        eventTitle: event.title,
+        eventDate: event.event_date,
+        eventTime: event.event_time,
+        eventLocation: event.location,
+        eventImageUrl: event.image_url,
+        tables: tableLineItems,
+        subtotal: 0,
+        taxAmount: 0,
+        processingFees: 0,
+        total: 0,
+        paymentMethod: 'No deposit required',
+        hasFreeTablesOnly: true,
+      }).catch(err => console.error('Failed to send table reservation received email:', err))
     }
 
     return NextResponse.json({

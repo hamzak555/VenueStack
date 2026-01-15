@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe/server'
+import { sendTicketRefundEmail } from '@/lib/sendgrid'
 
 export async function POST(
   request: NextRequest,
@@ -35,8 +36,8 @@ export async function POST(
     }
 
     // Calculate the amount that was transferred to the business
-    // This is subtotal - discount + tax (the business revenue)
-    const businessTransferAmount = order.subtotal - order.discount_amount + (order.tax_amount || 0)
+    // This is total minus platform and stripe fees (what the business actually received)
+    const businessTransferAmount = order.total - (order.platform_fee || 0) - (order.stripe_fee || 0)
 
     // Get all existing refunds for this order
     const { data: existingRefunds, error: refundsError } = await supabase
@@ -188,6 +189,18 @@ export async function POST(
     if (updateError) {
       console.error('Error updating order status:', updateError)
     }
+
+    // Send refund email to customer
+    const event = order.events
+    sendTicketRefundEmail({
+      to: order.customer_email,
+      customerName: order.customer_name || order.customer_email.split('@')[0],
+      orderNumber: order.order_number,
+      eventTitle: event.title,
+      eventDate: event.date,
+      eventTime: event.start_time,
+      refundAmount: amount,
+    }).catch(err => console.error('Failed to send refund email:', err))
 
     return NextResponse.json({
       success: true,
