@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { updateTicketTypeAvailability } from '@/lib/db/ticket-types'
 import { incrementPromoCodeUsage } from '@/lib/db/promo-codes'
 import { getTrackingLinkByRefCode } from '@/lib/db/tracking-links'
+import { sendTicketConfirmationEmail } from '@/lib/sendgrid'
 import { nanoid } from 'nanoid'
 
 export async function GET(request: NextRequest) {
@@ -272,6 +273,51 @@ export async function GET(request: NextRequest) {
         await supabase
           .from('tickets')
           .insert(ticketsToCreate)
+
+        // Build ticket line items for email
+        const ticketLineItems: { name: string; quantity: number; price: number }[] = []
+
+        if (hasTicketTypes === 'true' && ticketTypesJson) {
+          try {
+            const ticketTypesMetadata = JSON.parse(ticketTypesJson)
+            for (const [, data] of Object.entries(ticketTypesMetadata)) {
+              const { name, price, quantity: qty } = data as { name: string; price: number; quantity: number }
+              ticketLineItems.push({ name, quantity: qty, price })
+            }
+          } catch {
+            // Fallback
+            ticketLineItems.push({
+              name: 'General Admission',
+              quantity: ticketQuantity,
+              price: subtotal / ticketQuantity,
+            })
+          }
+        } else {
+          ticketLineItems.push({
+            name: 'General Admission',
+            quantity: ticketQuantity,
+            price: subtotal / ticketQuantity,
+          })
+        }
+
+        // Send confirmation email (fire and forget)
+        sendTicketConfirmationEmail({
+          to: customerEmail,
+          customerName,
+          orderNumber,
+          eventTitle: event.title,
+          eventDate: event.event_date,
+          eventTime: event.event_time,
+          eventLocation: event.location,
+          eventImageUrl: event.image_url,
+          tickets: ticketLineItems,
+          subtotal,
+          discountAmount,
+          promoCode: promoCodeUsed,
+          taxAmount,
+          platformFee,
+          total: totalAmount,
+        }).catch((err) => console.error('Failed to send ticket confirmation email:', err))
       }
     } catch (error) {
       console.error('Error creating order record:', error)

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getTicketTypesByIds, decrementTicketQuantity } from '@/lib/db/ticket-types'
 import { getPromoCodeById, incrementPromoCodeUsage } from '@/lib/db/promo-codes'
 import { getTrackingLinkByRefCode } from '@/lib/db/tracking-links'
+import { sendTicketConfirmationEmail } from '@/lib/sendgrid'
 import { nanoid } from 'nanoid'
 
 export async function POST(request: NextRequest) {
@@ -38,6 +39,10 @@ export async function POST(request: NextRequest) {
         ticket_price,
         available_tickets,
         status,
+        event_date,
+        event_time,
+        location,
+        image_url,
         businesses (
           id,
           tax_percentage,
@@ -257,6 +262,41 @@ export async function POST(request: NextRequest) {
     if (promoCode) {
       await incrementPromoCodeUsage(promoCode.id)
     }
+
+    // Build ticket line items for email
+    const ticketLineItems = Object.values(ticketTypeMetadata).map((t) => ({
+      name: t.name,
+      quantity: t.quantity,
+      price: t.price,
+    }))
+
+    // Fallback for legacy single-price tickets
+    if (ticketLineItems.length === 0 && quantity) {
+      ticketLineItems.push({
+        name: 'General Admission',
+        quantity: quantity,
+        price: event.ticket_price || 0,
+      })
+    }
+
+    // Send confirmation email (fire and forget)
+    sendTicketConfirmationEmail({
+      to: customerEmail,
+      customerName,
+      orderNumber: order.order_number,
+      eventTitle: event.title,
+      eventDate: event.event_date,
+      eventTime: event.event_time,
+      eventLocation: event.location,
+      eventImageUrl: event.image_url,
+      tickets: ticketLineItems,
+      subtotal: ticketSubtotalInCents / 100,
+      discountAmount: discountAmount / 100,
+      promoCode: promoCode?.code,
+      taxAmount: 0,
+      platformFee: 0,
+      total: 0,
+    }).catch((err) => console.error('Failed to send ticket confirmation email:', err))
 
     return NextResponse.json({
       orderId: order.id,

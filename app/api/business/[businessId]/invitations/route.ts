@@ -137,6 +137,7 @@ export async function POST(
           to: existingUser.email,
           businessName: business.name,
           role,
+          themeColor: business.theme_color,
         }).catch(err => console.error('Failed to send added-to-business email:', err))
       }
 
