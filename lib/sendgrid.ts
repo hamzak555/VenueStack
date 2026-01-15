@@ -254,6 +254,8 @@ export async function sendTicketConfirmationEmail({
   paymentMethod?: string | null
 }): Promise<boolean> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jovbrnjczxnppzqvjkji.supabase.co'
+  const emailImagesUrl = `${supabaseUrl}/storage/v1/object/public/Email%20Images`
 
   // Format date nicely
   const formattedDate = eventDate ? new Date(eventDate).toLocaleDateString('en-US', {
@@ -463,7 +465,7 @@ Present your tickets at the door by showing the QR code on your phone or printed
               <tr>
                 <td style="border-bottom: 1px solid #e4e4e7; padding: 24px 40px;" align="left">
                   <!-- Logo -->
-                  <img src="${appUrl}/VS%20Logo%20Black.png" alt="VenueStack" width="140" height="auto" style="display: block; border: 0; outline: none;">
+                  <img src="${emailImagesUrl}/VS%20Logo%20Black.png" alt="VenueStack" width="140" height="auto" style="display: block; border: 0; outline: none;">
                 </td>
               </tr>
             </tbody>
@@ -615,7 +617,7 @@ Present your tickets at the door by showing the QR code on your phone or printed
               <tr>
                 <td style="padding: 32px 40px;" align="left">
                   <!-- Icon -->
-                  <img src="${appUrl}/VS%20Icon%20White.png" alt="VenueStack" width="24" height="24" style="display: block; margin: 0 0 24px 0; border: 0; outline: none; opacity: 0.6;">
+                  <img src="${emailImagesUrl}/VS%20Icon%20White.png" alt="VenueStack" width="24" height="24" style="display: block; margin: 0 0 24px 0; border: 0; outline: none; opacity: 0.6;">
                   <!-- Divider -->
                   <div style="border-top: 1px solid #3f3f46; width: 100%; margin: 16px 0;"></div>
                   <!-- Reason for email -->
