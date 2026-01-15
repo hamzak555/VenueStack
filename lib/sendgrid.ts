@@ -22,14 +22,10 @@ interface EmailOptions {
  * Send an email using SendGrid
  */
 export async function sendEmail({ to, subject, text, html }: EmailOptions): Promise<boolean> {
-  console.log('sendEmail called:', { to, subject: subject?.substring(0, 50), hasHtml: !!html })
-
   if (!SENDGRID_API_KEY) {
     console.warn('SendGrid API key not configured. Email not sent.')
     return false
   }
-
-  console.log('SendGrid API key is configured, attempting to send...')
 
   try {
     await sgMail.send({
@@ -42,11 +38,10 @@ export async function sendEmail({ to, subject, text, html }: EmailOptions): Prom
       text,
       html: html || text,
     })
-    console.log(`Email successfully sent to ${to}`)
+    console.log(`Email sent to ${to}`)
     return true
   } catch (error: any) {
-    console.error('SendGrid error:', error?.message || error)
-    console.error('SendGrid error details:', JSON.stringify(error?.response?.body || {}, null, 2))
+    console.error('SendGrid error:', error?.message || error, error?.response?.body || '')
     return false
   }
 }
@@ -258,7 +253,6 @@ export async function sendTicketConfirmationEmail({
   total: number
   paymentMethod?: string | null
 }): Promise<boolean> {
-  console.log('sendTicketConfirmationEmail called with:', { to, orderNumber, eventTitle, ticketCount: tickets?.length })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
 
   // Format date nicely

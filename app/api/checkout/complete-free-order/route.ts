@@ -279,8 +279,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Send confirmation email (awaited for serverless)
-    console.log('Sending ticket confirmation email to:', customerEmail, 'for order:', order.order_number)
+    // Send confirmation email
     try {
       await sendTicketConfirmationEmail({
         to: customerEmail,
