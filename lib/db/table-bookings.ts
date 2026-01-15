@@ -195,15 +195,6 @@ export async function getTableBookingsByBusinessId(businessId: string, eventId?:
     return []
   }
 
-  // Debug: Log status counts
-  if (data) {
-    const statusCounts = data.reduce((acc: Record<string, number>, b: any) => {
-      acc[b.status] = (acc[b.status] || 0) + 1
-      return acc
-    }, {})
-    console.log('Table bookings status counts:', statusCounts)
-  }
-
   if (!data) {
     return []
   }
