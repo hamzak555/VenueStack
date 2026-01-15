@@ -436,7 +436,7 @@ Present your tickets at the door by showing the QR code on your phone or printed
     <![endif]-->
     <style type="text/css">
       @media only screen and (max-width:480px) {
-        .body { padding-left: 16px !important; padding-right: 16px !important }
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
         .header-padding { padding-left: 20px !important; padding-right: 20px !important }
         .content-padding { padding: 24px 20px !important }
         .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
@@ -635,10 +635,7 @@ Present your tickets at the door by showing the QR code on your phone or printed
                   </div>
                   <!-- Legal Text -->
                   <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
-                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved.
-                  </div>
-                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 8px;">
-                    <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appUrl}/support" style="color: #a1a1aa; text-decoration: underline;">Contact Support</a>
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
                   </div>
                 </td>
               </tr>
@@ -668,7 +665,6 @@ export async function sendTicketRefundEmail({
   eventDate,
   eventTime,
   refundAmount,
-  refundReason,
 }: {
   to: string
   customerName: string
@@ -677,7 +673,6 @@ export async function sendTicketRefundEmail({
   eventDate: string
   eventTime?: string | null
   refundAmount: number
-  refundReason?: string | null
 }): Promise<boolean> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jovbrnjczxnppzqvjkji.supabase.co'
@@ -705,15 +700,6 @@ export async function sendTicketRefundEmail({
 
   const subject = `Refund Processed for ${eventTitle} - Order #${orderNumber}`
 
-  const reasonHtml = refundReason ? `
-    <tr>
-      <td style="padding: 0 0 12px 0;">
-        <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Reason</div>
-        <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">${refundReason}</div>
-      </td>
-    </tr>
-  ` : ''
-
   const text = `
 Refund Processed
 
@@ -725,7 +711,6 @@ Event: ${eventTitle}
 Date: ${formattedDateTime}
 Order Number: #${orderNumber}
 Refund Amount: $${refundAmount.toFixed(2)}
-${refundReason ? `Reason: ${refundReason}` : ''}
 
 The refund will be credited to your original payment method within 5-10 business days.
 
@@ -764,7 +749,7 @@ If you have any questions, please contact the event organizer.
     <![endif]-->
     <style type="text/css">
       @media only screen and (max-width:480px) {
-        .body { padding-left: 16px !important; padding-right: 16px !important }
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
         .header-padding { padding-left: 20px !important; padding-right: 20px !important }
         .content-padding { padding: 24px 20px !important }
         .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
@@ -858,7 +843,6 @@ If you have any questions, please contact the event organizer.
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">#${orderNumber}</div>
                                         </td>
                                       </tr>
-                                      ${reasonHtml}
                                       <tr>
                                         <td style="padding: 0;">
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Refund Amount</div>
@@ -904,10 +888,7 @@ If you have any questions, please contact the event organizer.
                   </div>
                   <!-- Legal Text -->
                   <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
-                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved.
-                  </div>
-                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 8px;">
-                    <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appUrl}/support" style="color: #a1a1aa; text-decoration: underline;">Contact Support</a>
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
                   </div>
                 </td>
               </tr>
@@ -1147,7 +1128,7 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
     <![endif]-->
     <style type="text/css">
       @media only screen and (max-width:480px) {
-        .body { padding-left: 16px !important; padding-right: 16px !important }
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
         .header-padding { padding-left: 20px !important; padding-right: 20px !important }
         .content-padding { padding: 24px 20px !important }
         .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
@@ -1324,10 +1305,7 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
                   </div>
                   <!-- Legal Text -->
                   <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
-                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved.
-                  </div>
-                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 8px;">
-                    <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appUrl}/support" style="color: #a1a1aa; text-decoration: underline;">Contact Support</a>
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
                   </div>
                 </td>
               </tr>
@@ -1567,7 +1545,7 @@ IMPORTANT: Tables without a deposit are not guaranteed and require confirmation 
     <![endif]-->
     <style type="text/css">
       @media only screen and (max-width:480px) {
-        .body { padding-left: 16px !important; padding-right: 16px !important }
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
         .header-padding { padding-left: 20px !important; padding-right: 20px !important }
         .content-padding { padding: 24px 20px !important }
         .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
@@ -1766,10 +1744,7 @@ IMPORTANT: Tables without a deposit are not guaranteed and require confirmation 
                   </div>
                   <!-- Legal Text -->
                   <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
-                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved.
-                  </div>
-                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 8px;">
-                    <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appUrl}/support" style="color: #a1a1aa; text-decoration: underline;">Contact Support</a>
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
                   </div>
                 </td>
               </tr>
@@ -1893,7 +1868,7 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
     <![endif]-->
     <style type="text/css">
       @media only screen and (max-width:480px) {
-        .body { padding-left: 16px !important; padding-right: 16px !important }
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
         .header-padding { padding-left: 20px !important; padding-right: 20px !important }
         .content-padding { padding: 24px 20px !important }
         .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
@@ -2063,10 +2038,7 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
                   </div>
                   <!-- Legal Text -->
                   <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
-                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved.
-                  </div>
-                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 8px;">
-                    <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appUrl}/support" style="color: #a1a1aa; text-decoration: underline;">Contact Support</a>
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
                   </div>
                 </td>
               </tr>
@@ -2096,7 +2068,6 @@ export async function sendTableRefundEmail({
   eventDate,
   eventTime,
   refundAmount,
-  refundReason,
 }: {
   to: string
   customerName: string
@@ -2105,7 +2076,6 @@ export async function sendTableRefundEmail({
   eventDate: string
   eventTime?: string | null
   refundAmount: number
-  refundReason?: string | null
 }): Promise<boolean> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jovbrnjczxnppzqvjkji.supabase.co'
@@ -2133,15 +2103,6 @@ export async function sendTableRefundEmail({
 
   const subject = `Refund Processed for ${eventTitle} - Reservation #${reservationNumber}`
 
-  const reasonHtml = refundReason ? `
-    <tr>
-      <td style="padding: 0 0 12px 0;">
-        <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Reason</div>
-        <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">${refundReason}</div>
-      </td>
-    </tr>
-  ` : ''
-
   const text = `
 Refund Processed
 
@@ -2153,7 +2114,6 @@ Event: ${eventTitle}
 Date: ${formattedDateTime}
 Reservation Number: #${reservationNumber}
 Refund Amount: $${refundAmount.toFixed(2)}
-${refundReason ? `Reason: ${refundReason}` : ''}
 
 The refund will be credited to your original payment method within 5-10 business days.
 
@@ -2192,7 +2152,7 @@ If you have any questions, please contact the venue.
     <![endif]-->
     <style type="text/css">
       @media only screen and (max-width:480px) {
-        .body { padding-left: 16px !important; padding-right: 16px !important }
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
         .header-padding { padding-left: 20px !important; padding-right: 20px !important }
         .content-padding { padding: 24px 20px !important }
         .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
@@ -2286,7 +2246,6 @@ If you have any questions, please contact the venue.
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">#${reservationNumber}</div>
                                         </td>
                                       </tr>
-                                      ${reasonHtml}
                                       <tr>
                                         <td style="padding: 0;">
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Refund Amount</div>
@@ -2332,10 +2291,7 @@ If you have any questions, please contact the venue.
                   </div>
                   <!-- Legal Text -->
                   <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
-                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved.
-                  </div>
-                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 8px;">
-                    <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appUrl}/support" style="color: #a1a1aa; text-decoration: underline;">Contact Support</a>
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
                   </div>
                 </td>
               </tr>
