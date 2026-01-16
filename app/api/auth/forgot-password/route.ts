@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserByEmail } from '@/lib/db/users'
 import { sendPasswordResetEmail } from '@/lib/sendgrid'
 import { SignJWT } from 'jose'
+import { rateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit'
 
 const SECRET_KEY = new TextEncoder().encode(
   process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production'
@@ -16,6 +17,18 @@ export async function POST(request: NextRequest) {
         { error: 'Email is required' },
         { status: 400 }
       )
+    }
+
+    // Rate limit by IP and email to prevent spam
+    const ip = getClientIP(request)
+    const ipLimit = rateLimit(ip, 'password-reset-ip', RATE_LIMITS.passwordReset)
+    if (!ipLimit.success) {
+      return rateLimitResponse(ipLimit.resetIn)
+    }
+
+    const emailLimit = rateLimit(email.toLowerCase(), 'password-reset-email', RATE_LIMITS.passwordReset)
+    if (!emailLimit.success) {
+      return rateLimitResponse(emailLimit.resetIn)
     }
 
     // Look up the user

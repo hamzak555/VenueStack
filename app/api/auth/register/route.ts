@@ -4,9 +4,17 @@ import { createBusinessUserLink } from '@/lib/db/business-users'
 import { createUser, getUserByEmail } from '@/lib/db/users'
 import { normalizePhoneNumber } from '@/lib/twilio'
 import { validatePassword, getPasswordRequirements } from '@/lib/auth/password-validation'
+import { rateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP to prevent spam registrations
+    const ip = getClientIP(request)
+    const ipLimit = rateLimit(ip, 'registration', RATE_LIMITS.registration)
+    if (!ipLimit.success) {
+      return rateLimitResponse(ipLimit.resetIn)
+    }
+
     const body = await request.json()
     const { businessName, slug, userName, email, password, phone } = body
 

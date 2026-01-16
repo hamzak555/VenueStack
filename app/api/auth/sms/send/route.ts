@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendSMS, normalizePhoneNumber, generateVerificationCode } from '@/lib/twilio'
 import { getUserByPhone } from '@/lib/db/users'
+import { rateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +17,18 @@ export async function POST(request: NextRequest) {
 
     // Normalize the phone number
     const normalizedPhone = normalizePhoneNumber(phone)
+
+    // Rate limit by IP and phone to prevent SMS abuse
+    const ip = getClientIP(request)
+    const ipLimit = rateLimit(ip, 'sms-send-ip', RATE_LIMITS.smsSend)
+    if (!ipLimit.success) {
+      return rateLimitResponse(ipLimit.resetIn)
+    }
+
+    const phoneLimit = rateLimit(normalizedPhone, 'sms-send-phone', RATE_LIMITS.smsSend)
+    if (!phoneLimit.success) {
+      return rateLimitResponse(phoneLimit.resetIn)
+    }
 
     // Check if this phone number exists in our system
     let user = null

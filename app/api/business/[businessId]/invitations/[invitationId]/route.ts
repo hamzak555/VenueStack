@@ -4,6 +4,7 @@ import { deleteInvitation, resendInvitation } from '@/lib/db/invitations'
 import { createClient } from '@/lib/supabase/server'
 import { canAccessSection, type BusinessRole } from '@/lib/auth/roles'
 import { sendInvitationEmail } from '@/lib/sendgrid'
+import { rateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function DELETE(
   request: NextRequest,
@@ -89,6 +90,12 @@ export async function POST(
     }
 
     if (action === 'resend') {
+      // Rate limit resends per invitation
+      const resendLimit = rateLimit(invitationId, 'invitation-resend', RATE_LIMITS.invitationResend)
+      if (!resendLimit.success) {
+        return rateLimitResponse(resendLimit.resetIn)
+      }
+
       const updated = await resendInvitation(invitationId)
 
       // Send invitation email if email exists

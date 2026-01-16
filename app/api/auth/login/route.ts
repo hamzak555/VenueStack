@@ -3,6 +3,7 @@ import { verifyUserPassword } from '@/lib/db/users'
 import { getBusinessUsersByUserId } from '@/lib/db/business-users'
 import { cookies } from 'next/headers'
 import { SignJWT } from 'jose'
+import { rateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit'
 
 const SECRET_KEY = new TextEncoder().encode(
   process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production'
@@ -37,6 +38,18 @@ export async function POST(request: NextRequest) {
         { error: 'Email and password are required' },
         { status: 400 }
       )
+    }
+
+    // Rate limit by IP and email
+    const ip = getClientIP(request)
+    const ipLimit = rateLimit(ip, 'login-ip', RATE_LIMITS.login)
+    if (!ipLimit.success) {
+      return rateLimitResponse(ipLimit.resetIn)
+    }
+
+    const emailLimit = rateLimit(email.toLowerCase(), 'login-email', RATE_LIMITS.login)
+    if (!emailLimit.success) {
+      return rateLimitResponse(emailLimit.resetIn)
     }
 
     const affiliations: UserAffiliation[] = []

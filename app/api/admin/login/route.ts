@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyPlatformAdminPassword } from '@/lib/db/users'
 import { createAdminSession } from '@/lib/auth/admin-session'
+import { rateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,18 @@ export async function POST(request: NextRequest) {
         { error: 'Email and password are required' },
         { status: 400 }
       )
+    }
+
+    // Rate limit by IP and email
+    const ip = getClientIP(request)
+    const ipLimit = rateLimit(ip, 'admin-login-ip', RATE_LIMITS.login)
+    if (!ipLimit.success) {
+      return rateLimitResponse(ipLimit.resetIn)
+    }
+
+    const emailLimit = rateLimit(email.toLowerCase(), 'admin-login-email', RATE_LIMITS.login)
+    if (!emailLimit.success) {
+      return rateLimitResponse(emailLimit.resetIn)
     }
 
     // Verify credentials against users table with is_platform_admin flag

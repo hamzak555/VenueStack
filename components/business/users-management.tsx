@@ -30,14 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Trash2, Send, Clock, UserPlus, Copy, Check, Mail, Phone, HelpCircle, CheckCircle2, XCircle, MinusCircle, ChevronDown } from 'lucide-react'
+import { Trash2, Send, UserPlus, Copy, Check, Mail, Phone, CheckCircle2, XCircle, MinusCircle, ChevronDown } from 'lucide-react'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { PhoneInput } from '@/components/ui/phone-input'
-import { getInvitableRoles, ROLE_LABELS, type BusinessRole } from '@/lib/auth/roles'
+import { getInvitableRoles, canModifyUserRole, ROLE_LABELS, type BusinessRole } from '@/lib/auth/roles'
 
 interface User {
   id: string
@@ -65,9 +65,10 @@ interface UsersManagementProps {
   businessId: string
   businessSlug: string
   userRole: BusinessRole
+  currentUserId: string
 }
 
-export function UsersManagement({ businessId, businessSlug, userRole }: UsersManagementProps) {
+export function UsersManagement({ businessId, businessSlug, userRole, currentUserId }: UsersManagementProps) {
   const [users, setUsers] = useState<User[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loading, setLoading] = useState(true)
@@ -90,6 +91,11 @@ export function UsersManagement({ businessId, businessSlug, userRole }: UsersMan
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [copiedLink, setCopiedLink] = useState<string | null>(null)
+  const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null)
+  const [roleChangeError, setRoleChangeError] = useState<string | null>(null)
+  const [resendingInvitation, setResendingInvitation] = useState<string | null>(null)
+  const [resentInvitation, setResentInvitation] = useState<string | null>(null)
+  const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({})
 
   const fetchUsers = async () => {
     try {
@@ -180,6 +186,14 @@ export function UsersManagement({ businessId, businessSlug, userRole }: UsersMan
   }
 
   const handleResendInvitation = async (invitation: Invitation) => {
+    // Check cooldown (60 seconds)
+    const lastResent = resendCooldowns[invitation.id]
+    if (lastResent && Date.now() - lastResent < 60000) {
+      return
+    }
+
+    setResendingInvitation(invitation.id)
+
     try {
       const response = await fetch(`/api/business/${businessId}/invitations/${invitation.id}`, {
         method: 'POST',
@@ -195,10 +209,21 @@ export function UsersManagement({ businessId, businessSlug, userRole }: UsersMan
         throw new Error(data.error || 'Failed to resend invitation')
       }
 
+      // Set cooldown timestamp
+      setResendCooldowns(prev => ({ ...prev, [invitation.id]: Date.now() }))
+      setResentInvitation(invitation.id)
+      setTimeout(() => setResentInvitation(null), 2000)
       fetchInvitations()
     } catch (err) {
       console.error('Failed to resend invitation:', err)
+    } finally {
+      setResendingInvitation(null)
     }
+  }
+
+  const isResendOnCooldown = (invitationId: string): boolean => {
+    const lastResent = resendCooldowns[invitationId]
+    return !!lastResent && Date.now() - lastResent < 60000
   }
 
   const handleCancelInvitation = async () => {
@@ -261,6 +286,35 @@ export function UsersManagement({ businessId, businessSlug, userRole }: UsersMan
     setCopiedLink(invitation.id)
     setTimeout(() => setCopiedLink(null), 2000)
   }
+
+  const handleRoleChange = async (userId: string, newRole: BusinessRole) => {
+    setRoleChangeLoading(userId)
+    setRoleChangeError(null)
+
+    try {
+      const response = await fetch(`/api/business/${businessId}/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update role')
+      }
+
+      fetchUsers()
+    } catch (err) {
+      setRoleChangeError(err instanceof Error ? err.message : 'Failed to update role')
+      setTimeout(() => setRoleChangeError(null), 3000)
+    } finally {
+      setRoleChangeLoading(null)
+    }
+  }
+
+  // Get roles that the current user can assign
+  const assignableRoles = getInvitableRoles(userRole)
 
   const openInviteDialog = () => {
     setFormData({ email: '', phone: '', role: defaultRole })
@@ -397,6 +451,11 @@ export function UsersManagement({ businessId, businessSlug, userRole }: UsersMan
           </div>
         </CardHeader>
         <CardContent>
+          {roleChangeError && (
+            <div className="text-sm text-red-500 bg-red-500/20 border border-red-500 rounded p-3 mb-4">
+              {roleChangeError}
+            </div>
+          )}
           {users.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">No team members yet</p>
@@ -424,9 +483,28 @@ export function UsersManagement({ businessId, businessSlug, userRole }: UsersMan
                     <TableCell>{user.email}</TableCell>
                     <TableCell className="text-muted-foreground">{user.phone || '-'}</TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'owner' ? 'default' : user.role === 'server' ? 'outline' : 'secondary'}>
-                        {ROLE_LABELS[user.role] || user.role}
-                      </Badge>
+                      {canModifyUserRole(userRole, user.role) && user.id !== currentUserId ? (
+                        <Select
+                          value={user.role}
+                          onValueChange={(value: BusinessRole) => handleRoleChange(user.id, value)}
+                          disabled={roleChangeLoading === user.id}
+                        >
+                          <SelectTrigger className="w-[130px] h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {assignableRoles.map((role) => (
+                              <SelectItem key={role} value={role}>
+                                {ROLE_LABELS[role]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant={user.role === 'owner' ? 'default' : user.role === 'server' ? 'outline' : 'secondary'}>
+                          {ROLE_LABELS[user.role] || user.role}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(user.created_at).toLocaleDateString()}
@@ -452,10 +530,7 @@ export function UsersManagement({ businessId, businessSlug, userRole }: UsersMan
       {pendingInvitations.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Pending Invitations
-            </CardTitle>
+            <CardTitle>Pending Invitations</CardTitle>
             <CardDescription>
               {pendingInvitations.length} pending invitation{pendingInvitations.length !== 1 ? 's' : ''}
             </CardDescription>
@@ -519,9 +594,16 @@ export function UsersManagement({ businessId, businessSlug, userRole }: UsersMan
                           variant="ghost"
                           size="sm"
                           onClick={() => handleResendInvitation(invitation)}
-                          title="Resend invitation"
+                          disabled={resendingInvitation === invitation.id || resentInvitation === invitation.id || isResendOnCooldown(invitation.id)}
+                          title={isResendOnCooldown(invitation.id) ? "Please wait before resending" : "Resend invitation"}
                         >
-                          <Send className="h-4 w-4" />
+                          {resentInvitation === invitation.id ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : resendingInvitation === invitation.id ? (
+                            <Send className="h-4 w-4 animate-pulse" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
                         </Button>
                         <Button
                           variant="ghost"
@@ -757,10 +839,7 @@ function RolePermissionsCard() {
         <CollapsibleTrigger className="w-full">
           <CardHeader className="cursor-pointer">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <HelpCircle className="h-5 w-5 text-muted-foreground" />
-                <CardTitle className="text-base">Role Permissions</CardTitle>
-              </div>
+              <CardTitle className="text-base">Role Permissions</CardTitle>
               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </div>
           </CardHeader>

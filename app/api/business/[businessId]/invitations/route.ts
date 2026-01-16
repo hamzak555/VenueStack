@@ -7,6 +7,7 @@ import { normalizePhoneNumber, sendSMS } from '@/lib/twilio'
 import { getBusinessById } from '@/lib/db/businesses'
 import { sendInvitationEmail, sendAddedToBusinessEmail } from '@/lib/sendgrid'
 import { canAccessSection, canInviteRole, VALID_ROLES, type BusinessRole } from '@/lib/auth/roles'
+import { rateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function GET(
   request: NextRequest,
@@ -50,6 +51,12 @@ export async function POST(
         { error: 'Unauthorized' },
         { status: 403 }
       )
+    }
+
+    // Rate limit by business to prevent invitation spam
+    const businessLimit = rateLimit(businessId, 'invitation-create', RATE_LIMITS.invitationCreate)
+    if (!businessLimit.success) {
+      return rateLimitResponse(businessLimit.resetIn)
     }
 
     const body = await request.json()

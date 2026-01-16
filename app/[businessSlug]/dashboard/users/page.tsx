@@ -21,7 +21,7 @@ export default async function UsersPage({ params }: UsersPageProps) {
         <h1 className="text-3xl font-bold tracking-tight">Users</h1>
       </div>
 
-      <UsersManagement businessId={business.id} businessSlug={businessSlug} userRole={session.role} />
+      <UsersManagement businessId={business.id} businessSlug={businessSlug} userRole={session.role} currentUserId={session.userId} />
     </div>
   )
 }

@@ -5,9 +5,17 @@ import { getBusinessFeeSettings, calculatePlatformFee } from '@/lib/db/platform-
 import { getTicketType } from '@/lib/db/ticket-types'
 import { getPromoCodeById } from '@/lib/db/promo-codes'
 import { calculateStripeFee } from '@/lib/utils/stripe-fees'
+import { rateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP to prevent checkout spam
+    const ip = getClientIP(request)
+    const ipLimit = rateLimit(ip, 'ticket-checkout', RATE_LIMITS.tableBooking)
+    if (!ipLimit.success) {
+      return rateLimitResponse(ipLimit.resetIn)
+    }
+
     const body = await request.json()
     const {
       eventId,

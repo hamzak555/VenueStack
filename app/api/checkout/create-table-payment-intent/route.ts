@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe/server'
 import { createClient } from '@/lib/supabase/server'
 import { getBusinessFeeSettings, calculatePlatformFee } from '@/lib/db/platform-settings'
+import { rateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP to prevent booking spam
+    const ip = getClientIP(request)
+    const ipLimit = rateLimit(ip, 'table-booking', RATE_LIMITS.tableBooking)
+    if (!ipLimit.success) {
+      return rateLimitResponse(ipLimit.resetIn)
+    }
+
     const body = await request.json()
     const {
       eventId,
