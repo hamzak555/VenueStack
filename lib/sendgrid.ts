@@ -1224,7 +1224,7 @@ export async function sendTableReservationConfirmedEmail({
     </tr>
   ` : ''
 
-  const subject = `Table Reservation Confirmed for ${eventTitle} - #${reservationNumber}`
+  const subject = `Table Reservation Confirmed for ${eventTitle}`
 
   // Build table line items HTML
   const tableLinesHtml = tables.map(table => `
@@ -1317,6 +1317,33 @@ export async function sendTableReservationConfirmedEmail({
     </tr>
   ` : ''
 
+  // Check if there are any free tables that need venue approval
+  const hasFreeTables = tables.some(t => t.depositType === 'free' || t.price === 0)
+  const hasPaidTables = tables.some(t => t.depositType === 'paid' && t.price > 0)
+  const hasMixedTables = hasFreeTables && hasPaidTables
+
+  // Build free tables disclaimer
+  const freeTableNames = tables.filter(t => t.depositType === 'free' || t.price === 0).map(t => t.name).join(', ')
+  const freeTablesDisclaimer = hasFreeTables
+    ? `\n\nIMPORTANT: Tables without a deposit (${freeTableNames}) are pending venue approval. You will receive a confirmation once approved.`
+    : ''
+
+  // Build HTML disclaimer for free tables
+  const freeTablesDisclaimerHtml = hasFreeTables ? `
+                      <tr>
+                        <td align="left" style="padding: 16px 0 0 0;">
+                          <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px;">
+                            <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 600; line-height: 20px; color: #92400e; padding-bottom: 4px;">
+                              ⏳ Pending Venue Approval
+                            </div>
+                            <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #92400e;">
+                              Tables without a deposit (${freeTableNames}) are pending venue approval. You will receive a confirmation email once approved.
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+  ` : ''
+
   const text = `
 Table Reservation Confirmed!
 
@@ -1325,11 +1352,10 @@ Hi ${customerName}, your table reservation has been confirmed.
 Event: ${eventTitle}
 Date: ${formattedDateTime}
 ${eventLocation ? `Venue: ${eventLocation}` : ''}
-Reservation Number: #${reservationNumber}
 
 Total: $${total.toFixed(2)}
 
-Please arrive on time to ensure your table is ready. If you have any questions, please contact the venue.
+Please arrive on time to ensure your table is ready. If you have any questions, please contact the venue.${freeTablesDisclaimer}
 
 - The VenueStack Team
 `.trim()
@@ -1457,18 +1483,12 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
                                       </tr>
                                       ${eventLocation ? `
                                       <tr>
-                                        <td style="padding: 0 0 12px 0;">
+                                        <td style="padding: 0;">
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Venue</div>
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">${eventLocation}</div>
                                         </td>
                                       </tr>
                                       ` : ''}
-                                      <tr>
-                                        <td style="padding: 0;">
-                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Reservation Number</div>
-                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">#${reservationNumber}</div>
-                                        </td>
-                                      </tr>
                                     </tbody>
                                   </table>
                                 </td>
@@ -1519,6 +1539,9 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
                           </div>
                         </td>
                       </tr>
+
+                      <!-- Free Tables Disclaimer (if applicable) -->
+                      ${freeTablesDisclaimerHtml}
                     </tbody>
                   </table>
                 </td>
@@ -1633,7 +1656,7 @@ export async function sendTableReservationReceivedEmail({
     </tr>
   ` : ''
 
-  const subject = `Table Reservation Request Received for ${eventTitle} - #${reservationNumber}`
+  const subject = `Table Reservation Request Received for ${eventTitle}`
 
   // Build table line items HTML
   const tableLinesHtml = tables.map(table => `
@@ -1742,7 +1765,6 @@ Hi ${customerName}, your table reservation request has been received.
 Event: ${eventTitle}
 Date: ${formattedDateTime}
 ${eventLocation ? `Venue: ${eventLocation}` : ''}
-Reservation Number: #${reservationNumber}
 
 ${total > 0 ? `Total Paid: $${total.toFixed(2)}` : 'No deposit required'}
 
@@ -1896,18 +1918,12 @@ IMPORTANT: Tables without a deposit are not guaranteed and require confirmation 
                                       </tr>
                                       ${eventLocation ? `
                                       <tr>
-                                        <td style="padding: 0 0 12px 0;">
+                                        <td style="padding: 0;">
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Venue</div>
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">${eventLocation}</div>
                                         </td>
                                       </tr>
                                       ` : ''}
-                                      <tr>
-                                        <td style="padding: 0;">
-                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Reservation Number</div>
-                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">#${reservationNumber}</div>
-                                        </td>
-                                      </tr>
                                     </tbody>
                                   </table>
                                 </td>
@@ -2000,12 +2016,11 @@ IMPORTANT: Tables without a deposit are not guaranteed and require confirmation 
 }
 
 /**
- * Send a table reservation approved email (for free/no-deposit tables that have been seated)
+ * Send a table reservation approved email (for free/no-deposit tables that have been approved)
  */
 export async function sendTableReservationApprovedEmail({
   to,
   customerName,
-  reservationNumber,
   eventTitle,
   eventDate,
   eventTime,
@@ -2015,7 +2030,6 @@ export async function sendTableReservationApprovedEmail({
 }: {
   to: string
   customerName: string
-  reservationNumber: string
   eventTitle: string
   eventDate: string
   eventTime?: string | null
@@ -2056,10 +2070,10 @@ export async function sendTableReservationApprovedEmail({
     </tr>
   ` : ''
 
-  const subject = `Table Reservation Confirmed for ${eventTitle} - #${reservationNumber}`
+  const subject = `Table Reservation Approved for ${eventTitle}`
 
   const text = `
-Table Reservation Confirmed!
+Table Reservation Approved!
 
 Hi ${customerName}, great news! Your table reservation has been approved by the venue.
 
@@ -2067,7 +2081,6 @@ Event: ${eventTitle}
 Date: ${formattedDateTime}
 ${eventLocation ? `Venue: ${eventLocation}` : ''}
 Table: ${tableName}
-Reservation Number: #${reservationNumber}
 
 Please arrive on time to ensure your table is ready. If you have any questions, please contact the venue.
 
@@ -2078,7 +2091,7 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
 <!doctype html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
   <head>
-    <title>Table Reservation Confirmed - VenueStack</title>
+    <title>Table Reservation Approved - VenueStack</title>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -2160,7 +2173,7 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
                       <!-- Heading -->
                       <tr>
                         <td align="left" style="padding: 0 0 8px 0;">
-                          <div style="font-family: Inter, Arial, sans-serif; font-size: 24px; font-weight: 600; line-height: 32px; color: #18181b;">Table Reservation Confirmed!</div>
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 24px; font-weight: 600; line-height: 32px; color: #18181b;">Table Reservation Approved!</div>
                         </td>
                       </tr>
                       <!-- Subheading -->
@@ -2224,15 +2237,9 @@ Please arrive on time to ensure your table is ready. If you have any questions, 
                                       </tr>
                                       ` : ''}
                                       <tr>
-                                        <td style="padding: 0 0 12px 0;">
+                                        <td style="padding: 0;">
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Table</div>
                                           <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">${tableName}</div>
-                                        </td>
-                                      </tr>
-                                      <tr>
-                                        <td style="padding: 0;">
-                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Reservation Number</div>
-                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">#${reservationNumber}</div>
                                         </td>
                                       </tr>
                                     </tbody>

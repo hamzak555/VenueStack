@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Switch } from '@/components/ui/switch'
 import { RefreshCcw, Loader2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils/currency'
@@ -45,6 +46,7 @@ export function RefundDialog({ orderId, orderNumber, maxRefundable, totalRefunde
   const [refundType, setRefundType] = useState<'full' | 'partial'>('full')
   const [partialAmount, setPartialAmount] = useState('')
   const [reason, setReason] = useState('')
+  const [voidTickets, setVoidTickets] = useState(false)
 
   const remainingRefundable = maxRefundable - totalRefunded
 
@@ -85,6 +87,7 @@ export function RefundDialog({ orderId, orderNumber, maxRefundable, totalRefunde
         body: JSON.stringify({
           amount: refundAmount,
           reason: reason.trim() || null,
+          voidTickets,
         }),
       })
 
@@ -99,6 +102,7 @@ export function RefundDialog({ orderId, orderNumber, maxRefundable, totalRefunde
       setRefundType('full')
       setPartialAmount('')
       setReason('')
+      setVoidTickets(false)
       router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to process refund')
@@ -203,6 +207,23 @@ export function RefundDialog({ orderId, orderNumber, maxRefundable, totalRefunde
               />
             </div>
 
+            {/* Void Tickets Toggle */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="void-tickets" className="text-sm font-medium">
+                  Void All Tickets
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Mark all tickets for this order as voided
+                </p>
+              </div>
+              <Switch
+                id="void-tickets"
+                checked={voidTickets}
+                onCheckedChange={setVoidTickets}
+              />
+            </div>
+
             <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
               <p className="text-xs text-yellow-800 dark:text-yellow-200">
                 <strong>Warning:</strong> This will deduct funds from the business&apos;s Stripe account. This action cannot be undone.
@@ -274,6 +295,7 @@ export function RefundDialog({ orderId, orderNumber, maxRefundable, totalRefunde
               <li>• Funds will be deducted from the business&apos;s Stripe account</li>
               <li>• This action cannot be undone</li>
               <li>• The customer will be notified of the refund</li>
+              {voidTickets && <li>• All tickets for this order will be voided</li>}
             </ul>
           </div>
         </div>

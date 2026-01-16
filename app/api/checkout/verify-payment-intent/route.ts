@@ -492,6 +492,9 @@ async function handleTableBookingVerification(
     console.log('Creating table booking with tax:', { price: detail.price, totalTablePrice, totalTaxAmount, taxPerTable })
 
     for (let i = 0; i < quantity; i++) {
+      // Generate a short reservation number (TB + 7 characters)
+      const reservationNumber = `TB${nanoid(7).toUpperCase()}`
+
       // Create table booking record with amount (price per table)
       // table_number is left null - business will assign specific table later
       const { data: bookingData, error: bookingError } = await supabase
@@ -499,6 +502,7 @@ async function handleTableBookingVerification(
         .insert({
           event_id: eventId,
           event_table_section_id: sectionId,
+          reservation_number: reservationNumber,
           table_number: null,
           order_id: paymentIntent.id,
           customer_name: customerName,
@@ -506,7 +510,7 @@ async function handleTableBookingVerification(
           customer_phone: customerPhone || null,
           amount: detail.price, // Store the price per table
           tax_amount: taxPerTable, // Store the tax per table
-          status: 'confirmed',
+          status: detail.price > 0 ? 'confirmed' : 'requested', // Paid tables are confirmed, free tables need approval
           tracking_ref: trackingRef || null,
           tracking_link_id: trackingLinkId,
         })
@@ -531,6 +535,17 @@ async function handleTableBookingVerification(
     return acc
   }, {})
   const sectionNames = Object.entries(sectionSummary).map(([name, count]) => `${count}x ${name}`).join(', ')
+
+  // Build breakdown of paid vs free tables for the confirmation screen
+  const paidTables: { sectionName: string; quantity: number; price: number }[] = []
+  const freeTables: { sectionName: string; quantity: number }[] = []
+  for (const detail of parsedOrderDetails) {
+    if (detail.price > 0) {
+      paidTables.push({ sectionName: detail.sectionName, quantity: detail.quantity, price: detail.price })
+    } else {
+      freeTables.push({ sectionName: detail.sectionName, quantity: detail.quantity })
+    }
+  }
 
   // Send broadcast notification for new bookings
   if (createdBookings.length > 0) {
@@ -576,7 +591,7 @@ async function handleTableBookingVerification(
     sendTableReservationConfirmedEmail({
       to: customerEmail,
       customerName,
-      reservationNumber: createdBookings[0]?.id || paymentIntent.id,
+      reservationNumber: createdBookings[0]?.reservation_number || paymentIntent.id,
       eventTitle: event.title,
       eventDate: event.event_date,
       eventTime: event.event_time,
@@ -607,5 +622,9 @@ async function handleTableBookingVerification(
     customerName,
     customerEmail,
     paymentIntentId: paymentIntent.id,
+    // Breakdown for mixed paid/free confirmation
+    paidTables,
+    freeTables,
+    hasMixedTables: paidTables.length > 0 && freeTables.length > 0,
   })
 }

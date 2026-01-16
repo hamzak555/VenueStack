@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Calendar, MapPin, Users, Mail, Phone, ExternalLink, Star, StickyNote, RotateCcw, XCircle } from 'lucide-react'
+import { Loader2, Calendar, MapPin, Users, Mail, Phone, ExternalLink, Star, StickyNote, RotateCcw } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +38,7 @@ interface BookingDetailsModalProps {
 interface BookingData {
   booking: {
     id: string
+    reservation_number?: string | null
     table_number: number | null
     completed_table_number?: string | null
     requested_table_number?: string | null
@@ -191,8 +192,10 @@ export function BookingDetailsModal({
         return 'success'
       case 'confirmed':
         return 'warning'
-      case 'reserved':
-        return 'secondary'
+      case 'approved':
+        return 'info'
+      case 'requested':
+        return 'purple'
       case 'cancelled':
         return 'destructive'
       default:
@@ -268,6 +271,9 @@ export function BookingDetailsModal({
               </div>
               <p className="text-sm text-muted-foreground">
                 Booked on {formatDateTime(data.booking.created_at)}
+                {data.booking.reservation_number && (
+                  <span className="ml-2">· #{data.booking.reservation_number}</span>
+                )}
               </p>
               {/* Show requested table if no table is assigned */}
               {!data.booking.table_number && data.booking.requested_table_number && (
@@ -517,16 +523,16 @@ export function BookingDetailsModal({
                     {!['cancelled', 'completed'].includes(data.booking.status) && !isServer && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" className="text-destructive hover:text-destructive">
-                            <XCircle className="mr-2 h-4 w-4" />
+                          <Button variant="outline" className="border-red-500 bg-red-500/10 text-red-700 hover:bg-red-500/20 dark:text-red-400 dark:bg-red-500/20 dark:hover:bg-red-500/30">
                             Cancel Reservation
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Cancel Reservation?</AlertDialogTitle>
+                            <AlertDialogTitle>Cancel Reservation</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will cancel the reservation for {data.booking.customer_name} at {data.booking.section.name}.
+                              Are you sure you want to cancel the reservation for {data.booking.customer_name}?
+                              This action cannot be undone.
                               {data.bookingAmount > 0 && data.totalRefunded < data.bookingAmount && (
                                 <span className="block mt-2 text-amber-600 dark:text-amber-400">
                                   Note: This reservation has a deposit of {formatCurrency(data.bookingAmount - data.totalRefunded)} that has not been refunded.
@@ -539,7 +545,7 @@ export function BookingDetailsModal({
                             <AlertDialogAction
                               onClick={handleCancel}
                               disabled={isCancelling}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              className="border border-red-500 bg-red-500/10 text-red-700 hover:bg-red-500/20 dark:text-red-400 dark:bg-red-500/20 dark:hover:bg-red-500/30"
                             >
                               {isCancelling ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -565,6 +571,7 @@ export function BookingDetailsModal({
                           <span className="font-medium">{formatCurrency(refund.amount)}</span>
                           <span className="text-muted-foreground ml-2">
                             {new Date(refund.created_at).toLocaleDateString()}
+                            {refund.refunded_by_name && ` by ${refund.refunded_by_name}`}
                           </span>
                           {refund.reason && (
                             <span className="text-muted-foreground ml-2">- {refund.reason}</span>

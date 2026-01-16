@@ -25,7 +25,8 @@ interface EventWithTableInfo {
     seated: number
     arrived: number
     confirmed: number
-    reserved: number
+    approved: number
+    requested: number
     completed: number
     cancelled: number
   }
@@ -287,14 +288,19 @@ export function TablesEventSelector({ events, businessSlug, title }: TablesEvent
                                     {event.bookings_by_status.confirmed} Confirmed
                                   </Badge>
                                 )}
-                                {event.bookings_by_status.completed > 0 && (
-                                  <Badge variant="purple" className="text-xs">
-                                    {event.bookings_by_status.completed} Completed
+                                {event.bookings_by_status.approved > 0 && (
+                                  <Badge variant="info" className="text-xs">
+                                    {event.bookings_by_status.approved} Approved
                                   </Badge>
                                 )}
-                                {event.bookings_by_status.reserved > 0 && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {event.bookings_by_status.reserved} Reserved
+                                {event.bookings_by_status.requested > 0 && (
+                                  <Badge variant="purple" className="text-xs">
+                                    {event.bookings_by_status.requested} Requested
+                                  </Badge>
+                                )}
+                                {event.bookings_by_status.completed > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {event.bookings_by_status.completed} Completed
                                   </Badge>
                                 )}
                                 {event.bookings_by_status.cancelled > 0 && (

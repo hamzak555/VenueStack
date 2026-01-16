@@ -23,6 +23,8 @@ const badgeVariants = cva(
           "border-yellow-500 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/20 [a&]:hover:bg-yellow-500/20",
         purple:
           "border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-400 dark:bg-purple-500/20 [a&]:hover:bg-purple-500/20",
+        info:
+          "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-400 dark:bg-blue-500/20 [a&]:hover:bg-blue-500/20",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
       },

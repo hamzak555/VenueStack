@@ -184,18 +184,22 @@ export async function POST(request: NextRequest) {
 
       // Create bookings for each table in this section
       for (let i = 0; i < quantity; i++) {
+        // Generate a short reservation number (TB + 7 characters)
+        const reservationNumber = `TB${nanoid(7).toUpperCase()}`
+
         const { data: bookingData, error: bookingError } = await supabase
           .from('table_bookings')
           .insert({
             event_id: eventId,
             event_table_section_id: sectionId,
+            reservation_number: reservationNumber,
             table_number: null, // Business will assign specific table later
             order_id: orderId,
             customer_name: customerName,
             customer_email: customerEmail,
             customer_phone: customerPhone || null,
             amount: 0, // Free booking
-            status: 'confirmed',
+            status: 'requested', // Pending venue approval
             tracking_ref: trackingRef || null,
             tracking_link_id: trackingLinkId,
           })
@@ -261,7 +265,7 @@ export async function POST(request: NextRequest) {
       sendTableReservationReceivedEmail({
         to: customerEmail,
         customerName,
-        reservationNumber: createdBookings[0]?.id || orderId,
+        reservationNumber: createdBookings[0]?.reservation_number || orderId,
         eventTitle: event.title,
         eventDate: event.event_date,
         eventTime: event.event_time,

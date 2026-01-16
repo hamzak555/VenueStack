@@ -266,17 +266,21 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
                     <Armchair className={`h-6 w-6 ${bookingDetails.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`} />
                   </div>
                   <CardTitle className="text-2xl">
-                    {bookingDetails.amount > 0
-                      ? ((bookingDetails.totalTables || 1) > 1 ? 'Tables Reserved!' : 'Table Reserved!')
-                      : 'Request Submitted!'}
+                    {bookingDetails.hasMixedTables
+                      ? 'Reservation Submitted!'
+                      : bookingDetails.amount > 0
+                        ? ((bookingDetails.totalTables || 1) > 1 ? 'Tables Reserved!' : 'Table Reserved!')
+                        : 'Request Submitted!'}
                   </CardTitle>
                 </div>
                 <CardDescription>
-                  {bookingDetails.amount > 0
-                    ? ((bookingDetails.totalTables || 1) > 1
-                        ? `Your ${bookingDetails.totalTables} tables have been successfully reserved`
-                        : 'Your table has been successfully reserved')
-                    : 'Your reservation request has been submitted for review'}
+                  {bookingDetails.hasMixedTables
+                    ? 'Some tables are confirmed, others are pending venue approval'
+                    : bookingDetails.amount > 0
+                      ? ((bookingDetails.totalTables || 1) > 1
+                          ? `Your ${bookingDetails.totalTables} tables have been successfully reserved`
+                          : 'Your table has been successfully reserved')
+                      : 'Your reservation request has been submitted for review'}
                 </CardDescription>
               </div>
             </div>
@@ -307,14 +311,47 @@ export default function TableBookingSuccessPage({ params }: { params: Promise<{ 
               </div>
             </div>
 
-            <div className={`rounded-lg p-4 ${bookingDetails.amount > 0 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'}`}>
-              <p className={`text-sm ${bookingDetails.amount > 0 ? 'text-green-900 dark:text-green-100' : 'text-amber-900 dark:text-amber-100'}`}>
-                {bookingDetails.amount > 0
-                  ? <>A confirmation email with your table reservation details will be sent to <strong>{bookingDetails.customerEmail}</strong> shortly.</>
-                  : <>Your request is pending approval. You&apos;ll receive a confirmation email at <strong>{bookingDetails.customerEmail}</strong> once the venue reviews your request.</>
-                }
-              </p>
-            </div>
+            {/* Mixed paid + free tables confirmation */}
+            {bookingDetails.hasMixedTables ? (
+              <div className="space-y-3">
+                {/* Paid tables - confirmed */}
+                <div className="rounded-lg p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <span className="font-medium text-green-900 dark:text-green-100">Confirmed</span>
+                  </div>
+                  <p className="text-sm text-green-900 dark:text-green-100 mb-2">
+                    {bookingDetails.paidTables?.map((t: any) => `${t.quantity}x ${t.sectionName}`).join(', ')}
+                  </p>
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    Your deposit has been processed. These tables are confirmed.
+                  </p>
+                </div>
+
+                {/* Free tables - pending confirmation */}
+                <div className="rounded-lg p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-amber-500" />
+                    <span className="font-medium text-amber-900 dark:text-amber-100">Pending Venue Confirmation</span>
+                  </div>
+                  <p className="text-sm text-amber-900 dark:text-amber-100 mb-2">
+                    {bookingDetails.freeTables?.map((t: any) => `${t.quantity}x ${t.sectionName}`).join(', ')}
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    These tables require no deposit but need venue approval. You&apos;ll receive a confirmation email once approved.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className={`rounded-lg p-4 ${bookingDetails.amount > 0 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'}`}>
+                <p className={`text-sm ${bookingDetails.amount > 0 ? 'text-green-900 dark:text-green-100' : 'text-amber-900 dark:text-amber-100'}`}>
+                  {bookingDetails.amount > 0
+                    ? <>A confirmation email with your table reservation details will be sent to <strong>{bookingDetails.customerEmail}</strong> shortly.</>
+                    : <>Your request is pending approval. You&apos;ll receive a confirmation email at <strong>{bookingDetails.customerEmail}</strong> once the venue reviews your request.</>
+                  }
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Button onClick={addToCalendar} variant="outline" className="flex-1">

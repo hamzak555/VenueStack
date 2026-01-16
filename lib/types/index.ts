@@ -85,6 +85,7 @@ export interface EventTableSection {
 
 export interface TableBooking {
   id: string
+  reservation_number: string // Short, human-readable reservation number (e.g., TB1234567)
   event_id: string
   event_table_section_id: string
   table_number: number | null // null until business assigns a specific table
@@ -94,7 +95,7 @@ export interface TableBooking {
   customer_phone: string | null
   amount: number | null
   tax_amount: number | null
-  status: 'reserved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
+  status: 'requested' | 'approved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
   tracking_link_id: string | null // Reference to tracking link
   tracking_ref: string | null // Raw ref code (persists even if link is deleted)
   created_at: string
@@ -199,7 +200,7 @@ export interface Ticket {
   customer_email: string
   customer_phone: string | null
   purchase_date: string
-  status: 'valid' | 'used' | 'cancelled'
+  status: 'valid' | 'used' | 'cancelled' | 'invalid'
   created_at: string
 }
 
@@ -256,6 +257,9 @@ export interface Refund {
   reason: string | null
   stripe_refund_id: string | null
   status: 'pending' | 'succeeded' | 'failed' | 'cancelled'
+  refunded_by_id: string | null
+  refunded_by_name: string | null
+  voided_tickets: boolean
   created_at: string
   updated_at: string
 }

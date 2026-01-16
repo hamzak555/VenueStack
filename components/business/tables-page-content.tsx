@@ -24,7 +24,7 @@ interface TableBooking {
   customer_email: string
   customer_phone: string | null
   amount: number | null
-  status: 'reserved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
+  status: 'requested' | 'approved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
   created_at: string
   event_title: string
   event_date: string

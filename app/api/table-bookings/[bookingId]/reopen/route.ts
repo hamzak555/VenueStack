@@ -22,6 +22,7 @@ export async function POST(
       .select(`
         id,
         status,
+        amount,
         completed_table_number,
         event_table_section_id,
         events!inner (
@@ -49,11 +50,12 @@ export async function POST(
       )
     }
 
-    // Reopen the booking to confirmed status without assigning a table
+    // Reopen the booking - free reservations go to 'requested', paid go to 'confirmed'
+    const isFreeBooking = !booking.amount || booking.amount === 0
     const { error: updateError } = await supabase
       .from('table_bookings')
       .update({
-        status: 'confirmed',
+        status: isFreeBooking ? 'requested' : 'confirmed',
         table_number: null,
         updated_at: new Date().toISOString()
       })

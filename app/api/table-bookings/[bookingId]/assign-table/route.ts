@@ -116,12 +116,17 @@ export async function PATCH(
     }
 
     // When assigning a table, automatically set status to 'seated'
-    // (only if current status is reserved or confirmed - arrived stays arrived)
+    // (only if current status is requested, approved, or confirmed - arrived stays arrived)
     if (tableName !== null && tableName !== undefined && tableName !== '') {
-      const seateableStatuses = ['reserved', 'confirmed']
+      const seateableStatuses = ['requested', 'approved', 'confirmed']
       if (seateableStatuses.includes(booking.status)) {
         updateData.status = 'seated'
       }
+    } else if (booking.status === 'seated') {
+      // When unassigning a table (unseating), revert status based on booking type
+      // Free reservations go back to 'requested', paid go back to 'confirmed'
+      const isFreeBooking = !booking.amount || booking.amount === 0
+      updateData.status = isFreeBooking ? 'requested' : 'confirmed'
     }
 
     if (newSectionId) {

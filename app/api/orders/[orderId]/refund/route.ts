@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe/server'
 import { sendTicketRefundEmail } from '@/lib/sendgrid'
+import { getBusinessSession } from '@/lib/auth/business-session'
 
 export async function POST(
   request: NextRequest,
@@ -10,13 +11,19 @@ export async function POST(
   try {
     const { orderId } = await context.params
     const body = await request.json()
-    const { amount, reason } = body
+    const { amount, reason, voidTickets } = body
 
     if (!amount || amount <= 0) {
       return NextResponse.json(
         { error: 'Invalid refund amount' },
         { status: 400 }
       )
+    }
+
+    // Get the current user session
+    const session = await getBusinessSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const supabase = await createClient()
@@ -161,6 +168,9 @@ export async function POST(
         reason,
         stripe_refund_id: stripeRefund.id,
         status: 'succeeded',
+        refunded_by_id: session.userId,
+        refunded_by_name: session.userName || session.userEmail,
+        voided_tickets: voidTickets || false,
       })
       .select()
       .single()
@@ -169,6 +179,18 @@ export async function POST(
       console.error('Error creating refund record:', refundError)
       // Note: The Stripe refund was already processed, so we log this error
       // but don't fail the request
+    }
+
+    // If voiding tickets, update all tickets for this order
+    if (voidTickets) {
+      const { error: voidError } = await supabase
+        .from('tickets')
+        .update({ status: 'invalid', updated_at: new Date().toISOString() })
+        .eq('order_id', orderId)
+
+      if (voidError) {
+        console.error('Error voiding tickets:', voidError)
+      }
     }
 
     // Update order status

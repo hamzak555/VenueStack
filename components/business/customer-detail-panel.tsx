@@ -103,8 +103,10 @@ function getStatusVariant(status: string): 'default' | 'secondary' | 'destructiv
       return 'success'
     case 'confirmed':
       return 'warning'
-    case 'reserved':
-      return 'secondary'
+    case 'approved':
+      return 'info'
+    case 'requested':
+      return 'purple'
     case 'cancelled':
       return 'destructive'
     default:

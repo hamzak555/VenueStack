@@ -15,7 +15,8 @@ export interface EventWithTableInfo {
     seated: number
     arrived: number
     confirmed: number
-    reserved: number
+    approved: number
+    requested: number
     completed: number
     cancelled: number
   }
@@ -106,7 +107,8 @@ export async function getEventsWithTableService(businessId: string): Promise<Eve
       seated: activeBookings.filter(b => b.status === 'seated').length,
       arrived: activeBookings.filter(b => b.status === 'arrived').length,
       confirmed: activeBookings.filter(b => b.status === 'confirmed').length,
-      reserved: activeBookings.filter(b => b.status === 'reserved').length,
+      approved: activeBookings.filter(b => b.status === 'approved').length,
+      requested: activeBookings.filter(b => b.status === 'requested').length,
       completed: activeBookings.filter(b => b.status === 'completed').length,
       cancelled: allBookings.filter(b => b.status === 'cancelled').length,
     }
@@ -148,7 +150,8 @@ export interface TableBooking {
   customer_phone: string | null
   amount: number | null
   tax_amount: number | null
-  status: 'reserved' | 'confirmed' | 'cancelled' | 'arrived' | 'completed'
+  total_refunded: number // Total amount refunded for this booking
+  status: 'requested' | 'approved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
   created_at: string
   updated_at: string
   created_by_name?: string | null
@@ -199,6 +202,47 @@ export async function getTableBookingsByBusinessId(businessId: string, eventId?:
     return []
   }
 
+  // Get all order IDs and booking IDs to fetch refunds
+  const orderIds = [...new Set(data.map((b: any) => b.order_id).filter(Boolean))]
+  const bookingIds = data.map((b: any) => b.id)
+
+  // Fetch refunds by order_id (for paid reservations) - refunds are tied to orders, not individual bookings
+  let refundsByOrder: Record<string, number> = {}
+  if (orderIds.length > 0) {
+    const { data: orderRefunds } = await supabase
+      .from('table_booking_refunds')
+      .select('order_id, amount, status')
+      .in('order_id', orderIds)
+      .eq('status', 'succeeded')
+
+    if (orderRefunds) {
+      orderRefunds.forEach((refund: any) => {
+        const orderId = refund.order_id
+        const amount = parseFloat(refund.amount?.toString() || '0')
+        refundsByOrder[orderId] = (refundsByOrder[orderId] || 0) + amount
+      })
+    }
+  }
+
+  // Also fetch refunds by booking_id for manual reservations without order_id
+  const bookingsWithoutOrder = data.filter((b: any) => !b.order_id).map((b: any) => b.id)
+  let refundsByBooking: Record<string, number> = {}
+  if (bookingsWithoutOrder.length > 0) {
+    const { data: bookingRefunds } = await supabase
+      .from('table_booking_refunds')
+      .select('table_booking_id, amount, status')
+      .in('table_booking_id', bookingsWithoutOrder)
+      .eq('status', 'succeeded')
+
+    if (bookingRefunds) {
+      bookingRefunds.forEach((refund: any) => {
+        const bookingId = refund.table_booking_id
+        const amount = parseFloat(refund.amount?.toString() || '0')
+        refundsByBooking[bookingId] = (refundsByBooking[bookingId] || 0) + amount
+      })
+    }
+  }
+
   return data.map((booking: any) => ({
     id: booking.id,
     event_id: booking.event_id,
@@ -212,6 +256,7 @@ export async function getTableBookingsByBusinessId(businessId: string, eventId?:
     customer_phone: booking.customer_phone,
     amount: booking.amount,
     tax_amount: booking.tax_amount,
+    total_refunded: booking.order_id ? (refundsByOrder[booking.order_id] || 0) : (refundsByBooking[booking.id] || 0),
     status: booking.status,
     created_at: booking.created_at,
     updated_at: booking.updated_at,
@@ -259,7 +304,7 @@ export async function getTableBookingById(bookingId: string) {
 
 export async function updateTableBookingStatus(
   bookingId: string,
-  status: 'reserved' | 'confirmed' | 'cancelled' | 'arrived' | 'completed'
+  status: 'requested' | 'approved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
 ) {
   const supabase = await createClient()
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifyBusinessAccess } from '@/lib/auth/business-session'
 import { isServerRole, type BusinessRole } from '@/lib/auth/roles'
+import { nanoid } from 'nanoid'
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,6 +77,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Generate a short reservation number (TB + 7 characters)
+    const reservationNumber = `TB${nanoid(7).toUpperCase()}`
+
     // Create the booking
     // For servers: table_number is null, requested_table_number stores their selection, status is 'confirmed'
     // For others: table_number is assigned, status is 'seated'
@@ -84,6 +88,7 @@ export async function POST(request: NextRequest) {
       .insert({
         event_id: eventId,
         event_table_section_id: eventTableSectionId,
+        reservation_number: reservationNumber,
         table_number: userIsServer ? null : tableName,
         requested_table_number: userIsServer ? tableName : null,
         customer_name: customerName,

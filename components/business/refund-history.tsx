@@ -89,7 +89,13 @@ export function RefundHistory({ refunds }: RefundHistoryProps) {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
+                      {refund.refunded_by_name && (
+                        <span> by {refund.refunded_by_name}</span>
+                      )}
                     </p>
+                    {refund.voided_tickets && (
+                      <p className="text-xs text-destructive mt-0.5">Tickets voided</p>
+                    )}
                   </div>
                 </div>
 

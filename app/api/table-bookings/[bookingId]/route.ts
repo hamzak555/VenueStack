@@ -75,11 +75,33 @@ export async function GET(
     }
 
     // Fetch refunds for this booking
-    const { data: refunds } = await supabase
-      .from('table_booking_refunds')
-      .select('*')
-      .eq('table_booking_id', bookingId)
-      .order('created_at', { ascending: false })
+    // Query by both order_id (for multi-table orders) and table_booking_id (for direct refunds)
+    let refunds: any[] = []
+
+    if (booking.order_id) {
+      // For paid reservations, get refunds by order_id OR table_booking_id
+      const { data: allRefunds } = await supabase
+        .from('table_booking_refunds')
+        .select('*')
+        .or(`order_id.eq.${booking.order_id},table_booking_id.eq.${bookingId}`)
+        .order('created_at', { ascending: false })
+
+      // Deduplicate by id in case same refund matches both conditions
+      const seen = new Set<string>()
+      refunds = (allRefunds || []).filter(r => {
+        if (seen.has(r.id)) return false
+        seen.add(r.id)
+        return true
+      })
+    } else {
+      // For manual reservations without order_id, just query by table_booking_id
+      const { data: bookingRefunds } = await supabase
+        .from('table_booking_refunds')
+        .select('*')
+        .eq('table_booking_id', bookingId)
+        .order('created_at', { ascending: false })
+      refunds = bookingRefunds || []
+    }
 
     // Fetch customer feedback for this booking (if completed)
     const { data: feedback } = await supabase
@@ -137,6 +159,7 @@ export async function GET(
     return NextResponse.json({
       booking: {
         id: booking.id,
+        reservation_number: booking.reservation_number,
         table_number: booking.table_number,
         completed_table_number: booking.completed_table_number,
         requested_table_number: booking.requested_table_number,

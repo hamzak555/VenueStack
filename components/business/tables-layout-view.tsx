@@ -18,6 +18,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils/currency'
 import { BookingNotesModal } from './booking-notes-modal'
@@ -44,7 +63,8 @@ interface TableBooking {
   customer_email: string
   customer_phone: string | null
   amount: number | null
-  status: 'reserved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
+  total_refunded?: number
+  status: 'requested' | 'approved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
   created_at: string
   event_title: string
   event_date: string
@@ -146,6 +166,11 @@ export function TablesLayoutView({
   // Check if user can manage servers (owner/manager only)
   const canManageServers = userRole ? canAccessSection(userRole, 'users') : false
   const [completionModalBooking, setCompletionModalBooking] = useState<TableBooking | null>(null)
+  const [confirmApproveBooking, setConfirmApproveBooking] = useState<TableBooking | null>(null)
+  const [confirmCancelBooking, setConfirmCancelBooking] = useState<TableBooking | null>(null)
+  const [changeSectionBooking, setChangeSectionBooking] = useState<TableBooking | null>(null)
+  const [selectedNewSection, setSelectedNewSection] = useState<string>('')
+  const [isChangingSection, setIsChangingSection] = useState(false)
 
   // Fetch server users for display
   useEffect(() => {
@@ -362,7 +387,7 @@ export function TablesLayoutView({
 
     // Sort based on selected option
     // Completed reservations show at the bottom when sorting by status
-    const statusOrder: Record<string, number> = { seated: 0, arrived: 1, confirmed: 2, reserved: 3, completed: 4, cancelled: 5 }
+    const statusOrder: Record<string, number> = { seated: 0, arrived: 1, confirmed: 2, approved: 3, requested: 4, completed: 5, cancelled: 6 }
     return [...filtered].sort((a, b) => {
       switch (sortOption) {
         case 'name':
@@ -395,7 +420,7 @@ export function TablesLayoutView({
       } else if (booking.status === 'seated' || booking.status === 'arrived') {
         seated.push(booking)
       } else {
-        // reserved, confirmed
+        // reserved, approved, confirmed
         unseated.push(booking)
       }
     }
@@ -552,8 +577,10 @@ export function TablesLayoutView({
         return { bg: '#22c55e', border: '#16a34a', text: '#ffffff' }
       case 'confirmed':
         return { bg: '#f59e0b', border: '#d97706', text: '#ffffff' }
-      case 'reserved':
-        return { bg: '#3b82f6', border: '#2563eb', text: '#ffffff' }
+      case 'approved':
+        return { bg: '#0ea5e9', border: '#0284c7', text: '#ffffff' } // Sky blue for approved
+      case 'requested':
+        return { bg: '#a855f7', border: '#9333ea', text: '#ffffff' } // Purple for requested
       default:
         return { bg: '#ffffff', border: '#d1d5db', text: '#374151' }
     }
@@ -627,6 +654,30 @@ export function TablesLayoutView({
       router.refresh()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to mark as seated')
+    } finally {
+      setMarkingArrived(null)
+    }
+  }
+
+  const handleMarkApproved = async (bookingId: string) => {
+    setMarkingArrived(bookingId)
+    try {
+      const response = await fetch(`/api/table-bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to approve reservation')
+      }
+
+      toast.success('Reservation approved - confirmation email sent')
+      setSelectedTable(null)
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to approve reservation')
     } finally {
       setMarkingArrived(null)
     }
@@ -717,6 +768,36 @@ export function TablesLayoutView({
     }
   }
 
+  const handleChangeSection = async () => {
+    if (!changeSectionBooking || !selectedNewSection) return
+
+    setIsChangingSection(true)
+    try {
+      const response = await fetch(`/api/table-bookings/${changeSectionBooking.id}/assign-table`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableName: null,
+          newSectionId: selectedNewSection
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to change section')
+      }
+
+      toast.success('Section changed successfully')
+      setChangeSectionBooking(null)
+      setSelectedNewSection('')
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to change section')
+    } finally {
+      setIsChangingSection(false)
+    }
+  }
+
   const handleTableClick = (e: React.MouseEvent, sectionId: string, tableIndex: number, tableName: string, hasBooking: boolean) => {
     e.stopPropagation()
 
@@ -775,7 +856,8 @@ export function TablesLayoutView({
       case 'seated': return 'teal'
       case 'arrived': return 'success'
       case 'confirmed': return 'warning'
-      case 'reserved': return 'secondary'
+      case 'approved': return 'info'
+      case 'requested': return 'purple'
       case 'cancelled': return 'destructive'
       default: return 'secondary'
     }
@@ -954,9 +1036,13 @@ export function TablesLayoutView({
                             const minimumSpend = businessSectionId ? sectionMinimumSpendMap[businessSectionId] : 0
                             return (
                               <div className="flex items-center gap-2">
-                                {booking.amount != null && booking.amount > 0 && (
-                                  <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount, false)}</span>
-                                )}
+                                {(() => {
+                                  const remainingDeposit = (booking.amount || 0) - (booking.total_refunded || 0)
+                                  if (remainingDeposit > 0) {
+                                    return <span className="font-medium text-green-500">Deposit {formatCurrency(remainingDeposit, false)}</span>
+                                  }
+                                  return null
+                                })()}
                                 {minimumSpend > 0 && (
                                   <span className="text-amber-500 whitespace-nowrap">Min ${Math.round(minimumSpend)}</span>
                                 )}
@@ -999,10 +1085,31 @@ export function TablesLayoutView({
                                   </span>
                                 </DropdownMenuItem>
                                 {!isServer && (
+                                  <DropdownMenuItem onClick={() => {
+                                    setChangeSectionBooking(booking)
+                                    setSelectedNewSection(booking.event_table_section_id)
+                                  }}>
+                                    Change Section
+                                  </DropdownMenuItem>
+                                )}
+                                {/* Show Approve option only for free reservations (no deposit) with requested status */}
+                                {!isServer && booking.status === 'requested' && (!booking.amount || booking.amount === 0) && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
-                                      onClick={() => handleCancel(booking.id)}
+                                      onClick={() => setConfirmApproveBooking(booking)}
+                                      disabled={markingArrived === booking.id}
+                                      className="text-blue-700 focus:text-blue-700 dark:text-blue-400"
+                                    >
+                                      {markingArrived === booking.id ? 'Approving...' : 'Approve Reservation'}
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {!isServer && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => setConfirmCancelBooking(booking)}
                                       className="text-destructive focus:text-destructive"
                                     >
                                       Cancel Reservation
@@ -1056,9 +1163,13 @@ export function TablesLayoutView({
                             const minimumSpend = businessSectionId ? sectionMinimumSpendMap[businessSectionId] : 0
                             return (
                               <div className="flex items-center gap-2">
-                                {booking.amount != null && booking.amount > 0 && (
-                                  <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount, false)}</span>
-                                )}
+                                {(() => {
+                                  const remainingDeposit = (booking.amount || 0) - (booking.total_refunded || 0)
+                                  if (remainingDeposit > 0) {
+                                    return <span className="font-medium text-green-500">Deposit {formatCurrency(remainingDeposit, false)}</span>
+                                  }
+                                  return null
+                                })()}
                                 {minimumSpend > 0 && (
                                   <span className="text-amber-500 whitespace-nowrap">Min ${Math.round(minimumSpend)}</span>
                                 )}
@@ -1136,7 +1247,7 @@ export function TablesLayoutView({
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
-                                      onClick={() => handleCancel(booking.id)}
+                                      onClick={() => setConfirmCancelBooking(booking)}
                                       className="text-destructive focus:text-destructive"
                                     >
                                       Cancel Reservation
@@ -1182,9 +1293,13 @@ export function TablesLayoutView({
                               {booking.completed_table_number || booking.table_number || '—'}
                             </span>
                           </span>
-                          {booking.amount != null && booking.amount > 0 && (
-                            <span className="font-medium text-green-500">Deposit {formatCurrency(booking.amount, false)}</span>
-                          )}
+                          {(() => {
+                            const remainingDeposit = (booking.amount || 0) - (booking.total_refunded || 0)
+                            if (remainingDeposit > 0) {
+                              return <span className="font-medium text-green-500">Deposit {formatCurrency(remainingDeposit, false)}</span>
+                            }
+                            return null
+                          })()}
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -1262,9 +1377,13 @@ export function TablesLayoutView({
                               {booking.table_number || '—'}
                             </span>
                           </span>
-                          {booking.amount != null && booking.amount > 0 && (
-                            <span className="font-medium text-muted-foreground">Deposit {formatCurrency(booking.amount, false)}</span>
-                          )}
+                          {(() => {
+                            const remainingDeposit = (booking.amount || 0) - (booking.total_refunded || 0)
+                            if (remainingDeposit > 0) {
+                              return <span className="font-medium text-muted-foreground">Deposit {formatCurrency(remainingDeposit, false)}</span>
+                            }
+                            return null
+                          })()}
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -1915,6 +2034,112 @@ export function TablesLayoutView({
         businessId={businessId}
         onAssignmentChange={() => router.refresh()}
       />
+
+      {/* Approve Reservation Confirmation Dialog */}
+      <AlertDialog open={!!confirmApproveBooking} onOpenChange={(open) => !open && setConfirmApproveBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve Reservation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to approve this reservation for {confirmApproveBooking?.customer_name}?
+              A confirmation email will be sent to the customer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmApproveBooking) {
+                  handleMarkApproved(confirmApproveBooking.id)
+                  setConfirmApproveBooking(null)
+                }
+              }}
+              className="border border-blue-500 bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 dark:text-blue-400 dark:bg-blue-500/20 dark:hover:bg-blue-500/30"
+            >
+              Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Reservation Confirmation Dialog */}
+      <AlertDialog open={!!confirmCancelBooking} onOpenChange={(open) => !open && setConfirmCancelBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Reservation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel the reservation for {confirmCancelBooking?.customer_name}?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Reservation</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmCancelBooking) {
+                  handleCancel(confirmCancelBooking.id)
+                  setConfirmCancelBooking(null)
+                }
+              }}
+              className="border border-red-500 bg-red-500/10 text-red-700 hover:bg-red-500/20 dark:text-red-400 dark:bg-red-500/20 dark:hover:bg-red-500/30"
+            >
+              Cancel Reservation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Change Section Dialog */}
+      <Dialog open={!!changeSectionBooking} onOpenChange={(open) => {
+        if (!open) {
+          setChangeSectionBooking(null)
+          setSelectedNewSection('')
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Section</DialogTitle>
+            <DialogDescription>
+              Select a new section for {changeSectionBooking?.customer_name}'s reservation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="section-select" className="mb-2 block">Section</Label>
+            <Select
+              value={selectedNewSection}
+              onValueChange={setSelectedNewSection}
+            >
+              <SelectTrigger id="section-select">
+                <SelectValue placeholder="Select section" />
+              </SelectTrigger>
+              <SelectContent>
+                {eventTableSections.map((section) => {
+                  const sectionConfig = tableServiceConfig.sections.find(s => s.id === section.section_id)
+                  return (
+                    <SelectItem key={section.id} value={section.id}>
+                      {sectionConfig?.name || section.section_id}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setChangeSectionBooking(null)
+              setSelectedNewSection('')
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleChangeSection}
+              disabled={isChangingSection || !selectedNewSection || selectedNewSection === changeSectionBooking?.event_table_section_id}
+            >
+              {isChangingSection ? 'Changing...' : 'Change Section'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
