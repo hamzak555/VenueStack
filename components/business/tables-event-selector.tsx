@@ -274,7 +274,7 @@ export function TablesEventSelector({ events, businessSlug, title }: TablesEvent
                               </p>
                               <div className="flex items-center gap-1.5 justify-end flex-wrap">
                                 {event.bookings_by_status.arrived > 0 && (
-                                  <Badge variant="success" className="text-xs">
+                                  <Badge variant="purple" className="text-xs">
                                     {event.bookings_by_status.arrived} Arrived
                                   </Badge>
                                 )}
@@ -294,12 +294,12 @@ export function TablesEventSelector({ events, businessSlug, title }: TablesEvent
                                   </Badge>
                                 )}
                                 {event.bookings_by_status.requested > 0 && (
-                                  <Badge variant="purple" className="text-xs">
+                                  <Badge variant="orange" className="text-xs">
                                     {event.bookings_by_status.requested} Requested
                                   </Badge>
                                 )}
                                 {event.bookings_by_status.completed > 0 && (
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="success" className="text-xs">
                                     {event.bookings_by_status.completed} Completed
                                   </Badge>
                                 )}

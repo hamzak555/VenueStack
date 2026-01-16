@@ -93,20 +93,20 @@ function StarDisplay({ rating }: { rating: number | null }) {
   )
 }
 
-function getStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'teal' {
+function getStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'teal' | 'purple' | 'info' | 'orange' {
   switch (status) {
     case 'completed':
       return 'success'
     case 'seated':
       return 'teal'
     case 'arrived':
-      return 'success'
+      return 'purple'
     case 'confirmed':
       return 'warning'
     case 'approved':
       return 'info'
     case 'requested':
-      return 'purple'
+      return 'orange'
     case 'cancelled':
       return 'destructive'
     default:

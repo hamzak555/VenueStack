@@ -189,13 +189,13 @@ export function BookingDetailsModal({
       case 'seated':
         return 'teal'
       case 'arrived':
-        return 'success'
+        return 'purple'
       case 'confirmed':
         return 'warning'
       case 'approved':
         return 'info'
       case 'requested':
-        return 'purple'
+        return 'orange'
       case 'cancelled':
         return 'destructive'
       default:

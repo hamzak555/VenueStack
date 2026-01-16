@@ -574,13 +574,13 @@ export function TablesLayoutView({
       case 'seated':
         return { bg: '#14b8a6', border: '#0d9488', text: '#ffffff' } // Teal for seated
       case 'arrived':
-        return { bg: '#22c55e', border: '#16a34a', text: '#ffffff' }
+        return { bg: '#a855f7', border: '#9333ea', text: '#ffffff' } // Purple for arrived
       case 'confirmed':
         return { bg: '#f59e0b', border: '#d97706', text: '#ffffff' }
       case 'approved':
         return { bg: '#0ea5e9', border: '#0284c7', text: '#ffffff' } // Sky blue for approved
       case 'requested':
-        return { bg: '#a855f7', border: '#9333ea', text: '#ffffff' } // Purple for requested
+        return { bg: '#f97316', border: '#ea580c', text: '#ffffff' } // Orange for requested
       default:
         return { bg: '#ffffff', border: '#d1d5db', text: '#374151' }
     }
@@ -854,10 +854,10 @@ export function TablesLayoutView({
     switch (status) {
       case 'completed': return 'purple'
       case 'seated': return 'teal'
-      case 'arrived': return 'success'
+      case 'arrived': return 'purple'
       case 'confirmed': return 'warning'
       case 'approved': return 'info'
-      case 'requested': return 'purple'
+      case 'requested': return 'orange'
       case 'cancelled': return 'destructive'
       default: return 'secondary'
     }
@@ -1273,7 +1273,7 @@ export function TablesLayoutView({
                   <div className="flex items-center gap-2">
                     <ChevronDown className={`h-4 w-4 transition-transform ${completedOpen ? '' : '-rotate-90'}`} />
                     <span className="font-medium text-sm">Completed</span>
-                    <Badge variant="purple" className="text-xs h-5 px-1.5">{groupedBookings.completed.length}</Badge>
+                    <Badge variant="success" className="text-xs h-5 px-1.5">{groupedBookings.completed.length}</Badge>
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 mt-2">
@@ -1307,7 +1307,7 @@ export function TablesLayoutView({
                             <p className="text-xs text-muted-foreground truncate">{booking.section_name}</p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <Badge variant="purple" className="text-xs">
+                            <Badge variant="success" className="text-xs">
                               Completed
                             </Badge>
                             <DropdownMenu>
@@ -1721,7 +1721,7 @@ export function TablesLayoutView({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="w-full border border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-400 dark:bg-purple-500/20 hover:bg-purple-500/20 dark:hover:bg-purple-500/30"
+                                  className="w-full border border-green-500 bg-green-500/10 text-green-700 dark:text-green-400 dark:bg-green-500/20 hover:bg-green-500/20 dark:hover:bg-green-500/30"
                                   onClick={() => {
                                     setCompletionModalBooking(booking)
                                     setSelectedTable(null)
@@ -1748,7 +1748,7 @@ export function TablesLayoutView({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="flex-1 border border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-400 dark:bg-purple-500/20"
+                                  className="flex-1 border border-green-500 bg-green-500/10 text-green-700 dark:text-green-400 dark:bg-green-500/20"
                                   disabled
                                 >
                                   <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
