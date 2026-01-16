@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { sendTableReservationApprovedEmail } from '@/lib/sendgrid'
+import { sendTableReservationApprovedEmail, sendTableReservationCancelledEmail } from '@/lib/sendgrid'
 
 export async function PATCH(
   request: NextRequest,
@@ -79,6 +79,20 @@ export async function PATCH(
         eventLocation: event.location,
         tableName: currentBooking.event_table_sections?.section_name || 'Table',
       }).catch(err => console.error('Failed to send table reservation approved email:', err))
+    }
+
+    // Send cancellation email if status changed to 'cancelled'
+    if (status === 'cancelled' && currentBooking.status !== 'cancelled') {
+      const event = currentBooking.events
+      sendTableReservationCancelledEmail({
+        to: currentBooking.customer_email,
+        customerName: currentBooking.customer_name || currentBooking.customer_email.split('@')[0],
+        eventTitle: event.title,
+        eventDate: event.event_date,
+        eventTime: event.event_time,
+        eventLocation: event.location,
+        tableName: currentBooking.event_table_sections?.section_name || 'Table',
+      }).catch(err => console.error('Failed to send table reservation cancelled email:', err))
     }
 
     return NextResponse.json({

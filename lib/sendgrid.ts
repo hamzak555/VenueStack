@@ -2740,3 +2740,288 @@ ${appUrl}/login
 
   return sendEmail({ to, subject, text, html })
 }
+
+/**
+ * Send a table reservation cancelled email
+ */
+export async function sendTableReservationCancelledEmail({
+  to,
+  customerName,
+  eventTitle,
+  eventDate,
+  eventTime,
+  eventLocation,
+  eventImageUrl,
+  tableName,
+}: {
+  to: string
+  customerName: string
+  eventTitle: string
+  eventDate: string
+  eventTime?: string | null
+  eventLocation?: string | null
+  eventImageUrl?: string | null
+  tableName: string
+}): Promise<boolean> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://venuestack.io'
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jovbrnjczxnppzqvjkji.supabase.co'
+  const emailImagesUrl = `${supabaseUrl}/storage/v1/object/public/business-assets/email-images`
+
+  // Format date nicely
+  const formattedDate = eventDate ? new Date(eventDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }) : 'TBA'
+
+  // Format time from "23:30:00" to "11:30 PM"
+  const formatTime = (time: string): string => {
+    const [hours, minutes] = time.split(':').map(Number)
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const hour12 = hours % 12 || 12
+    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`
+  }
+
+  const formattedDateTime = eventTime
+    ? `${formattedDate} at ${formatTime(eventTime)}`
+    : formattedDate
+
+  // Event image HTML
+  const eventImageHtml = eventImageUrl ? `
+    <tr>
+      <td align="left" style="padding: 0 0 24px 0;">
+        <img src="${eventImageUrl}" alt="${eventTitle}" width="260" style="display: block; border-radius: 8px; max-width: 100%; height: auto;">
+      </td>
+    </tr>
+  ` : ''
+
+  const subject = `Table Reservation Cancelled for ${eventTitle}`
+
+  const text = `
+Table Reservation Cancelled
+
+Hi ${customerName}, your table reservation has been cancelled.
+
+Event: ${eventTitle}
+Date: ${formattedDateTime}
+${eventLocation ? `Venue: ${eventLocation}` : ''}
+Table: ${tableName}
+
+If you did not request this cancellation or have any questions, please contact the venue directly.
+
+- The VenueStack Team
+`.trim()
+
+  const html = `
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+  <head>
+    <title>Table Reservation Cancelled - VenueStack</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type="text/css">
+      #outlook a { padding: 0 }
+      body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100% }
+      table, td { border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0 }
+      img { border: 0; height: auto; line-height: 100%; outline: 0; text-decoration: none; -ms-interpolation-mode: bicubic }
+      p { display: block; margin: 13px 0 }
+    </style>
+    <!--[if mso]>
+    <noscript>
+      <xml>
+        <o:OfficeDocumentSettings>
+          <o:AllowPNG/>
+          <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+      </xml>
+    </noscript>
+    <![endif]-->
+    <!--[if lte mso 11]>
+    <style type="text/css">.mj-outlook-group-fix{width:100%!important}</style>
+    <![endif]-->
+    <style type="text/css">
+      @media only screen and (max-width:480px) {
+        .body { padding-top: 24px !important; padding-bottom: 24px !important; padding-left: 16px !important; padding-right: 16px !important }
+        .header-padding { padding-left: 20px !important; padding-right: 20px !important }
+        .content-padding { padding: 24px 20px !important }
+        .footer-padding { padding-left: 20px !important; padding-right: 20px !important }
+      }
+    </style>
+    <style type="text/css">
+      @media screen {
+        @font-face {
+          font-family: 'Inter';
+          font-style: normal;
+          font-weight: 400;
+          font-display: swap;
+          src: url(https://fonts.gstatic.com/s/inter/v8/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2) format('woff2');
+        }
+        @font-face {
+          font-family: 'Inter';
+          font-style: normal;
+          font-weight: 600;
+          font-display: swap;
+          src: url(https://fonts.gstatic.com/s/inter/v8/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2) format('woff2');
+        }
+      }
+    </style>
+  </head>
+  <body style="margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; background-color: #f4f4f5;">
+    <div class="body" style="padding-top: 40px; padding-bottom: 40px; background-color: #f4f4f5;">
+
+      <!-- EMAIL WRAPPER WITH BORDER AND ROUNDED CORNERS -->
+      <div class="email-wrapper" style="margin: 0px auto; max-width: 600px; border: 1px solid #e4e4e7; border-radius: 12px; overflow: hidden;">
+
+        <!-- EMAIL HEADER -->
+        <div class="header" style="background: #ffffff;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
+            <tbody>
+              <tr>
+                <td class="header-padding" style="border-bottom: 1px solid #e4e4e7; padding: 24px 40px;" align="left">
+                  <!-- Logo -->
+                  <img src="${emailImagesUrl}/VS%20Logo%20Black.png" alt="VenueStack" width="140" height="auto" style="display: block; border: 0; outline: none;">
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- MAIN CONTENT SECTION -->
+        <div class="section" style="background: #ffffff;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #ffffff; width: 100%;" width="100%" bgcolor="#ffffff">
+            <tbody>
+              <tr>
+                <td class="content-padding" style="padding: 40px;" align="left">
+                  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+                    <tbody>
+                      <!-- Heading -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 8px 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 24px; font-weight: 600; line-height: 32px; color: #18181b;">Table Reservation Cancelled</div>
+                        </td>
+                      </tr>
+                      <!-- Subheading -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 24px 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; color: #3f3f46;">
+                            Hi ${customerName}, your table reservation has been cancelled.
+                          </div>
+                        </td>
+                      </tr>
+
+                      <!-- CANCELLATION NOTICE -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 24px 0;">
+                          <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background: #fef2f2; border-radius: 8px; border-left: 4px solid #dc2626;">
+                            <tbody>
+                              <tr>
+                                <td style="padding: 16px;">
+                                  <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 600; line-height: 20px; color: #991b1b; padding-bottom: 4px;">
+                                    Reservation Cancelled
+                                  </div>
+                                  <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #991b1b;">
+                                    This reservation is no longer active. If you have any questions, please contact the venue.
+                                  </div>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <!-- EVENT IMAGE -->
+                      ${eventImageHtml}
+
+                      <!-- RESERVATION DETAILS CARD -->
+                      <tr>
+                        <td align="left" style="padding: 0 0 24px 0;">
+                          <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background: #f4f4f5; border-radius: 8px;">
+                            <tbody>
+                              <tr>
+                                <td style="padding: 24px;">
+                                  <!-- Event Name -->
+                                  <div style="font-family: Inter, Arial, sans-serif; font-size: 18px; font-weight: 600; line-height: 24px; color: #18181b; padding-bottom: 16px;">
+                                    ${eventTitle}
+                                  </div>
+                                  <!-- Event Details Grid -->
+                                  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+                                    <tbody>
+                                      <tr>
+                                        <td style="padding: 0 0 12px 0;">
+                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Date & Time</div>
+                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">${formattedDateTime}</div>
+                                        </td>
+                                      </tr>
+                                      ${eventLocation ? `
+                                      <tr>
+                                        <td style="padding: 0 0 12px 0;">
+                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Venue</div>
+                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">${eventLocation}</div>
+                                        </td>
+                                      </tr>
+                                      ` : ''}
+                                      <tr>
+                                        <td style="padding: 0;">
+                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 600; line-height: 16px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">Table</div>
+                                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #18181b; padding-top: 4px;">${tableName}</div>
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <!-- Additional Info -->
+                      <tr>
+                        <td align="left" style="padding: 0;">
+                          <div style="font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 20px; color: #71717a;">
+                            If you did not request this cancellation or have any questions, please contact the venue directly.
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer" style="background: #18181b;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background: #18181b; width: 100%;" width="100%" bgcolor="#18181b">
+            <tbody>
+              <tr>
+                <td class="footer-padding" style="padding: 32px 40px;" align="left">
+                  <!-- Icon -->
+                  <img src="${emailImagesUrl}/VS%20Icon%20White.png" alt="VenueStack" width="24" height="24" style="display: block; margin: 0 0 24px 0; border: 0; outline: none; opacity: 0.6;">
+                  <!-- Reason for email -->
+                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
+                    You're receiving this email because your table reservation was cancelled through VenueStack.
+                  </div>
+                  <!-- Legal Text -->
+                  <div style="font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 400; line-height: 18px; color: #a1a1aa; padding-top: 16px;">
+                    &copy; ${new Date().getFullYear()} VenueStack. All rights reserved. <a href="${appUrl}/privacy" style="color: #a1a1aa; text-decoration: underline;">Privacy Policy</a>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+      <!-- END EMAIL WRAPPER -->
+
+    </div>
+  </body>
+</html>
+`.trim()
+
+  return sendEmail({ to, subject, text, html })
+}
