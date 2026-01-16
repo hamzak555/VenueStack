@@ -446,8 +446,10 @@ export async function GET(
       )
     }
 
+    // Only show processing fees if customer paid them
+    const customerPaidFees = order.stripe_fee_payer === 'customer' || order.platform_fee_payer === 'customer'
     const totalProcessingFee = (parseFloat(order.platform_fee || 0) + parseFloat(order.stripe_fee || 0))
-    if (totalProcessingFee > 0) {
+    if (customerPaidFees && totalProcessingFee > 0) {
       paymentSummaryChildren.push(
         React.createElement(
           View,

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { SignJWT, jwtVerify } from 'jose'
-import { AdminUser, User } from '@/lib/types'
+import { User } from '@/lib/types'
 
 const SESSION_COOKIE_NAME = 'admin_session'
 
@@ -49,9 +49,8 @@ async function verifySessionToken(token: string): Promise<AdminSession | null> {
 
 /**
  * Create a new admin session
- * Accepts either a legacy AdminUser or a global User with is_platform_admin
  */
-export async function createAdminSession(user: AdminUser | User) {
+export async function createAdminSession(user: User) {
   const session: AdminSession = {
     userId: user.id,
     email: user.email,

@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Customer } from '@/lib/db/customers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -12,7 +14,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Download, Search, ArrowUpDown, ArrowUp, ArrowDown, Star, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Download, Search, ArrowUpDown, ArrowUp, ArrowDown, Star, ChevronLeft, ChevronRight, MoreHorizontal, Trash2, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils/currency'
 import { CustomerDetailPanel } from './customer-detail-panel'
@@ -34,9 +50,23 @@ export function CustomersTable({ customers, businessSlug, title }: CustomersTabl
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [selectedCustomerIdentifier, setSelectedCustomerIdentifier] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [showDeleted, setShowDeleted] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [localCustomers, setLocalCustomers] = useState(customers)
 
-  // Filter customers based on search term
-  const filteredCustomers = customers.filter((customer) => {
+  // Count deleted customers
+  const deletedCount = localCustomers.filter(c => c.isDeleted).length
+  const activeCount = localCustomers.filter(c => !c.isDeleted).length
+
+  // Filter customers based on search term and deleted status
+  const filteredCustomers = localCustomers.filter((customer) => {
+    // Filter by deleted status
+    if (!showDeleted && customer.isDeleted) return false
+
+    // Filter by search term
     const searchLower = searchTerm.toLowerCase()
     return (
       customer.name.toLowerCase().includes(searchLower) ||
@@ -139,7 +169,57 @@ export function CustomersTable({ customers, businessSlug, title }: CustomersTabl
     document.body.removeChild(link)
   }
 
-  if (customers.length === 0) {
+  // Handle customer deletion
+  const handleDeleteCustomer = async () => {
+    if (!customerToDelete) return
+
+    setIsDeleting(true)
+    setDeleteError('')
+
+    try {
+      const identifier = customerToDelete.phone
+        ? { phone: customerToDelete.phone }
+        : { email: customerToDelete.email }
+
+      const response = await fetch('/api/customers/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete customer')
+      }
+
+      // Update local state to mark customer as deleted
+      setLocalCustomers(prev =>
+        prev.map(c =>
+          (c.phone && c.phone === customerToDelete.phone) ||
+          (c.email && c.email === customerToDelete.email)
+            ? { ...c, isDeleted: true, name: '[DELETED]', email: null, phone: null }
+            : c
+        )
+      )
+
+      setDeleteDialogOpen(false)
+      setCustomerToDelete(null)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete customer')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const openDeleteDialog = (customer: Customer, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setCustomerToDelete(customer)
+    setDeleteError('')
+    setDeleteDialogOpen(true)
+  }
+
+  if (localCustomers.length === 0) {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">No customers found. Customers will appear here after their first purchase.</p>
@@ -154,6 +234,28 @@ export function CustomersTable({ customers, businessSlug, title }: CustomersTabl
           <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
         )}
         <div className="flex items-center gap-4">
+          {deletedCount > 0 && (
+            <div className="flex items-center gap-2">
+              <Switch
+                id="show-deleted"
+                checked={showDeleted}
+                onCheckedChange={setShowDeleted}
+              />
+              <Label htmlFor="show-deleted" className="text-sm text-muted-foreground cursor-pointer">
+                {showDeleted ? (
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-3.5 w-3.5" />
+                    Showing deleted ({deletedCount})
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <EyeOff className="h-3.5 w-3.5" />
+                    {deletedCount} hidden
+                  </span>
+                )}
+              </Label>
+            </div>
+          )}
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -246,12 +348,13 @@ export function CustomersTable({ customers, businessSlug, title }: CustomersTabl
                   {renderSortIcon('last_purchase')}
                 </button>
               </TableHead>
+              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   No customers match your search.
                 </TableCell>
               </TableRow>
@@ -308,6 +411,31 @@ export function CustomersTable({ customers, businessSlug, title }: CustomersTabl
                   <TableCell>
                     {new Date(customer.last_purchase).toLocaleDateString()}
                   </TableCell>
+                  <TableCell>
+                    {!customer.isDeleted && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => openDeleteDialog(customer, e as unknown as React.MouseEvent)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Customer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -318,7 +446,7 @@ export function CustomersTable({ customers, businessSlug, title }: CustomersTabl
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, sortedCustomers.length)} of {sortedCustomers.length} customers
-          {searchTerm && ` (filtered from ${customers.length})`}
+          {(searchTerm || !showDeleted) && ` (${activeCount} active${deletedCount > 0 ? `, ${deletedCount} deleted` : ''})`}
         </div>
 
         {totalPages > 1 && (
@@ -378,6 +506,63 @@ export function CustomersTable({ customers, businessSlug, title }: CustomersTabl
         customerIdentifier={selectedCustomerIdentifier}
         businessSlug={businessSlug}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Customer</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this customer? This will anonymize their personal data
+              (name, email, phone) but preserve their order and reservation history for reporting purposes.
+            </DialogDescription>
+          </DialogHeader>
+
+          {customerToDelete && (
+            <div className="py-4 space-y-2">
+              <p className="text-sm">
+                <span className="font-medium">Name:</span> {customerToDelete.name}
+              </p>
+              {customerToDelete.email && (
+                <p className="text-sm">
+                  <span className="font-medium">Email:</span> {customerToDelete.email}
+                </p>
+              )}
+              {customerToDelete.phone && (
+                <p className="text-sm">
+                  <span className="font-medium">Phone:</span> {customerToDelete.phone}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Total spent: {formatCurrency(customerToDelete.total_spent, false)}
+              </p>
+            </div>
+          )}
+
+          {deleteError && (
+            <div className="text-sm text-destructive bg-destructive/10 border border-destructive rounded p-3">
+              {deleteError}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteCustomer}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Customer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,12 +1,3 @@
-export interface UserProfile {
-  id: string // matches auth.users id
-  email: string
-  role: 'admin' | 'business'
-  business_id: string | null // Only for business users
-  created_at: string
-  updated_at: string
-}
-
 export interface TablePosition {
   x: number // percentage from left (0-100)
   y: number // percentage from top (0-100)
@@ -95,6 +86,10 @@ export interface TableBooking {
   customer_phone: string | null
   amount: number | null
   tax_amount: number | null
+  platform_fee: number | null // Platform fee charged for this booking
+  stripe_fee: number | null // Stripe processing fee for this booking
+  stripe_fee_payer: 'customer' | 'business' | null // Who paid the Stripe fee at time of booking
+  platform_fee_payer: 'customer' | 'business' | null // Who paid the platform fee at time of booking
   status: 'requested' | 'approved' | 'confirmed' | 'cancelled' | 'arrived' | 'seated' | 'completed'
   tracking_link_id: string | null // Reference to tracking link
   tracking_ref: string | null // Raw ref code (persists even if link is deleted)
@@ -204,33 +199,6 @@ export interface Ticket {
   created_at: string
 }
 
-export interface DiscountCode {
-  id: string
-  event_id: string
-  code: string
-  description: string | null
-  discount_type: 'percentage' | 'fixed'
-  discount_value: number
-  max_uses: number | null // null = unlimited
-  current_uses: number
-  valid_from: string
-  valid_until: string | null
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface OrderItem {
-  id: string
-  order_id: string
-  item_type: 'ticket'
-  item_id: string // ticket_id
-  quantity: number
-  unit_price: number
-  total_price: number
-  created_at: string
-}
-
 export interface Order {
   id: string
   event_id: string
@@ -243,6 +211,8 @@ export interface Order {
   discount_amount: number
   total: number
   stripe_payment_intent_id: string | null
+  stripe_fee_payer: 'customer' | 'business' | null // Who paid the Stripe fee at time of purchase
+  platform_fee_payer: 'customer' | 'business' | null // Who paid the platform fee at time of purchase
   status: 'pending' | 'completed' | 'cancelled' | 'refunded' | 'partially_refunded'
   tracking_link_id: string | null // Reference to tracking link
   tracking_ref: string | null // Raw ref code (persists even if link is deleted)
@@ -345,17 +315,6 @@ export interface AdminInvitation {
   expires_at: string
 }
 
-export interface AdminUser {
-  id: string
-  email: string
-  password_hash: string
-  name: string
-  phone: string | null
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
-
 export interface LoginLog {
   id: string
   user_type: 'admin' | 'business'
@@ -418,11 +377,6 @@ export interface PageViewAnalytics {
 export interface Database {
   public: {
     Tables: {
-      user_profiles: {
-        Row: UserProfile
-        Insert: Omit<UserProfile, 'created_at' | 'updated_at'>
-        Update: Partial<Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>>
-      }
       businesses: {
         Row: Business
         Insert: Omit<Business, 'id' | 'created_at' | 'updated_at'>
@@ -438,20 +392,10 @@ export interface Database {
         Insert: Omit<Ticket, 'id' | 'created_at'>
         Update: Partial<Omit<Ticket, 'id' | 'created_at'>>
       }
-      discount_codes: {
-        Row: DiscountCode
-        Insert: Omit<DiscountCode, 'id' | 'created_at' | 'updated_at' | 'current_uses'>
-        Update: Partial<Omit<DiscountCode, 'id' | 'created_at' | 'updated_at'>>
-      }
       orders: {
         Row: Order
         Insert: Omit<Order, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<Order, 'id' | 'created_at' | 'updated_at'>>
-      }
-      order_items: {
-        Row: OrderItem
-        Insert: Omit<OrderItem, 'id' | 'created_at'>
-        Update: Partial<Omit<OrderItem, 'id' | 'created_at'>>
       }
       platform_settings: {
         Row: PlatformSettings
@@ -472,11 +416,6 @@ export interface Database {
         Row: Invitation
         Insert: Omit<Invitation, 'id' | 'created_at'>
         Update: Partial<Omit<Invitation, 'id' | 'created_at'>>
-      }
-      admin_users: {
-        Row: AdminUser
-        Insert: Omit<AdminUser, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<AdminUser, 'id' | 'created_at' | 'updated_at'>>
       }
       tracking_links: {
         Row: TrackingLink

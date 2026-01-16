@@ -8,9 +8,16 @@ import { formatCurrency } from '@/lib/utils/currency'
 interface ProcessingFeeTooltipProps {
   platformFee: number
   stripeFee: number
+  platformFeePayer?: 'customer' | 'business'
+  stripeFeePayer?: 'customer' | 'business'
 }
 
-export function ProcessingFeeTooltip({ platformFee, stripeFee }: ProcessingFeeTooltipProps) {
+export function ProcessingFeeTooltip({
+  platformFee,
+  stripeFee,
+  platformFeePayer = 'customer',
+  stripeFeePayer = 'customer'
+}: ProcessingFeeTooltipProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const triggerRef = useRef<HTMLDivElement>(null)
@@ -49,20 +56,28 @@ export function ProcessingFeeTooltip({ platformFee, stripeFee }: ProcessingFeeTo
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            <div className="bg-popover border border-border rounded-lg p-3 shadow-lg min-w-[220px]">
-              <p className="text-xs font-semibold mb-2">Processing Fee Breakdown</p>
-              <div className="space-y-1">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Platform Fee:</span>
+            <div className="bg-popover border border-border rounded-lg overflow-hidden min-w-[240px]">
+              <div className="px-3 py-2 bg-muted/50 border-b font-medium text-xs">
+                Fee Breakdown
+              </div>
+              <div className="p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between gap-6">
+                  <div className="flex items-center gap-2">
+                    <span>Platform Fee</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${platformFeePayer === 'customer' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'}`}>
+                      {platformFeePayer === 'customer' ? 'Customer' : 'You'}
+                    </span>
+                  </div>
                   <span className="font-medium">{formatCurrency(platformFee)}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Stripe Fee:</span>
+                <div className="flex items-center justify-between gap-6">
+                  <div className="flex items-center gap-2">
+                    <span>Stripe Fee</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${stripeFeePayer === 'customer' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'}`}>
+                      {stripeFeePayer === 'customer' ? 'Customer' : 'You'}
+                    </span>
+                  </div>
                   <span className="font-medium">{formatCurrency(stripeFee)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs pt-1 border-t mt-1">
-                  <span className="font-medium">Total:</span>
-                  <span className="font-semibold">{formatCurrency(platformFee + stripeFee)}</span>
                 </div>
               </div>
             </div>

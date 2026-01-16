@@ -469,6 +469,7 @@ export async function sendTicketConfirmationEmail({
   promoCode,
   taxAmount,
   processingFees,
+  customerPaidFees,
   total,
   paymentMethod,
 }: {
@@ -486,6 +487,7 @@ export async function sendTicketConfirmationEmail({
   promoCode?: string | null
   taxAmount?: number
   processingFees?: number
+  customerPaidFees?: boolean
   total: number
   paymentMethod?: string | null
 }): Promise<boolean> {
@@ -575,8 +577,8 @@ export async function sendTicketConfirmationEmail({
     </tr>
   ` : ''
 
-  // Build optional fee line
-  const feeHtml = processingFees && processingFees > 0 ? `
+  // Build optional fee line (only show if customer paid the fees)
+  const feeHtml = customerPaidFees !== false && processingFees && processingFees > 0 ? `
     <tr>
       <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
         <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
@@ -1171,6 +1173,7 @@ export async function sendTableReservationConfirmedEmail({
   promoCode,
   taxAmount,
   processingFees,
+  customerPaidFees,
   total,
   paymentMethod,
 }: {
@@ -1188,6 +1191,7 @@ export async function sendTableReservationConfirmedEmail({
   promoCode?: string | null
   taxAmount?: number
   processingFees?: number
+  customerPaidFees?: boolean
   total: number
   paymentMethod?: string | null
 }): Promise<boolean> {
@@ -1286,8 +1290,8 @@ export async function sendTableReservationConfirmedEmail({
     </tr>
   ` : ''
 
-  // Build optional fee line
-  const feeHtml = processingFees && processingFees > 0 ? `
+  // Build optional fee line (only show if customer paid the fees)
+  const feeHtml = customerPaidFees !== false && processingFees && processingFees > 0 ? `
     <tr>
       <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
         <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">

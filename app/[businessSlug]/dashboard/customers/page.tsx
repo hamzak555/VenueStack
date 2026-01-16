@@ -24,7 +24,8 @@ export default async function CustomersPage({ params }: CustomersPageProps) {
   let errorMessage = ''
 
   try {
-    customers = await getCustomersByBusinessId(business.id)
+    // Include deleted customers so the UI can toggle visibility
+    customers = await getCustomersByBusinessId(business.id, { includeDeleted: true })
   } catch (error) {
     console.error('Error fetching customers:', error)
     errorMessage = error instanceof Error ? error.message : 'Unknown error'

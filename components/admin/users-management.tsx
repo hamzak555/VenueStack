@@ -24,10 +24,16 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { UserPlus, Pencil, Trash2, Clock, Send, Copy, Check, Mail, Phone } from 'lucide-react'
-import { AdminUser } from '@/lib/types'
 import { PhoneInput } from '@/components/ui/phone-input'
 
-type AdminUserWithoutPassword = Omit<AdminUser, 'password_hash'> & {
+interface AdminUserDisplay {
+  id: string
+  email: string
+  name: string
+  phone: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
   source?: 'legacy' | 'global'
 }
 
@@ -42,7 +48,7 @@ interface AdminInvitation {
 }
 
 export function AdminUsersManagement() {
-  const [users, setUsers] = useState<AdminUserWithoutPassword[]>([])
+  const [users, setUsers] = useState<AdminUserDisplay[]>([])
   const [invitations, setInvitations] = useState<AdminInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -59,7 +65,7 @@ export function AdminUsersManagement() {
 
   // Edit user state
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editingUser, setEditingUser] = useState<AdminUserWithoutPassword | null>(null)
+  const [editingUser, setEditingUser] = useState<AdminUserDisplay | null>(null)
   const [editForm, setEditForm] = useState({
     email: '',
     password: '',
@@ -72,7 +78,7 @@ export function AdminUsersManagement() {
 
   // Delete user state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deletingUser, setDeletingUser] = useState<AdminUserWithoutPassword | null>(null)
+  const [deletingUser, setDeletingUser] = useState<AdminUserDisplay | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
@@ -285,7 +291,7 @@ export function AdminUsersManagement() {
     setTimeout(() => setCopiedLink(null), 2000)
   }
 
-  const openEditDialog = (user: AdminUserWithoutPassword) => {
+  const openEditDialog = (user: AdminUserDisplay) => {
     setEditingUser(user)
     setEditForm({
       email: user.email,
@@ -298,7 +304,7 @@ export function AdminUsersManagement() {
     setEditDialogOpen(true)
   }
 
-  const openDeleteDialog = (user: AdminUserWithoutPassword) => {
+  const openDeleteDialog = (user: AdminUserDisplay) => {
     setDeletingUser(user)
     setDeleteError('')
     setDeleteDialogOpen(true)

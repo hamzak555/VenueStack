@@ -48,6 +48,9 @@ export async function GET(request: NextRequest) {
       taxPercentage: taxPercentageStr,
       platformFee: platformFeeStr,
       stripeFee: stripeFeeStr,
+      // Fee payer settings at time of purchase
+      stripeFeePayer,
+      platformFeePayer,
       // Table booking specific fields
       tableSelections, // JSON string of section ID -> quantity
       orderDetails, // JSON string of order details array
@@ -78,6 +81,8 @@ export async function GET(request: NextRequest) {
           taxPercentageStr,
           platformFeeStr,
           stripeFeeStr,
+          stripeFeePayer,
+          platformFeePayer,
           trackingRef,
         }
       )
@@ -202,6 +207,8 @@ export async function GET(request: NextRequest) {
           tax_percentage: taxPercentage,
           platform_fee: platformFee,
           stripe_fee: stripeFee,
+          stripe_fee_payer: stripeFeePayer || 'customer',
+          platform_fee_payer: platformFeePayer || 'customer',
           total: totalAmount,
           stripe_payment_intent_id: paymentIntentId,
           status: 'completed',
@@ -316,6 +323,7 @@ export async function GET(request: NextRequest) {
             promoCode: promoCodeUsed,
             taxAmount,
             processingFees: platformFee + stripeFee,
+            customerPaidFees: stripeFeePayer === 'customer' || platformFeePayer === 'customer',
             total: totalAmount,
           })
         } catch (emailErr) {
@@ -370,6 +378,8 @@ async function handleTableBookingVerification(
     taxPercentageStr?: string
     platformFeeStr?: string
     stripeFeeStr?: string
+    stripeFeePayer?: string
+    platformFeePayer?: string
     trackingRef?: string
   }
 ) {
@@ -382,12 +392,16 @@ async function handleTableBookingVerification(
     customerName,
     customerEmail,
     customerPhone,
+    stripeFeePayer,
+    platformFeePayer,
     trackingRef,
   } = metadata
 
-  // Get tax amount from metadata (stored as taxAmount in create-table-payment-intent, passed as taxAmountStr)
+  // Get tax amount and fees from metadata
   const totalTaxAmount = parseFloat(metadata.taxAmountStr || '0')
-  console.log('Table booking tax from metadata:', { taxAmountStr: metadata.taxAmountStr, totalTaxAmount })
+  const totalPlatformFee = parseFloat(metadata.platformFeeStr || '0')
+  const totalStripeFee = parseFloat(metadata.stripeFeeStr || '0')
+  console.log('Table booking metadata:', { taxAmountStr: metadata.taxAmountStr, totalTaxAmount, platformFee: totalPlatformFee, stripeFee: totalStripeFee })
 
   // Look up tracking link ID if trackingRef is provided
   let trackingLinkId: string | null = null
@@ -485,11 +499,12 @@ async function handleTableBookingVerification(
     }
 
     // Create bookings for each table in this section (table_number left null for business to assign)
-    // Calculate tax per table proportionally based on price
-    const taxPerTable = totalTablePrice > 0
-      ? (detail.price / totalTablePrice) * totalTaxAmount
-      : 0
-    console.log('Creating table booking with tax:', { price: detail.price, totalTablePrice, totalTaxAmount, taxPerTable })
+    // Calculate tax and fees per table proportionally based on price
+    const priceRatio = totalTablePrice > 0 ? detail.price / totalTablePrice : 0
+    const taxPerTable = priceRatio * totalTaxAmount
+    const platformFeePerTable = priceRatio * totalPlatformFee
+    const stripeFeePerTable = priceRatio * totalStripeFee
+    console.log('Creating table booking with tax and fees:', { price: detail.price, totalTablePrice, taxPerTable, platformFeePerTable, stripeFeePerTable })
 
     for (let i = 0; i < quantity; i++) {
       // Generate a short reservation number (TB + 7 characters)
@@ -510,6 +525,10 @@ async function handleTableBookingVerification(
           customer_phone: customerPhone || null,
           amount: detail.price, // Store the price per table
           tax_amount: taxPerTable, // Store the tax per table
+          platform_fee: platformFeePerTable, // Store the platform fee per table
+          stripe_fee: stripeFeePerTable, // Store the stripe fee per table
+          stripe_fee_payer: stripeFeePayer || 'customer',
+          platform_fee_payer: platformFeePayer || 'customer',
           status: detail.price > 0 ? 'confirmed' : 'requested', // Paid tables are confirmed, free tables need approval
           tracking_ref: trackingRef || null,
           tracking_link_id: trackingLinkId,
@@ -601,6 +620,7 @@ async function handleTableBookingVerification(
       subtotal: totalTablePrice,
       taxAmount: totalTaxAmount,
       processingFees: platformFee + stripeFee,
+      customerPaidFees: stripeFeePayer === 'customer' || platformFeePayer === 'customer',
       total: totalAmount,
       paymentMethod: 'Card',
     }).catch(err => console.error('Failed to send table reservation confirmation email:', err))

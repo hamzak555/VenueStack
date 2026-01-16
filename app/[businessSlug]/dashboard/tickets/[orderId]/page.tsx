@@ -174,6 +174,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                     <ProcessingFeeTooltip
                       platformFee={order.platform_fee || 0}
                       stripeFee={order.stripe_fee || 0}
+                      platformFeePayer={order.platform_fee_payer || 'customer'}
+                      stripeFeePayer={order.stripe_fee_payer || 'customer'}
                     />
                   </div>
                   <p className="text-sm font-medium">
@@ -187,6 +189,17 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 <p className="text-2xl font-bold">{formatCurrency(order.total)}</p>
               </div>
 
+              {totalRefunded > 0 && (
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm font-semibold text-red-900 dark:text-red-100">Total Refunded</p>
+                    <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                      -{formatCurrency(totalRefunded)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
                 <div className="flex justify-between items-center">
                   <p className="text-sm font-semibold text-green-900 dark:text-green-100">Transferred to Business</p>
@@ -194,6 +207,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                     {formatCurrency(businessTransferAmount)}
                   </p>
                 </div>
+                {totalRefunded > 0 && (
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-green-200 dark:border-green-800">
+                    <p className="text-sm text-green-800 dark:text-green-200">After Refunds</p>
+                    <p className="text-lg font-bold text-green-700 dark:text-green-400">
+                      {formatCurrency(remainingRefundable)}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

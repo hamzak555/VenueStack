@@ -141,6 +141,7 @@ export async function GET(
       platform_fee_payer: business.platform_fee_payer || 'customer',
       tax_percentage: business.tax_percentage || 0,
       platform_settings: feeSettings,
+      stripe_account_id: business.stripe_account_id,
     })
   } catch (error) {
     console.error('Stripe status check error:', error)

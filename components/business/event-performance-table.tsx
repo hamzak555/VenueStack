@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -13,7 +12,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatCurrency } from '@/lib/utils/currency'
-import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Info } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Image from 'next/image'
 
@@ -35,6 +40,14 @@ interface EventAnalytics {
   total_table_bookings: number
   table_revenue: number
   table_tax: number
+  table_fees: number
+  ticket_customer_paid_fees: number
+  ticket_business_paid_fees: number
+  table_customer_paid_fees: number
+  table_business_paid_fees: number
+  ticket_refunds: number
+  table_refunds: number
+  total_refunds: number
 }
 
 interface EventPerformanceTableProps {
@@ -45,7 +58,7 @@ interface EventPerformanceTableProps {
 const ITEMS_PER_PAGE = 10
 
 type TimeFilter = 'all' | 'upcoming' | 'past'
-type SortField = 'event' | 'status' | 'date' | 'tickets' | 'ticket_revenue' | 'ticket_tax' | 'tables' | 'table_revenue' | 'table_tax' | 'gross' | 'net'
+type SortField = 'event' | 'date' | 'tickets' | 'ticket_revenue' | 'ticket_tax' | 'tables' | 'table_revenue' | 'table_tax' | 'fees' | 'refunds' | 'gross' | 'total' | 'net'
 type SortDirection = 'asc' | 'desc'
 
 export function EventPerformanceTable({ events, eventAnalytics }: EventPerformanceTableProps) {
@@ -78,13 +91,32 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
     const ticketsSold = analytics?.total_tickets_sold || 0
     const ticketGross = analytics?.ticket_gross_revenue || 0
     const ticketTax = analytics?.ticket_tax || 0
-    const ticketNet = analytics?.ticket_net_revenue || 0
+    const ticketFees = analytics?.ticket_fees || 0
     const tablesBooked = analytics?.total_table_bookings || 0
     const tableRevenue = analytics?.table_revenue || 0
     const tableTax = analytics?.table_tax || 0
-    const totalGross = ticketGross + tableRevenue + tableTax
-    const totalNet = ticketNet + tableRevenue
-    return { ticketsSold, ticketGross, ticketTax, ticketNet, tablesBooked, tableRevenue, tableTax, totalGross, totalNet }
+    const tableFees = analytics?.table_fees || 0
+    const totalRefunds = analytics?.total_refunds || 0
+    const ticketCustomerPaidFees = analytics?.ticket_customer_paid_fees || 0
+    const ticketBusinessPaidFees = analytics?.ticket_business_paid_fees || 0
+    const tableCustomerPaidFees = analytics?.table_customer_paid_fees || 0
+    const tableBusinessPaidFees = analytics?.table_business_paid_fees || 0
+    const totalFees = ticketFees + tableFees
+    const totalCustomerPaidFees = ticketCustomerPaidFees + tableCustomerPaidFees
+    const totalBusinessPaidFees = ticketBusinessPaidFees + tableBusinessPaidFees
+    // Subtotal = gross - tax - customer-paid fees (customer-paid fees are included in gross)
+    const ticketSubtotal = ticketGross - ticketTax - ticketCustomerPaidFees
+    // Gross = subtotal + tax (fees not included - they go to platform/Stripe)
+    const totalGross = ticketSubtotal + ticketTax + tableRevenue + tableTax
+    // Net = subtotal - business-paid fees - refunds (tax is pass-through)
+    const totalNet = ticketSubtotal + tableRevenue - totalBusinessPaidFees - totalRefunds
+    // Total = subtotal + tax - business-paid fees - refunds (what you actually receive)
+    const total = totalGross - totalBusinessPaidFees - totalRefunds
+    return {
+      ticketsSold, ticketSubtotal, ticketTax, ticketFees, ticketCustomerPaidFees, ticketBusinessPaidFees,
+      tablesBooked, tableRevenue, tableTax, tableFees, tableCustomerPaidFees, tableBusinessPaidFees,
+      totalFees, totalCustomerPaidFees, totalBusinessPaidFees, totalRefunds, totalGross, total, totalNet
+    }
   }
 
   // Sort events
@@ -98,9 +130,6 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
         case 'event':
           comparison = a.title.localeCompare(b.title)
           break
-        case 'status':
-          comparison = a.status.localeCompare(b.status)
-          break
         case 'date':
           comparison = new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
           break
@@ -108,7 +137,7 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
           comparison = analyticsA.ticketsSold - analyticsB.ticketsSold
           break
         case 'ticket_revenue':
-          comparison = analyticsA.ticketGross - analyticsB.ticketGross
+          comparison = analyticsA.ticketSubtotal - analyticsB.ticketSubtotal
           break
         case 'ticket_tax':
           comparison = analyticsA.ticketTax - analyticsB.ticketTax
@@ -122,8 +151,17 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
         case 'table_tax':
           comparison = analyticsA.tableTax - analyticsB.tableTax
           break
+        case 'fees':
+          comparison = analyticsA.totalBusinessPaidFees - analyticsB.totalBusinessPaidFees
+          break
+        case 'refunds':
+          comparison = analyticsA.totalRefunds - analyticsB.totalRefunds
+          break
         case 'gross':
           comparison = analyticsA.totalGross - analyticsB.totalGross
+          break
+        case 'total':
+          comparison = analyticsA.total - analyticsB.total
           break
         case 'net':
           comparison = analyticsA.totalNet - analyticsB.totalNet
@@ -211,16 +249,18 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
                 <TableHeader>
                   <TableRow>
                     <SortableHeader field="event">Event</SortableHeader>
-                    <SortableHeader field="status">Status</SortableHeader>
                     <SortableHeader field="date">Date</SortableHeader>
                     <SortableHeader field="tickets" className="text-right">Tickets</SortableHeader>
-                    <SortableHeader field="ticket_revenue" className="text-right">Ticket Revenue</SortableHeader>
+                    <SortableHeader field="ticket_revenue" className="text-right">Ticket Subtotal</SortableHeader>
                     <SortableHeader field="ticket_tax" className="text-right">Ticket Tax</SortableHeader>
                     <SortableHeader field="tables" className="text-right">Tables</SortableHeader>
-                    <SortableHeader field="table_revenue" className="text-right">Table Revenue</SortableHeader>
+                    <SortableHeader field="table_revenue" className="text-right">Table Subtotal</SortableHeader>
                     <SortableHeader field="table_tax" className="text-right">Table Tax</SortableHeader>
                     <SortableHeader field="gross" className="text-right">Gross Revenue</SortableHeader>
+                    <SortableHeader field="fees" className="text-right">Fees</SortableHeader>
+                    <SortableHeader field="refunds" className="text-right">Refunds</SortableHeader>
                     <SortableHeader field="net" className="text-right">Net Revenue</SortableHeader>
+                    <SortableHeader field="total" className="text-right">Total</SortableHeader>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -229,12 +269,28 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
                     const ticketsSold = analytics?.total_tickets_sold || 0
                     const ticketGross = analytics?.ticket_gross_revenue || 0
                     const ticketTax = analytics?.ticket_tax || 0
-                    const ticketNet = analytics?.ticket_net_revenue || 0
+                    const ticketFees = analytics?.ticket_fees || 0
                     const tablesBooked = analytics?.total_table_bookings || 0
                     const tableRevenue = analytics?.table_revenue || 0
                     const tableTax = analytics?.table_tax || 0
-                    const totalGross = ticketGross + tableRevenue + tableTax
-                    const totalNet = ticketNet + tableRevenue
+                    const tableFees = analytics?.table_fees || 0
+                    const ticketRefunds = analytics?.ticket_refunds || 0
+                    const tableRefunds = analytics?.table_refunds || 0
+                    const totalRefunds = analytics?.total_refunds || 0
+                    const ticketCustomerPaidFees = analytics?.ticket_customer_paid_fees || 0
+                    const ticketBusinessPaidFees = analytics?.ticket_business_paid_fees || 0
+                    const tableCustomerPaidFees = analytics?.table_customer_paid_fees || 0
+                    const tableBusinessPaidFees = analytics?.table_business_paid_fees || 0
+                    const totalFees = ticketFees + tableFees
+                    const totalBusinessPaidFees = ticketBusinessPaidFees + tableBusinessPaidFees
+                    // Subtotal = gross - tax - customer-paid fees (customer-paid fees are included in gross)
+                    const ticketSubtotal = ticketGross - ticketTax - ticketCustomerPaidFees
+                    // Gross = subtotal + tax (fees not included - they go to platform/Stripe)
+                    const totalGross = ticketSubtotal + ticketTax + tableRevenue + tableTax
+                    // Net = subtotal - business-paid fees - refunds (tax is pass-through)
+                    const totalNet = ticketSubtotal + tableRevenue - totalBusinessPaidFees - totalRefunds
+                    // Total = subtotal + tax - business-paid fees - refunds (what you actually receive)
+                    const total = totalGross - totalBusinessPaidFees - totalRefunds
 
                     return (
                       <TableRow key={event.id}>
@@ -256,20 +312,6 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
                             <span className="font-medium">{event.title}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              event.status === 'published'
-                                ? 'success'
-                                : event.status === 'cancelled'
-                                ? 'destructive'
-                                : 'secondary'
-                            }
-                            className="capitalize"
-                          >
-                            {event.status}
-                          </Badge>
-                        </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
                           {new Date(event.event_date).toLocaleDateString('en-US', {
                             month: 'short',
@@ -278,14 +320,99 @@ export function EventPerformanceTable({ events, eventAnalytics }: EventPerforman
                           })}
                         </TableCell>
                         <TableCell className="text-right">{ticketsSold}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(ticketGross)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(ticketSubtotal)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(ticketTax)}</TableCell>
                         <TableCell className="text-right">{tablesBooked}</TableCell>
                         <TableCell className="text-right">{formatCurrency(tableRevenue)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(tableTax)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(totalGross)}</TableCell>
+                        <TableCell className="text-right">
+                          {totalBusinessPaidFees > 0 ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-red-600 cursor-help inline-flex items-center gap-1">
+                                    -{formatCurrency(totalBusinessPaidFees)}
+                                    <Info className="h-3 w-3 opacity-50" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="p-0 overflow-hidden border border-border" sideOffset={8} hideArrow>
+                                  <div className="text-xs">
+                                    <div className="px-3 py-2 bg-muted/50 border-b font-medium">
+                                      Fees Paid by You
+                                    </div>
+                                    <div className="p-3 space-y-1.5">
+                                      <div className="flex justify-between gap-4">
+                                        <span>Total</span>
+                                        <span className="font-medium">{formatCurrency(totalBusinessPaidFees)}</span>
+                                      </div>
+                                      {ticketBusinessPaidFees > 0 && (
+                                        <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                                          <span className="pl-4">Tickets</span>
+                                          <span>{formatCurrency(ticketBusinessPaidFees)}</span>
+                                        </div>
+                                      )}
+                                      {tableBusinessPaidFees > 0 && (
+                                        <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                                          <span className="pl-4">Tables</span>
+                                          <span>{formatCurrency(tableBusinessPaidFees)}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            formatCurrency(0)
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {totalRefunds > 0 ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-red-600 cursor-help inline-flex items-center gap-1">
+                                    -{formatCurrency(totalRefunds)}
+                                    <Info className="h-3 w-3 opacity-50" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="p-0 overflow-hidden border border-border" sideOffset={8} hideArrow>
+                                  <div className="text-xs">
+                                    <div className="px-3 py-2 bg-muted/50 border-b font-medium">
+                                      Refunds
+                                    </div>
+                                    <div className="p-3 space-y-1.5">
+                                      <div className="flex justify-between gap-4">
+                                        <span>Total</span>
+                                        <span className="font-medium">{formatCurrency(totalRefunds)}</span>
+                                      </div>
+                                      {ticketRefunds > 0 && (
+                                        <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                                          <span className="pl-4">Tickets</span>
+                                          <span>{formatCurrency(ticketRefunds)}</span>
+                                        </div>
+                                      )}
+                                      {tableRefunds > 0 && (
+                                        <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                                          <span className="pl-4">Tables</span>
+                                          <span>{formatCurrency(tableRefunds)}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            formatCurrency(0)
+                          )}
+                        </TableCell>
                         <TableCell className="text-right font-medium text-green-600">
                           {formatCurrency(totalNet)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(total)}
                         </TableCell>
                       </TableRow>
                     )

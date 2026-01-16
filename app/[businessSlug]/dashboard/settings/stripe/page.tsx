@@ -23,6 +23,7 @@ interface StripeStatus {
   platform_fee_payer?: 'customer' | 'business'
   tax_percentage?: number
   platform_settings?: PlatformSettings
+  stripe_account_id?: string
 }
 
 export default function StripeSettingsPage() {
@@ -326,7 +327,14 @@ export default function StripeSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Stripe Connect</CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle>Stripe Connect</CardTitle>
+            {status?.stripe_account_id && (
+              <span className="text-sm font-mono text-muted-foreground bg-muted px-2 py-1 rounded">
+                {status.stripe_account_id}
+              </span>
+            )}
+          </div>
           <CardDescription>
             Connect your Stripe account to receive ticket sales payments directly
           </CardDescription>

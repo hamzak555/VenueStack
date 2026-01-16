@@ -84,6 +84,7 @@ export async function POST(
       promoCode: order.promo_code,
       taxAmount: order.tax_amount,
       processingFees: (order.platform_fee || 0) + (order.stripe_fee || 0),
+      customerPaidFees: order.stripe_fee_payer === 'customer' || order.platform_fee_payer === 'customer',
       total: order.total,
     })
 

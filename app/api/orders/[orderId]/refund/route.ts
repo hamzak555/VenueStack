@@ -160,6 +160,8 @@ export async function POST(
     })
 
     // Create refund record in database
+    // Note: We don't use refunded_by_id as it has a foreign key constraint
+    // that may not match our auth system. We just store the name for display.
     const { data: refundRecord, error: refundError } = await supabase
       .from('refunds')
       .insert({
@@ -168,8 +170,7 @@ export async function POST(
         reason,
         stripe_refund_id: stripeRefund.id,
         status: 'succeeded',
-        refunded_by_id: session.userId,
-        refunded_by_name: session.userName || session.userEmail,
+        refunded_by_name: session.name || session.email,
         voided_tickets: voidTickets || false,
       })
       .select()

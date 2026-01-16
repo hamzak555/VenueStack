@@ -13,9 +13,17 @@ export interface Customer {
   last_purchase: string
   average_rating: number | null
   total_ratings: number
+  isDeleted: boolean // Whether this customer has been anonymized/deleted
 }
 
-export async function getCustomersByBusinessId(businessId: string): Promise<Customer[]> {
+// Marker for deleted/anonymized customers
+export const DELETED_CUSTOMER_NAME = '[DELETED]'
+
+export async function getCustomersByBusinessId(
+  businessId: string,
+  options: { includeDeleted?: boolean } = {}
+): Promise<Customer[]> {
+  const { includeDeleted = false } = options
   const supabase = await createClient()
 
   // Get all orders for this business's events
@@ -130,6 +138,7 @@ export async function getCustomersByBusinessId(businessId: string): Promise<Cust
         last_purchase: createdAt,
         average_rating: customerRatings ? customerRatings.reduce((a, b) => a + b, 0) / customerRatings.length : null,
         total_ratings: customerRatings?.length || 0,
+        isDeleted: name === DELETED_CUSTOMER_NAME,
       }
 
       phoneToCustomer.set(normalizedPhone, newCustomer)
@@ -161,6 +170,7 @@ export async function getCustomersByBusinessId(businessId: string): Promise<Cust
         last_purchase: createdAt,
         average_rating: customerRatings ? customerRatings.reduce((a, b) => a + b, 0) / customerRatings.length : null,
         total_ratings: customerRatings?.length || 0,
+        isDeleted: name === DELETED_CUSTOMER_NAME,
       }
 
       emailOnlyCustomers.set(normalizedEmail, newCustomer)
@@ -182,6 +192,7 @@ export async function getCustomersByBusinessId(businessId: string): Promise<Cust
       last_purchase: createdAt,
       average_rating: null,
       total_ratings: 0,
+      isDeleted: name === DELETED_CUSTOMER_NAME,
     }
   }
 
@@ -258,8 +269,13 @@ export async function getCustomersByBusinessId(businessId: string): Promise<Cust
     }
   }
 
+  // Filter out deleted customers unless explicitly requested
+  const filteredCustomers = includeDeleted
+    ? allCustomers
+    : allCustomers.filter(c => !c.isDeleted)
+
   // Sort by total spent (descending)
-  return allCustomers.sort((a, b) => b.total_spent - a.total_spent)
+  return filteredCustomers.sort((a, b) => b.total_spent - a.total_spent)
 }
 
 // Enhanced customer with ratings
@@ -436,6 +452,7 @@ export async function getCustomerWithRatings(
     last_purchase: lastPurchase,
     average_rating: averageRating,
     total_ratings: ratings?.length || 0,
+    isDeleted: name === DELETED_CUSTOMER_NAME,
   }
 }
 
@@ -591,4 +608,222 @@ export async function getCustomerTicketPurchases(
     status: o.status,
     created_at: o.created_at,
   }))
+}
+
+/**
+ * Anonymize a customer's data across all tables (GDPR-style deletion)
+ * This preserves financial records but removes personally identifiable information
+ */
+export async function deleteCustomer(
+  businessId: string,
+  identifier: { phone: string } | { email: string }
+): Promise<{ success: boolean; error?: string; anonymizedCount: number }> {
+  const supabase = await createClient()
+  let anonymizedCount = 0
+
+  try {
+    // First, find all emails associated with this customer (for phone-based lookup)
+    const emailsSet = new Set<string>()
+    let customerPhone: string | null = null
+
+    if ('phone' in identifier) {
+      customerPhone = identifier.phone
+
+      // Find all emails associated with this phone
+      const { data: phoneOrders } = await supabase
+        .from('orders')
+        .select('customer_email, event:events!inner(business_id)')
+        .eq('customer_phone', customerPhone)
+        .eq('event.business_id', businessId)
+
+      const { data: phoneBookings } = await supabase
+        .from('table_bookings')
+        .select('customer_email, events!inner(business_id)')
+        .eq('customer_phone', customerPhone)
+        .eq('events.business_id', businessId)
+
+      for (const o of phoneOrders || []) {
+        if (o.customer_email) emailsSet.add(o.customer_email.toLowerCase())
+      }
+      for (const b of phoneBookings || []) {
+        if (b.customer_email) emailsSet.add(b.customer_email.toLowerCase())
+      }
+    } else {
+      emailsSet.add(identifier.email.toLowerCase())
+    }
+
+    const emails = Array.from(emailsSet)
+
+    // Anonymize orders
+    if (customerPhone) {
+      // Get event IDs for this business first
+      const { data: events } = await supabase
+        .from('events')
+        .select('id')
+        .eq('business_id', businessId)
+
+      const eventIds = events?.map(e => e.id) || []
+
+      if (eventIds.length > 0) {
+        const { data: updatedOrders, error: ordersError } = await supabase
+          .from('orders')
+          .update({
+            customer_name: DELETED_CUSTOMER_NAME,
+            customer_email: null,
+            customer_phone: null,
+          })
+          .eq('customer_phone', customerPhone)
+          .in('event_id', eventIds)
+          .select('id')
+
+        if (ordersError) {
+          console.error('Error anonymizing orders:', ordersError)
+        } else {
+          anonymizedCount += updatedOrders?.length || 0
+        }
+
+        // Also anonymize by email for any orders without phone
+        if (emails.length > 0) {
+          const { data: emailOrders, error: emailOrdersError } = await supabase
+            .from('orders')
+            .update({
+              customer_name: DELETED_CUSTOMER_NAME,
+              customer_email: null,
+              customer_phone: null,
+            })
+            .in('customer_email', emails)
+            .in('event_id', eventIds)
+            .select('id')
+
+          if (!emailOrdersError) {
+            anonymizedCount += emailOrders?.length || 0
+          }
+        }
+      }
+    } else if (emails.length > 0) {
+      // Email-only customer
+      const { data: events } = await supabase
+        .from('events')
+        .select('id')
+        .eq('business_id', businessId)
+
+      const eventIds = events?.map(e => e.id) || []
+
+      if (eventIds.length > 0) {
+        const { data: updatedOrders, error: ordersError } = await supabase
+          .from('orders')
+          .update({
+            customer_name: DELETED_CUSTOMER_NAME,
+            customer_email: null,
+            customer_phone: null,
+          })
+          .in('customer_email', emails)
+          .in('event_id', eventIds)
+          .select('id')
+
+        if (ordersError) {
+          console.error('Error anonymizing orders:', ordersError)
+        } else {
+          anonymizedCount += updatedOrders?.length || 0
+        }
+      }
+    }
+
+    // Anonymize table bookings
+    if (customerPhone) {
+      const { data: events } = await supabase
+        .from('events')
+        .select('id')
+        .eq('business_id', businessId)
+
+      const eventIds = events?.map(e => e.id) || []
+
+      if (eventIds.length > 0) {
+        const { data: updatedBookings, error: bookingsError } = await supabase
+          .from('table_bookings')
+          .update({
+            customer_name: DELETED_CUSTOMER_NAME,
+            customer_email: null,
+            customer_phone: null,
+          })
+          .eq('customer_phone', customerPhone)
+          .in('event_id', eventIds)
+          .select('id')
+
+        if (bookingsError) {
+          console.error('Error anonymizing table bookings:', bookingsError)
+        } else {
+          anonymizedCount += updatedBookings?.length || 0
+        }
+
+        // Also by email
+        if (emails.length > 0) {
+          const { data: emailBookings, error: emailBookingsError } = await supabase
+            .from('table_bookings')
+            .update({
+              customer_name: DELETED_CUSTOMER_NAME,
+              customer_email: null,
+              customer_phone: null,
+            })
+            .in('customer_email', emails)
+            .in('event_id', eventIds)
+            .select('id')
+
+          if (!emailBookingsError) {
+            anonymizedCount += emailBookings?.length || 0
+          }
+        }
+      }
+    } else if (emails.length > 0) {
+      const { data: events } = await supabase
+        .from('events')
+        .select('id')
+        .eq('business_id', businessId)
+
+      const eventIds = events?.map(e => e.id) || []
+
+      if (eventIds.length > 0) {
+        const { data: updatedBookings, error: bookingsError } = await supabase
+          .from('table_bookings')
+          .update({
+            customer_name: DELETED_CUSTOMER_NAME,
+            customer_email: null,
+            customer_phone: null,
+          })
+          .in('customer_email', emails)
+          .in('event_id', eventIds)
+          .select('id')
+
+        if (bookingsError) {
+          console.error('Error anonymizing table bookings:', bookingsError)
+        } else {
+          anonymizedCount += updatedBookings?.length || 0
+        }
+      }
+    }
+
+    // Anonymize customer feedback
+    if (emails.length > 0) {
+      const { error: feedbackError } = await supabase
+        .from('customer_feedback')
+        .update({
+          customer_email: `deleted-${Date.now()}@anonymized.local`,
+        })
+        .eq('business_id', businessId)
+        .in('customer_email', emails)
+
+      if (feedbackError) {
+        console.error('Error anonymizing customer feedback:', feedbackError)
+      }
+    }
+
+    return { success: true, anonymizedCount }
+  } catch (error) {
+    console.error('Error deleting customer:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      anonymizedCount: 0,
+    }
+  }
 }
