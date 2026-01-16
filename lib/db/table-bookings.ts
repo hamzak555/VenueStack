@@ -363,6 +363,7 @@ export async function getTableBookingsByOrderId(orderId: string): Promise<TableB
     customer_phone: booking.customer_phone,
     amount: booking.amount,
     tax_amount: booking.tax_amount,
+    total_refunded: booking.total_refunded || 0,
     status: booking.status,
     created_at: booking.created_at,
     updated_at: booking.updated_at,
