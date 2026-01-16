@@ -189,7 +189,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                           <>
                             <div className="flex justify-between gap-4">
                               <span>- Refunds</span>
-                              <span className="font-medium text-red-600">-{formatCurrency(analytics.total_refunds)}</span>
+                              <span className="font-medium text-orange-600">-{formatCurrency(analytics.total_refunds)}</span>
                             </div>
                             {analytics.ticket_refunds > 0 && (
                               <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
@@ -304,7 +304,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                             <>
                               <div className="flex justify-between gap-4">
                                 <span>- Refunds</span>
-                                <span className="font-medium text-red-600">-{formatCurrency(analytics.total_refunds)}</span>
+                                <span className="font-medium text-orange-600">-{formatCurrency(analytics.total_refunds)}</span>
                               </div>
                               {analytics.ticket_refunds > 0 && (
                                 <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
@@ -360,12 +360,44 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                           <span>Subtotal</span>
                           <span className="font-medium">{formatCurrency(totalSubtotal)}</span>
                         </div>
+                        {(ticketSubtotal > 0 || tableSubtotal > 0) && (
+                          <>
+                            {ticketSubtotal > 0 && (
+                              <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                                <span className="pl-4">Tickets</span>
+                                <span>{formatCurrency(ticketSubtotal)}</span>
+                              </div>
+                            )}
+                            {tableSubtotal > 0 && (
+                              <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                                <span className="pl-4">Tables</span>
+                                <span>{formatCurrency(tableSubtotal)}</span>
+                              </div>
+                            )}
+                          </>
+                        )}
                         <div className="flex justify-between gap-4">
                           <span>+ Tax</span>
                           <span className="font-medium">{formatCurrency(totalTaxCollected)}</span>
                         </div>
+                        {(analytics.ticket_tax_collected > 0 || analytics.table_tax_collected > 0) && (
+                          <>
+                            {analytics.ticket_tax_collected > 0 && (
+                              <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                                <span className="pl-4">Tickets</span>
+                                <span>{formatCurrency(analytics.ticket_tax_collected)}</span>
+                              </div>
+                            )}
+                            {analytics.table_tax_collected > 0 && (
+                              <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                                <span className="pl-4">Tables</span>
+                                <span>{formatCurrency(analytics.table_tax_collected)}</span>
+                              </div>
+                            )}
+                          </>
+                        )}
                         <div className="flex justify-between gap-4 border-t pt-1.5 font-medium">
-                          <span>Total</span>
+                          <span>Gross Revenue</span>
                           <span>{formatCurrency(totalGrossRevenue)}</span>
                         </div>
                         <p className="text-[10px] text-muted-foreground pt-1">
@@ -388,9 +420,43 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
           <CardContent className="pb-0">
             <div className="flex items-center gap-2">
               <RotateCcw className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-muted-foreground">Refunds</p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-sm font-medium text-muted-foreground cursor-help inline-flex items-center gap-1">
+                      Refunds
+                      <Info className="h-3 w-3 opacity-70" />
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent className="p-0 overflow-hidden border border-border" sideOffset={8} hideArrow>
+                    <div className="text-xs">
+                      <div className="px-3 py-2 bg-muted/50 border-b font-medium">
+                        Refunds Breakdown
+                      </div>
+                      <div className="p-3 space-y-1.5">
+                        <div className="flex justify-between gap-4">
+                          <span>Total</span>
+                          <span className="font-medium">{formatCurrency(analytics.total_refunds)}</span>
+                        </div>
+                        {analytics.ticket_refunds > 0 && (
+                          <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                            <span className="pl-4">Tickets</span>
+                            <span>{formatCurrency(analytics.ticket_refunds)}</span>
+                          </div>
+                        )}
+                        {analytics.table_refunds > 0 && (
+                          <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                            <span className="pl-4">Tables</span>
+                            <span>{formatCurrency(analytics.table_refunds)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
-            <div className={`text-2xl font-bold ${analytics.total_refunds > 0 ? 'text-red-600' : ''}`}>{analytics.total_refunds > 0 ? `-${formatCurrency(analytics.total_refunds)}` : formatCurrency(0)}</div>
+            <div className={`text-2xl font-bold ${analytics.total_refunds > 0 ? 'text-orange-600' : ''}`}>{analytics.total_refunds > 0 ? `-${formatCurrency(analytics.total_refunds)}` : formatCurrency(0)}</div>
             <p className="text-xs text-muted-foreground">
               {analytics.refund_count} refund{analytics.refund_count !== 1 ? 's' : ''} processed
             </p>
@@ -401,7 +467,41 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
           <CardContent className="pb-0">
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-muted-foreground">Tax Collected ({business.tax_percentage || 0}%)</p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-sm font-medium text-muted-foreground cursor-help inline-flex items-center gap-1">
+                      Tax Collected ({business.tax_percentage || 0}%)
+                      <Info className="h-3 w-3 opacity-70" />
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent className="p-0 overflow-hidden border border-border" sideOffset={8} hideArrow>
+                    <div className="text-xs">
+                      <div className="px-3 py-2 bg-muted/50 border-b font-medium">
+                        Tax Breakdown
+                      </div>
+                      <div className="p-3 space-y-1.5">
+                        <div className="flex justify-between gap-4">
+                          <span>Total</span>
+                          <span className="font-medium">{formatCurrency(totalTaxCollected)}</span>
+                        </div>
+                        {analytics.ticket_tax_collected > 0 && (
+                          <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                            <span className="pl-4">Tickets</span>
+                            <span>{formatCurrency(analytics.ticket_tax_collected)}</span>
+                          </div>
+                        )}
+                        {analytics.table_tax_collected > 0 && (
+                          <div className="flex justify-between gap-4 text-[11px] text-muted-foreground/70">
+                            <span className="pl-4">Tables</span>
+                            <span>{formatCurrency(analytics.table_tax_collected)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <div className="text-2xl font-bold">{formatCurrency(analytics.total_tax_collected)}</div>
             <p className="text-xs text-muted-foreground">
@@ -510,7 +610,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Refunds</span>
-                  <span className={`font-medium ${analytics.ticket_refunds > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                  <span className={`font-medium ${analytics.ticket_refunds > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
                     {analytics.ticket_refunds > 0 ? `-${formatCurrency(analytics.ticket_refunds)}` : formatCurrency(0)}
                   </span>
                 </div>
@@ -579,7 +679,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                             {analytics.ticket_refunds > 0 && (
                               <div className="flex justify-between gap-4">
                                 <span>- Refunds</span>
-                                <span className="font-medium text-red-600">-{formatCurrency(analytics.ticket_refunds)}</span>
+                                <span className="font-medium text-orange-600">-{formatCurrency(analytics.ticket_refunds)}</span>
                               </div>
                             )}
                             <div className="flex justify-between gap-4 border-t pt-1.5 font-medium">
@@ -628,7 +728,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                             {analytics.ticket_refunds > 0 && (
                               <div className="flex justify-between gap-4">
                                 <span>- Refunds</span>
-                                <span className="font-medium text-red-600">-{formatCurrency(analytics.ticket_refunds)}</span>
+                                <span className="font-medium text-orange-600">-{formatCurrency(analytics.ticket_refunds)}</span>
                               </div>
                             )}
                             <div className="flex justify-between gap-4 border-t pt-1.5 font-medium">
@@ -747,7 +847,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Refunds</span>
-                  <span className={`font-medium ${analytics.table_refunds > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                  <span className={`font-medium ${analytics.table_refunds > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
                     {analytics.table_refunds > 0 ? `-${formatCurrency(analytics.table_refunds)}` : formatCurrency(0)}
                   </span>
                 </div>
@@ -816,7 +916,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                             {analytics.table_refunds > 0 && (
                               <div className="flex justify-between gap-4">
                                 <span>- Refunds</span>
-                                <span className="font-medium text-red-600">-{formatCurrency(analytics.table_refunds)}</span>
+                                <span className="font-medium text-orange-600">-{formatCurrency(analytics.table_refunds)}</span>
                               </div>
                             )}
                             <div className="flex justify-between gap-4 border-t pt-1.5 font-medium">
@@ -865,7 +965,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
                             {analytics.table_refunds > 0 && (
                               <div className="flex justify-between gap-4">
                                 <span>- Refunds</span>
-                                <span className="font-medium text-red-600">-{formatCurrency(analytics.table_refunds)}</span>
+                                <span className="font-medium text-orange-600">-{formatCurrency(analytics.table_refunds)}</span>
                               </div>
                             )}
                             <div className="flex justify-between gap-4 border-t pt-1.5 font-medium">
