@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
       stripe_onboarding_complete: false,
       stripe_fee_payer: 'customer',
       platform_fee_payer: 'customer',
+      show_customer_paid_fees: false,
       tax_percentage: 0,
       use_custom_fee_settings: false,
       platform_fee_type: null,
