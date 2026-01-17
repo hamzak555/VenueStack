@@ -132,6 +132,7 @@ export interface Business {
   stripe_onboarding_complete: boolean
   stripe_fee_payer: 'customer' | 'business' // Who pays the Stripe processing fees
   platform_fee_payer: 'customer' | 'business' // Who pays the platform fees
+  show_customer_paid_fees: boolean // Whether to show customer-paid fees in reports (admin toggle)
   tax_percentage: number // Tax percentage to apply (0-100)
   use_custom_fee_settings: boolean // If true, use business-specific fee settings; if false, use global platform settings
   platform_fee_type: 'flat' | 'percentage' | 'higher_of_both' | null // Custom fee calculation method (overrides global if use_custom_fee_settings is true)
@@ -351,8 +352,16 @@ export interface TrackingLinkAnalytics {
   total_revenue: number
   ticket_orders: number
   ticket_revenue: number
+  ticket_subtotal: number
+  ticket_tax: number
+  ticket_fees: number // Processing fees from ticket orders
+  ticket_business_paid_fees: number // Fees paid by business (for net calculation)
   table_bookings: number
   table_revenue: number
+  table_subtotal: number
+  table_tax: number
+  table_fees: number // Processing fees from table bookings
+  table_business_paid_fees: number // Fees paid by business (for net calculation)
   last_activity: string | null // ISO date of most recent order/booking
 }
 

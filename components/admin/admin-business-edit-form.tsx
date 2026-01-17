@@ -36,6 +36,7 @@ export function AdminBusinessEditForm({ businessId, business }: AdminBusinessEdi
     platform_fee_type: business.platform_fee_type || 'higher_of_both',
     flat_fee_amount: business.flat_fee_amount?.toString() || '',
     percentage_fee: business.percentage_fee?.toString() || '',
+    show_customer_paid_fees: business.show_customer_paid_fees ?? false,
   })
 
   // Fetch global platform settings
@@ -99,6 +100,7 @@ export function AdminBusinessEditForm({ businessId, business }: AdminBusinessEdi
     if (formData.name !== (business.name || '')) return true
     if (formData.slug !== (business.slug || '')) return true
     if (formData.use_custom_fee_settings !== (business.use_custom_fee_settings || false)) return true
+    if (formData.show_customer_paid_fees !== (business.show_customer_paid_fees ?? false)) return true
 
     // If using custom settings, compare fee fields
     if (formData.use_custom_fee_settings) {
@@ -129,6 +131,7 @@ export function AdminBusinessEditForm({ businessId, business }: AdminBusinessEdi
         name: formData.name,
         slug: formData.slug,
         use_custom_fee_settings: formData.use_custom_fee_settings,
+        show_customer_paid_fees: formData.show_customer_paid_fees,
       }
 
       // Only include custom fee settings if enabled
@@ -340,6 +343,34 @@ export function AdminBusinessEditForm({ businessId, business }: AdminBusinessEdi
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Reporting Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reporting Settings</CardTitle>
+          <CardDescription>
+            Configure what data this business can see in their reports
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between space-x-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="show_customer_paid_fees">Show Customer-Paid Fees</Label>
+              <p className="text-xs text-muted-foreground">
+                When enabled, the business will see processing fees paid by customers in their reports.
+                When disabled, they only see fees they paid directly.
+              </p>
+            </div>
+            <Switch
+              id="show_customer_paid_fees"
+              checked={formData.show_customer_paid_fees}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, show_customer_paid_fees: checked })
+              }
+            />
+          </div>
         </CardContent>
       </Card>
 

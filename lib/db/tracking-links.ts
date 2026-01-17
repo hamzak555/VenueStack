@@ -173,10 +173,10 @@ export async function getTrackingLinkAnalytics(
   const eventIds = events.map(e => e.id)
 
   // Get orders with tracking data
-  // Select subtotal, discount, and tax to calculate revenue excluding processing fees
+  // Select subtotal, discount, tax, and fees to calculate revenue
   let ordersQuery = supabase
     .from('orders')
-    .select('tracking_ref, tracking_link_id, subtotal, discount_amount, tax_amount, status, created_at')
+    .select('tracking_ref, tracking_link_id, subtotal, discount_amount, tax_amount, platform_fee, stripe_fee, platform_fee_payer, stripe_fee_payer, status, created_at')
     .in('event_id', eventIds)
     .eq('status', 'completed')
     .not('tracking_ref', 'is', null)
@@ -190,10 +190,10 @@ export async function getTrackingLinkAnalytics(
   const { data: orders } = await ordersQuery
 
   // Get table bookings with tracking data
-  // Select amount and tax_amount to calculate revenue excluding processing fees
+  // Select amount, tax, and fees to calculate revenue
   let tableBookingsQuery = supabase
     .from('table_bookings')
-    .select('tracking_ref, tracking_link_id, amount, tax_amount, status, created_at')
+    .select('tracking_ref, tracking_link_id, amount, tax_amount, platform_fee, stripe_fee, platform_fee_payer, stripe_fee_payer, status, created_at')
     .in('event_id', eventIds)
     .eq('status', 'confirmed')
     .not('tracking_ref', 'is', null)
@@ -230,8 +230,16 @@ export async function getTrackingLinkAnalytics(
         total_revenue: 0,
         ticket_orders: 0,
         ticket_revenue: 0,
+        ticket_subtotal: 0,
+        ticket_tax: 0,
+        ticket_fees: 0,
+        ticket_business_paid_fees: 0,
         table_bookings: 0,
         table_revenue: 0,
+        table_subtotal: 0,
+        table_tax: 0,
+        table_fees: 0,
+        table_business_paid_fees: 0,
         last_activity: null,
       })
     }
@@ -240,9 +248,23 @@ export async function getTrackingLinkAnalytics(
     const subtotal = parseFloat(order.subtotal?.toString() || '0')
     const discount = parseFloat(order.discount_amount?.toString() || '0')
     const tax = parseFloat(order.tax_amount?.toString() || '0')
-    const orderRevenue = subtotal - discount + tax
+    const platformFee = parseFloat(order.platform_fee?.toString() || '0')
+    const stripeFee = parseFloat(order.stripe_fee?.toString() || '0')
+    const totalFees = platformFee + stripeFee
+
+    // Calculate business-paid fees
+    let businessPaidFees = 0
+    if (order.platform_fee_payer === 'business') businessPaidFees += platformFee
+    if (order.stripe_fee_payer === 'business') businessPaidFees += stripeFee
+
+    const orderSubtotal = subtotal - discount
+    const orderRevenue = orderSubtotal + tax
 
     analytics.ticket_orders += 1
+    analytics.ticket_subtotal += orderSubtotal
+    analytics.ticket_tax += tax
+    analytics.ticket_fees += totalFees
+    analytics.ticket_business_paid_fees += businessPaidFees
     analytics.ticket_revenue += orderRevenue
     analytics.total_orders += 1
     analytics.total_revenue += orderRevenue
@@ -262,8 +284,16 @@ export async function getTrackingLinkAnalytics(
         total_revenue: 0,
         ticket_orders: 0,
         ticket_revenue: 0,
+        ticket_subtotal: 0,
+        ticket_tax: 0,
+        ticket_fees: 0,
+        ticket_business_paid_fees: 0,
         table_bookings: 0,
         table_revenue: 0,
+        table_subtotal: 0,
+        table_tax: 0,
+        table_fees: 0,
+        table_business_paid_fees: 0,
         last_activity: null,
       })
     }
@@ -271,9 +301,22 @@ export async function getTrackingLinkAnalytics(
     // Calculate revenue as amount + tax (excluding processing fees)
     const amount = parseFloat(booking.amount?.toString() || '0')
     const tax = parseFloat(booking.tax_amount?.toString() || '0')
+    const platformFee = parseFloat(booking.platform_fee?.toString() || '0')
+    const stripeFee = parseFloat(booking.stripe_fee?.toString() || '0')
+    const totalFees = platformFee + stripeFee
+
+    // Calculate business-paid fees
+    let businessPaidFees = 0
+    if (booking.platform_fee_payer === 'business') businessPaidFees += platformFee
+    if (booking.stripe_fee_payer === 'business') businessPaidFees += stripeFee
+
     const bookingRevenue = amount + tax
 
     analytics.table_bookings += 1
+    analytics.table_subtotal += amount
+    analytics.table_tax += tax
+    analytics.table_fees += totalFees
+    analytics.table_business_paid_fees += businessPaidFees
     analytics.table_revenue += bookingRevenue
     analytics.total_orders += 1
     analytics.total_revenue += bookingRevenue
